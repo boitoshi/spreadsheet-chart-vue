@@ -1,5 +1,5 @@
 {
-  "name": "spreadsheet-chart-vue",
+  "name": "spreadsheet-chart-vu",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "axios": "^1.7.9",
     "chart.js": "^4.4.7",
-    "dotenv": "^16.4.7",
     "vue": "^3.5.13",
     "vue-chartjs": "^5.3.2"
   },

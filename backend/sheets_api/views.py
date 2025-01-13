@@ -35,9 +35,14 @@ def get_data(request):
         result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE_NAME).execute()
         values = result.get('values', [])
 
-        if not values:
-            return JsonResponse({"message": "No data found."})
-        else:
-            return JsonResponse({"data": values})
+        return JsonResponse(
+            {"data": values} if values else {"message": "No data found."},
+            json_dumps_params={'ensure_ascii': False}
+        )
+
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse(
+            {"error": str(e)}, 
+            status=500, 
+            json_dumps_params={'ensure_ascii': False}
+        )

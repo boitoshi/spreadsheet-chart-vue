@@ -101,7 +101,17 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-INSTALLED_APPS += ['corsheaders']
-MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
+# CORS設定
+INSTALLED_APPS += [
+    'corsheaders',
+]
 
-CORS_ALLOW_ALL_ORIGINS = True  # 必要に応じて特定のオリジンに制限可能
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    *MIDDLEWARE,
+]
+
+# Vue側のURLを許可
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # VueのデフォルトURL
+]
