@@ -3,6 +3,7 @@
     <LineChart />
     <StockTable />
     <ProfitChart />
+    <Spreadsheet />
   </div>
 </template>
 
@@ -10,6 +11,7 @@
 import LineChart from "./components/LineChart.vue";
 import StockTable from "./components/StockTable.vue";
 import ProfitChart from "./components/ProfitChart.vue";
+import Spreadsheet from "./components/Spreadsheet.vue";
 </script>
 
 <style>

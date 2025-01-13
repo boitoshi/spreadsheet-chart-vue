@@ -1,29 +1,43 @@
-import os
 from django.http import JsonResponse
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
+from django.conf import settings
+import os
+from pathlib import Path
 
-def get_spreadsheet_data(request):
-    # サービスアカウントの認証情報を設定
-    service_account_file = os.getenv('SERVICE_ACCOUNT_KEY_PATH')
-    spreadsheet_id = os.getenv('SPREADSHEET_ID')
-    
-    credentials = Credentials.from_service_account_file(
-        service_account_file,
-        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
-    )
+def get_data(request):
+    try:
+        # 環境変数から直接取得（settingsを経由）
+        credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS
+        spreadsheet_id = settings.SPREADSHEET_ID
 
-    # スプレッドシートサービスを構築
-    service = build('sheets', 'v4', credentials=credentials)
-    sheet = service.spreadsheets()
+        if not credentials_path or not Path(credentials_path).exists():
+            return JsonResponse(
+                {"error": f"Service account file not found at {credentials_path}"}, 
+                status=404
+            )
+        
+        # 認証情報の設定
+        creds = Credentials.from_service_account_file(
+            credentials_path,
+            scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+        )
 
-    # データを読み込む
-    range_name = "Sheet1!A1:E10"  # 必要に応じて範囲を変更
-    result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
-    values = result.get('values', [])
+        # スプレッドシートAPIを利用するためのクライアント作成
+        service = build('sheets', 'v4', credentials=creds)
+        sheet = service.spreadsheets()
 
-    if not values:
-        return JsonResponse({"message": "データが見つかりませんでした！"}, status=404)
+        # スプレッドシートのIDと範囲を指定
+        SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+        RANGE_NAME = "データ記録!A1:J39"
 
-    # データをJSON形式で返す
-    return JsonResponse({"data": values})
+        # スプレッドシートからデータを取得
+        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=RANGE_NAME).execute()
+        values = result.get('values', [])
+
+        if not values:
+            return JsonResponse({"message": "No data found."})
+        else:
+            return JsonResponse({"data": values})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
