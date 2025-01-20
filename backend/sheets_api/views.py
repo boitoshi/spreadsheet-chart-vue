@@ -25,7 +25,7 @@ def filter_and_calculate(
     filtered_data = []
     for row in data_rows:
         # 日付が存在しない場合はスキップ
-        if len(row) <= date_idx:
+        if len(row) <= max(date_idx, stock_idx, purchase_idx, price_idx, quantity_idx):
             continue
         
         date_str = row[date_idx]
@@ -39,8 +39,7 @@ def filter_and_calculate(
             continue
         
         # 銘柄指定をフィルタリング
-        if stock_symbol and len(row) > stock_idx:
-            if row[stock_idx] != stock_symbol:
+        if stock_symbol and row[stock_idx] != stock_symbol:
                 continue
         
         # 損益計算
@@ -60,7 +59,7 @@ def get_data(request):
     try:
         # クエリパラメータを取得
         start_month_str = request.GET.get('start_month', '2023-01')
-        end_month_str = request.GET.get('end_month', '2023-12')
+        end_month_str = request.GET.get('end_month', '2024-12')
         stock_symbol = request.GET.get('stock', None)
 
         # start_month と end_month の変換
@@ -95,10 +94,8 @@ def get_data(request):
         service = build('sheets', 'v4', credentials=creds)
         sheet = service.spreadsheets()
 
-        # スプレッドシートのIDと範囲を指定
-        RANGE_NAME = "データ記録!A1:L39"
-
-        # スプレッドシートからデータを取得
+        # スプレッドシートのIDと範囲を指定してデータを取得
+        RANGE_NAME = "データ記録!A1:L" # 列を追加するときはLを変更
         result = sheet.values().get(
             spreadsheetId=spreadsheet_id,
             range=RANGE_NAME
@@ -119,7 +116,7 @@ def get_data(request):
         try:
             date_idx            = headers.index('月末日付') 
             stock_idx           = headers.index('銘柄')
-            purchase_idx        = headers.index('取得価格')  # 取得価格
+            purchase_idx        = headers.index('取得価格（円）')  # 取得価格
             # purchase_date_idx   = headers.index('取得日付') # 取得日付
             quantity_idx        = headers.index('保有株数')     # 保有株数があれば
             price_idx           = headers.index('報告月末価格（円）')   
