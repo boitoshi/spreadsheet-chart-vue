@@ -10,48 +10,39 @@ def calculate_profit_or_loss(purchase_price, current_price, quantity=1):
         return (float(current_price) - float(purchase_price)) * int(quantity)
     except:
         return 0.0
+
+def format_row_to_object(row, headers_index):
+    return {
+        "label": row[headers_index['date_idx']],      # 月末日付
+        "stock": row[headers_index['stock_idx']],     # 銘柄
+        "value": row[headers_index['price_idx']],     # 報告月末価格
+        "purchase": row[headers_index['purchase_idx']], # 取得価格
+        "quantity": row[headers_index['quantity_idx']], # 保有株数
+        "pl_value": calculate_profit_or_loss(         # 損益
+            row[headers_index['purchase_idx']], 
+            row[headers_index['price_idx']], 
+            row[headers_index['quantity_idx']]
+        )
+    }
     
-def filter_and_calculate(
-    data_rows,
-    start_month,
-    end_month,
-    stock_symbol,
-    date_idx,
-    stock_idx,
-    purchase_idx,
-    price_idx,
-    quantity_idx
-):
+def filter_and_calculate(data_rows, start_month, end_month, stock_symbol, headers_index):
     filtered_data = []
     for row in data_rows:
-        # 日付が存在しない場合はスキップ
-        if len(row) <= max(date_idx, stock_idx, purchase_idx, price_idx, quantity_idx):
+        if len(row) <= max(headers_index.values()):
             continue
         
-        date_str = row[date_idx]
         try:
-            row_date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+            row_date = datetime.datetime.strptime(row[headers_index['date_idx']], '%Y-%m-%d')
         except ValueError:
-            continue  # 日付形式が異なる場合はスキップ
+            continue
         
-        # 指定期間外をスキップ
         if not (start_month <= row_date <= end_month):
             continue
         
-        # 銘柄指定をフィルタリング
-        if stock_symbol and row[stock_idx] != stock_symbol:
-                continue
-        
-        # 損益計算
-        purchase_price = row[purchase_idx]
-        current_price = row[price_idx]
-        quantity = row[quantity_idx]
-        
-        pl_value = calculate_profit_or_loss(purchase_price, current_price, quantity)
-        
-        # 行末に損益情報を追加
-        extended_row = row + [pl_value]
-        filtered_data.append(extended_row)
+        if stock_symbol and row[headers_index['stock_idx']] != stock_symbol:
+            continue
+            
+        filtered_data.append(format_row_to_object(row, headers_index))
     
     return filtered_data
 
@@ -127,17 +118,23 @@ def get_data(request):
                 json_dumps_params={'ensure_ascii': False}
             )
         
+        headers_index = {
+            'date_idx': date_idx,
+            'stock_idx': stock_idx,
+            'purchase_idx': purchase_idx,
+            'price_idx': price_idx,
+            'quantity_idx': quantity_idx
+        }
+
+
+        
         # フィルタリング
         filtered_data = filter_and_calculate(
             data_rows,
             start_month,
             end_month,
             stock_symbol,
-            date_idx,
-            stock_idx,
-            purchase_idx,
-            price_idx,
-            quantity_idx
+            headers_index     # ← これだけでOK！
         )
 
         return JsonResponse(
