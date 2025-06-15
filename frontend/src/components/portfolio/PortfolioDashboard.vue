@@ -64,7 +64,7 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { usePortfolioData } from '../composables/usePortfolioData.js'
+import { usePortfolioData } from '../../composables/usePortfolioData.js'
 
 const {
   holdings,

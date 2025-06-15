@@ -34,7 +34,7 @@
   
   <script setup>
   import { ref, watch, onMounted } from 'vue'
-  import { useSpreadsheetData } from '../composables/useSpreadsheetData'
+  import { useSpreadsheetData } from '../../composables/useSpreadsheetData.js'
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale, Filler } from 'chart.js'
   import { Line } from 'vue-chartjs'
   
