@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared'))
 
 from stock_collector import StockDataCollector
 from sheets_writer import SheetsDataWriter
-from settings import GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
+from settings import GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID, CURRENCY_SETTINGS
 
 
 class PortfolioDataCollector:
@@ -41,6 +41,13 @@ class PortfolioDataCollector:
         """
         print(f"\n📊 {year}年{month}月のポートフォリオ分析を開始...")
         
+        # 為替レート事前取得（設定で有効な場合）
+        exchange_rates = {}
+        if CURRENCY_SETTINGS.get('update_rates_with_stocks', True):
+            print("\n💱 為替レート取得中...")
+            exchange_rates = self.stock_collector.currency_converter.get_all_current_rates()
+            print(f"✅ {len(exchange_rates)}通貨の為替レート取得完了")
+        
         # Google Sheets設定
         if not self.sheets_writer.setup_google_sheets():
             print("❌ Google Sheets接続に失敗しました")
@@ -50,6 +57,7 @@ class PortfolioDataCollector:
         self.sheets_writer.setup_portfolio_sheet()
         self.sheets_writer.setup_data_record_sheet()
         self.sheets_writer.setup_performance_sheet()
+        self.sheets_writer.setup_currency_sheet()
         
         # ポートフォリオ情報取得
         portfolio_data = self.sheets_writer.get_portfolio_data()
@@ -132,6 +140,10 @@ class PortfolioDataCollector:
         if results:
             self.sheets_writer.save_performance_data(results)
         
+        # 為替レートを保存
+        if exchange_rates and CURRENCY_SETTINGS.get('update_rates_with_stocks', True):
+            self.sheets_writer.save_currency_rates(exchange_rates, last_day)
+        
         if results:
             print(f"\n🎉 {year}年{month}月のデータ取得・分析が完了しました！")
             print("   Django backendからWebアプリで確認できます")
@@ -182,8 +194,20 @@ class PortfolioDataCollector:
                 
                 elif choice == '4':
                     # 為替レート表示
+                    print("\n💱 現在の為替レート取得中...")
                     currency_converter = self.stock_collector.currency_converter
-                    currency_converter.display_current_rates()
+                    rates = currency_converter.display_current_rates()
+                    
+                    # 為替レートをシートに保存するか確認
+                    save_to_sheet = input("\n为替レートをスプレッドシートに保存しますか？ (y/n): ").strip().lower()
+                    if save_to_sheet == 'y':
+                        if not self.sheets_writer.setup_google_sheets():
+                            print("❌ Google Sheets接続に失敗しました")
+                            continue
+                        
+                        self.sheets_writer.setup_currency_sheet()
+                        self.sheets_writer.save_currency_rates(rates, datetime.now())
+                        print("✅ 為替レートをスプレッドシートに保存しました")
                 
                 elif choice == '3':
                     # シート初期化
@@ -196,6 +220,7 @@ class PortfolioDataCollector:
                         self.sheets_writer.setup_portfolio_sheet()
                         self.sheets_writer.setup_data_record_sheet()
                         self.sheets_writer.setup_performance_sheet()
+                        self.sheets_writer.setup_currency_sheet()
                         print("✅ シートの初期化が完了しました")
                 
                 else:

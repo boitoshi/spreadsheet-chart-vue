@@ -24,12 +24,9 @@ class SheetsDataWriter:
         self.gc = None
         self.spreadsheet = None
         
-        # デフォルト銘柄テンプレート
-        self.default_stocks = {
-            "7974.T": {"name": "任天堂", "purchase_price": 5500, "shares": 10, "purchase_date": "2024-01-15"},
-            "2432.T": {"name": "DeNA", "purchase_price": 2100, "shares": 5, "purchase_date": "2024-02-10"},
-            "NVDA": {"name": "エヌビディア", "purchase_price": 850, "shares": 2, "purchase_date": "2024-03-05"}
-        }
+        # デフォルト銘柄テンプレート（外貨情報含む）
+        from settings import DEFAULT_STOCKS
+        self.default_stocks = DEFAULT_STOCKS
     
     def setup_google_sheets(self):
         """Google Sheetsの認証設定"""
@@ -68,29 +65,31 @@ class SheetsDataWriter:
                 portfolio_sheet = self.spreadsheet.add_worksheet("ポートフォリオ", 100, 10)
                 print("📋 新しいポートフォリオシートを作成しました")
             
-            # ヘッダー設定
+            # ヘッダー設定（外貨情報を追加）
             headers = [
                 "銘柄コード", "銘柄名", "取得日", "取得単価（円）", 
-                "保有株数", "取得額合計", "最終更新", "備考"
+                "保有株数", "取得額合計", "通貨", "外国株フラグ", "最終更新", "備考"
             ]
-            portfolio_sheet.update('A1:H1', [headers])
+            portfolio_sheet.update('A1:J1', [headers])
             
             # スタイル設定（ヘッダー）
-            portfolio_sheet.format('A1:H1', {
+            portfolio_sheet.format('A1:J1', {
                 'backgroundColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8},
                 'textFormat': {'bold': True}
             })
             
-            # デフォルトデータ投入
+            # デフォルトデータ投入（外貨情報含む）
             row = 2
             for symbol, info in self.default_stocks.items():
-                portfolio_sheet.update(f'A{row}:H{row}', [[
+                portfolio_sheet.update(f'A{row}:J{row}', [[
                     symbol,
                     info['name'],
                     info['purchase_date'],
                     info['purchase_price'],
                     info['shares'],
                     f"=D{row}*E{row}",  # 取得額合計（自動計算）
+                    info.get('currency', 'JPY'),  # 通貨
+                    '○' if info.get('is_foreign', False) else '×',  # 外国株フラグ
                     datetime.now().strftime('%Y-%m-%d'),
                     "デフォルト設定"
                 ]])
@@ -164,6 +163,65 @@ class SheetsDataWriter:
         except Exception as e:
             print(f"損益レポートシート設定エラー: {e}")
             return None
+    
+    def setup_currency_sheet(self):
+        """為替レートシートを初期設定"""
+        try:
+            try:
+                currency_sheet = self.spreadsheet.worksheet("為替レート")
+                print("✅ 為替レートシートは既に存在します")
+                return currency_sheet
+            except gspread.WorksheetNotFound:
+                currency_sheet = self.spreadsheet.add_worksheet("為替レート", 500, 8)
+                print("💱 新しい為替レートシートを作成しました")
+            
+            # ヘッダー設定
+            headers = [
+                "取得日", "通貨ペア", "レート", "前回レート", "変動率(%)", 
+                "最高値", "最安値", "更新日時"
+            ]
+            currency_sheet.update('A1:H1', [headers])
+            
+            # スタイル設定
+            currency_sheet.format('A1:H1', {
+                'backgroundColor': {'red': 0.7, 'green': 0.7, 'blue': 0.9},
+                'textFormat': {'bold': True}
+            })
+            
+            print("✅ 為替レートシートの初期設定完了")
+            return currency_sheet
+            
+        except Exception as e:
+            print(f"為替レートシート設定エラー: {e}")
+            return None
+    
+    def save_currency_rates(self, exchange_rates, date):
+        """為替レートをスプレッドシートに保存"""
+        try:
+            currency_sheet = self.spreadsheet.worksheet("為替レート")
+            
+            for currency, rate in exchange_rates.items():
+                if currency == 'JPY':
+                    continue
+                
+                # データを追加
+                currency_pair = f"{currency}/JPY"
+                currency_data = [
+                    date.strftime('%Y-%m-%d'),
+                    currency_pair,
+                    round(rate, 2),
+                    "",  # 前回レート（今後実装）
+                    "",  # 変動率（今後実装）
+                    "",  # 最高値（今後実装）
+                    "",  # 最安値（今後実装）
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                ]
+                currency_sheet.append_row(currency_data)
+            
+            print(f"✅ 為替レート {len(exchange_rates)-1}件を保存しました")
+            
+        except Exception as e:
+            print(f"為替レート保存エラー: {e}")
     
     def get_portfolio_data(self):
         """ポートフォリオデータを取得"""
