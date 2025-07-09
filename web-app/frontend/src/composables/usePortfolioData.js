@@ -24,22 +24,45 @@ export const usePortfolioData = () => {
   })
   
   /**
-   * スプレッドシートからデータを取得
+   * ダミーデータを取得（バックエンドなし開発用）
    */
   const fetchPortfolioData = async (params = {}) => {
     loading.value = true
     error.value = null
     
     try {
-      const queryParams = new URLSearchParams(params)
-      const response = await fetch(`/api/get_data?${queryParams}`)
+      // ダミーデータを設定
+      const dummyData = [
+        {
+          stock: 'トヨタ自動車',
+          quantity: 100,
+          purchasePrice: 2500,
+          currentPrice: 2800
+        },
+        {
+          stock: 'ソフトバンク',
+          quantity: 200,
+          purchasePrice: 1200,
+          currentPrice: 1150
+        },
+        {
+          stock: '任天堂',
+          quantity: 50,
+          purchasePrice: 5600,
+          currentPrice: 6200
+        },
+        {
+          stock: 'DeNA',
+          quantity: 150,
+          purchasePrice: 2100,
+          currentPrice: 2350
+        }
+      ]
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      // 実際のAPIを模擬した遅延
+      await new Promise(resolve => setTimeout(resolve, 500))
       
-      const result = await response.json()
-      holdings.value = result.data || []
+      holdings.value = dummyData
       
     } catch (err) {
       error.value = err.message

@@ -86,7 +86,14 @@ const formatCurrency = (amount) => {
 }
 
 onMounted(() => {
-  fetchPortfolioData()
+  // 即座にダミーデータを設定（デバッグ用）
+  holdings.value = [
+    { stock: 'トヨタ自動車', quantity: 100, purchasePrice: 2500, currentPrice: 2800 },
+    { stock: 'ソフトバンク', quantity: 200, purchasePrice: 1200, currentPrice: 1150 },
+    { stock: '任天堂', quantity: 50, purchasePrice: 5600, currentPrice: 6200 },
+    { stock: 'DeNA', quantity: 150, purchasePrice: 2100, currentPrice: 2350 }
+  ]
+  loading.value = false
 })
 </script>
 

@@ -1,15 +1,19 @@
 <template>
   <div id="app">
-    <nav class="navbar">
-      <router-link to="/" class="nav-link">ダッシュボード</router-link>
-      <router-link to="/input" class="nav-link">手動入力</router-link>
-      <router-link to="/report/2024-01" class="nav-link">月次レポート</router-link>
-    </nav>
-    <router-view />
+    <h1>Vue.js 動作テスト</h1>
+    <p>現在時刻: {{ currentTime }}</p>
+    <button @click="updateTime">時刻更新</button>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
+
+const currentTime = ref(new Date().toLocaleString())
+
+const updateTime = () => {
+  currentTime.value = new Date().toLocaleString()
+}
 </script>
 
 <style>

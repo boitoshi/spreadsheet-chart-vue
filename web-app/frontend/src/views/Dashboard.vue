@@ -4,6 +4,8 @@
     
     <div class="dashboard-grid">
       <div class="dashboard-card">
+        <h2>テスト表示</h2>
+        <p>ダミーデータが表示されているか確認中...</p>
         <PortfolioDashboard />
       </div>
       
