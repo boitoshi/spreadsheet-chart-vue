@@ -50,10 +50,17 @@ spreadsheet-chart-vue/
 
 ### ②Webアプリケーションフロー
 
-#### フロントエンド
-- **開発サーバー**: `cd web-app/frontend && npm run dev`
+#### フロントエンド（ポート3000で動作）
+- **開発サーバー**: `cd web-app/frontend && npm run dev` 
+  - アクセス: http://localhost:3000/
+  - 自動的にポート3000・ホスト0.0.0.0で起動
 - **ビルド**: `cd web-app/frontend && npm run build`
 - **プレビュー**: `cd web-app/frontend && npm run preview`
+- **依存関係インストール**: `cd web-app/frontend && npm install`
+
+#### 注意点
+- フロントエンドは現在ダミーデータで完全動作
+- 実際のデータ連携はバックエンド実装後に対応予定
 
 #### バックエンド  
 - **開発サーバー**: `cd web-app/backend && python manage.py runserver`
@@ -64,11 +71,20 @@ spreadsheet-chart-vue/
 - **環境変数設定**: web-app/backend/.env ファイルで GOOGLE_APPLICATION_CREDENTIALS と SPREADSHEET_ID を設定
 - **シート構成**: ポートフォリオ（銘柄管理）、データ記録（Django backend用）、損益レポート
 
-## 主要コンポーネント
-- `ProfitChart.vue` - 損益推移チャート
-- `PortfolioDashboard.vue` - ポートフォリオダッシュボード
-- `BlogExport.vue` - ブログエクスポート機能
-- `MonthlyReport.vue` - 月次レポート表示
+## 主要コンポーネント（現在の実装状況）
+
+### フロントエンド（完成済み）
+- `App.vue` - 統合ダッシュボード（全機能を1ファイルに集約）
+  - 保有銘柄一覧と損益表示
+  - ポートフォリオ構成円グラフ（パーセンテージ表示）
+  - 総損益推移グラフ（期間選択：6ヶ月/1年/全期間）
+  - 銘柄別損益推移グラフ（取得時期ベース・購入タイミング表示）
+  - 詳細取引履歴表示（クリック展開）
+  - 買い増し対応（複数回購入の平均価格自動計算）
+
+### バックエンド（未実装）
+- Django API部分は現在未実装
+- フロントエンドはダミーデータで動作中
 
 ## データフロー
 ### ①データ収集フロー（月次実行・独立）

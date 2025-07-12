@@ -22,23 +22,30 @@ import { Line } from 'vue-chartjs'
 // Chart.jsのプラグイン登録
 ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale)
 
-//銘柄データ（仮）
+//銘柄データ（ダミー）
 const allStockData = ref([
-  { name: 'DeNA', data: [2100, 2150, 2120] },
-  { name: '任天堂', data: [5600, 5700, 5650] },
+  { name: 'トヨタ自動車', data: [2500, 2600, 2700, 2750, 2800, 2850] },
+  { name: 'ソフトバンク', data: [1200, 1180, 1150, 1200, 1150, 1170] },
+  { name: '任天堂', data: [5600, 5800, 6000, 6100, 6200, 6150] },
+  { name: 'DeNA', data: [2100, 2200, 2250, 2300, 2350, 2400] },
 ]);
 
 const stockOptions = ref(allStockData.value.map((stock) => stock.name));
 const selectedStock = ref('all');
 
 const chartData = ref({
-  labels: ['1月', '2月', '3月'], // 月別ラベル
-  datasets: allStockData.value.map(stock => ({
-    label: stock.name,
-    backgroundColor: stock.name === "DeNA" ? '#FF6384' : '#36A2EB',
-    borderColor: stock.name === "DeNA" ? '#FF6384' : '#36A2EB',
-    data: stock.data,
-  })),
+  labels: ['1月', '2月', '3月', '4月', '5月', '6月'], // 月別ラベル
+  datasets: allStockData.value.map((stock, index) => {
+    const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'];
+    return {
+      label: stock.name,
+      backgroundColor: colors[index % colors.length],
+      borderColor: colors[index % colors.length],
+      data: stock.data,
+      fill: false,
+      tension: 0.1
+    };
+  }),
 });
 
 const chartOptions = ref({
@@ -48,38 +55,41 @@ const chartOptions = ref({
 
 // グラフデータ更新関数
 const updateChartData = () => {
-  const allColors = {
-    "DeNA": { background: '#FF6384', border: '#FF6384' },
-    "任天堂": { background: '#36A2EB', border: '#36A2EB' }
-  };
-
+  const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'];
+  
   let updatedDatasets;
 
   if (selectedStock.value === 'all') {
-    updatedDatasets = allStockData.value.map(stock => ({
+    updatedDatasets = allStockData.value.map((stock, index) => ({
       label: stock.name,
-      backgroundColor: allColors[stock.name]?.background || '#CCCCCC',
-      borderColor: allColors[stock.name]?.border || '#CCCCCC',
+      backgroundColor: colors[index % colors.length],
+      borderColor: colors[index % colors.length],
       data: stock.data,
+      fill: false,
+      tension: 0.1
     }));
   } else {
-    const stock = allStockData.value.find(stock => stock.name === selectedStock.value);
+    const stockIndex = allStockData.value.findIndex(stock => stock.name === selectedStock.value);
+    const stock = allStockData.value[stockIndex];
+    
     if (stock) {
       updatedDatasets = [{
         label: stock.name,
-        backgroundColor: allColors[stock.name]?.background || '#CCCCCC',
-        borderColor: allColors[stock.name]?.border || '#CCCCCC',
+        backgroundColor: colors[stockIndex % colors.length],
+        borderColor: colors[stockIndex % colors.length],
         data: stock.data,
+        fill: false,
+        tension: 0.1
       }];
     } else {
       console.warn("選択した銘柄がデータに見つかりません: ", selectedStock.value);
-      updatedDatasets = []; // データがない場合は空にする
+      updatedDatasets = [];
     }
   }
 
   // 新しいオブジェクトとして設定
   chartData.value = {
-    labels: chartData.value.labels, // ラベルはそのまま再利用
+    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
     datasets: updatedDatasets,
   };
 };

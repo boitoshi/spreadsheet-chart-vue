@@ -33,16 +33,17 @@
 </template>
   
   <script setup>
-  import { ref, watch, onMounted } from 'vue'
-  import { useSpreadsheetData } from '../../composables/useSpreadsheetData.js'
+  import { ref, onMounted } from 'vue'
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale, Filler } from 'chart.js'
   import { Line } from 'vue-chartjs'
   
   // Chart.jsのプラグイン登録
-  ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale,Filler)
+  ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale, Filler)
   
-  // データ取得フック使用
-  const { data, error, loading, fetchData } = useSpreadsheetData()
+  // データを直接定義
+  const data = ref(null)
+  const error = ref(null)
+  const loading = ref(false)
 
   const stockOptions = ref([])
   const selectedStock = ref('all')
@@ -175,7 +176,17 @@
   
   // 初期データ取得
   onMounted(() => {
-    fetchData()
+    console.log('ProfitChart mounted')
+    // ダミーデータを直接設定
+    data.value = [
+      { label: '2024-01-01', stock: 'トヨタ自動車', quantity: 100, purchase: 2500, value: 2600 },
+      { label: '2024-01-01', stock: 'ソフトバンク', quantity: 200, purchase: 1200, value: 1180 },
+      { label: '2024-02-01', stock: 'トヨタ自動車', quantity: 100, purchase: 2500, value: 2700 },
+      { label: '2024-02-01', stock: 'ソフトバンク', quantity: 200, purchase: 1200, value: 1150 },
+    ]
+    
+    stockOptions.value = ['トヨタ自動車', 'ソフトバンク']
+    updateProfitChartData()
   })
   </script>
   

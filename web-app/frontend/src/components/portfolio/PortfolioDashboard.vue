@@ -63,21 +63,49 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { usePortfolioData } from '../../composables/usePortfolioData.js'
+import { ref, computed, onMounted } from 'vue'
 
-const {
-  holdings,
-  loading,
-  error,
-  portfolioSummary,
-  holdingsWithCalc,
-  fetchPortfolioData
-} = usePortfolioData()
+// composableを使わずに直接定義
+const loading = ref(false)
+const error = ref(null)
+const holdings = ref([])
 
-/**
- * 通貨フォーマット
- */
+// 計算ロジックを直接定義
+const holdingsWithCalc = computed(() => {
+  return holdings.value.map(holding => {
+    const totalPurchase = holding.purchasePrice * holding.quantity
+    const totalCurrent = holding.currentPrice * holding.quantity
+    const profitLoss = totalCurrent - totalPurchase
+    const profitLossRate = ((profitLoss / totalPurchase) * 100)
+    
+    return {
+      ...holding,
+      totalPurchase,
+      totalCurrent,
+      profitLoss,
+      profitLossRate
+    }
+  })
+})
+
+const portfolioSummary = computed(() => {
+  if (!holdings.value.length) return null
+  
+  const summary = holdingsWithCalc.value.reduce((acc, holding) => {
+    acc.totalPurchase += holding.totalPurchase
+    acc.totalCurrent += holding.totalCurrent
+    acc.totalProfitLoss += holding.profitLoss
+    return acc
+  }, {
+    totalPurchase: 0,
+    totalCurrent: 0,
+    totalProfitLoss: 0
+  })
+  
+  summary.totalProfitLossRate = (summary.totalProfitLoss / summary.totalPurchase) * 100
+  return summary
+})
+
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('ja-JP', {
     style: 'currency',
@@ -86,14 +114,15 @@ const formatCurrency = (amount) => {
 }
 
 onMounted(() => {
-  // 即座にダミーデータを設定（デバッグ用）
+  console.log('PortfolioDashboard mounted - 簡素版')
+  // 即座にダミーデータを設定
   holdings.value = [
     { stock: 'トヨタ自動車', quantity: 100, purchasePrice: 2500, currentPrice: 2800 },
     { stock: 'ソフトバンク', quantity: 200, purchasePrice: 1200, currentPrice: 1150 },
     { stock: '任天堂', quantity: 50, purchasePrice: 5600, currentPrice: 6200 },
     { stock: 'DeNA', quantity: 150, purchasePrice: 2100, currentPrice: 2350 }
   ]
-  loading.value = false
+  console.log('データ設定完了:', holdings.value)
 })
 </script>
 
