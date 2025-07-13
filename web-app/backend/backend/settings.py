@@ -115,5 +115,6 @@ MIDDLEWARE = [
 
 # Vue側のURLを許可
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Vue開発サーバー（カスタムポート）
     "http://localhost:5173",  # VueのデフォルトURL
 ]

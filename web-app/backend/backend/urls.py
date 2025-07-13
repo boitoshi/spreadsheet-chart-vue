@@ -21,4 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # ルートパス直下にget_data/をもってくる
     path('', include('sheets.urls')),
+    # ポートフォリオAPI
+    path('', include('portfolio.urls')),
 ]
