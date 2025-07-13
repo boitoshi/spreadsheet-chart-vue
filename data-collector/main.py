@@ -95,20 +95,17 @@ class PortfolioDataCollector:
             if metrics is None:
                 continue
             
-            # Django backendが期待するデータ記録形式
+            # 市場データ専用のデータ記録形式（保有情報を除外）
             data_record_results.append([
                 last_day.strftime('%Y-%m-%d'),  # 月末日付
-                symbol,                         # 銘柄
-                purchase_price,                 # 取得価格（円）
-                metrics['month_end_price'],     # 報告月末価格（円）
-                shares,                         # 保有株数
+                symbol,                         # 銘柄コード
+                metrics['month_end_price'],     # 月末価格（円）
                 metrics['highest_price'],       # 最高値
                 metrics['lowest_price'],        # 最安値
                 metrics['average_price'],       # 平均価格
                 metrics['monthly_change'],      # 月間変動率(%)
                 metrics['average_volume'],      # 平均出来高
                 datetime.now().strftime('%Y-%m-%d %H:%M:%S'),  # 取得日時
-                f"自動取得 ({name})"             # 備考
             ])
             
             # 損益レポート用データ準備

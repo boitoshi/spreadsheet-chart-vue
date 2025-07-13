@@ -113,15 +113,15 @@ class SheetsDataWriter:
                 data_sheet = self.spreadsheet.add_worksheet("データ記録", 1000, 15)
                 print("📈 新しいデータ記録シートを作成しました")
             
-            # Django backendが期待するヘッダー名を使用
+            # 市場データ専用ヘッダー（保有情報を除外）
             headers = [
-                "月末日付", "銘柄", "取得価格（円）", "報告月末価格（円）", "保有株数",
-                "最高値", "最安値", "平均価格", "月間変動率(%)", "平均出来高", "取得日時", "備考"
+                "月末日付", "銘柄コード", "月末価格（円）", "最高値", "最安値", 
+                "平均価格", "月間変動率(%)", "平均出来高", "取得日時"
             ]
-            data_sheet.update('A1:L1', [headers])
+            data_sheet.update('A1:I1', [headers])
             
             # スタイル設定
-            data_sheet.format('A1:L1', {
+            data_sheet.format('A1:I1', {
                 'backgroundColor': {'red': 0.7, 'green': 0.9, 'blue': 0.7},
                 'textFormat': {'bold': True}
             })
@@ -234,7 +234,7 @@ class SheetsDataWriter:
             return []
     
     def save_data_record(self, data_record_results):
-        """データ記録をスプレッドシートに保存（Django backend用）"""
+        """データ記録をスプレッドシートに保存（市場データ専用）"""
         try:
             data_sheet = self.spreadsheet.worksheet("データ記録")
             
@@ -242,7 +242,7 @@ class SheetsDataWriter:
             for data in data_record_results:
                 data_sheet.append_row(data)
             
-            print(f"✅ データ記録 {len(data_record_results)}件を保存しました（Django backend対応）")
+            print(f"✅ データ記録 {len(data_record_results)}件を保存しました（市場データ専用）")
             
         except Exception as e:
             print(f"データ記録保存エラー: {e}")
