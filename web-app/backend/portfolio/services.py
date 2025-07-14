@@ -64,7 +64,7 @@ class GoogleSheetsService:
             return []
     
     def get_latest_performance_data(self) -> List[Dict]:
-        """損益レポートシートから最新の損益データを取得"""
+        """損益レポートシートから最新の損益データを取得（重複除去）"""
         try:
             performance_sheet = self.spreadsheet.worksheet(SHEET_NAMES['PERFORMANCE'])
             records = performance_sheet.get_all_records()
@@ -77,14 +77,17 @@ class GoogleSheetsService:
             latest_date = max(record['日付'] for record in records if record['日付'])
             latest_records = [r for r in records if r['日付'] == latest_date]
             
-            return latest_records
+            # 重複除去：同じ銘柄コードが複数ある場合、最新の更新日時のもののみ残す
+            unique_records = self._remove_duplicate_records(latest_records)
+            
+            return unique_records
             
         except Exception as e:
             print(f"損益データ取得エラー: {e}")
             return []
     
     def get_performance_history(self, period: str = 'all') -> List[Dict]:
-        """損益推移履歴を期間指定で取得"""
+        """損益推移履歴を期間指定で取得（重複除去）"""
         try:
             performance_sheet = self.spreadsheet.worksheet(SHEET_NAMES['PERFORMANCE'])
             records = performance_sheet.get_all_records()
@@ -95,8 +98,11 @@ class GoogleSheetsService:
             # 期間フィルタリング
             filtered_records = self._filter_by_period(records, period)
             
+            # 日付・銘柄の重複除去
+            deduplicated_records = self._remove_duplicates_by_date_stock(filtered_records)
+            
             # 日付でグループ化して月次サマリーを作成
-            monthly_summary = self._create_monthly_summary(filtered_records)
+            monthly_summary = self._create_monthly_summary(deduplicated_records)
             
             return monthly_summary
             
@@ -164,6 +170,49 @@ class GoogleSheetsService:
         # 日付でソート
         sorted_data = sorted(monthly_data.values(), key=lambda x: x['date'])
         return sorted_data
+    
+    def _remove_duplicate_records(self, records: List[Dict]) -> List[Dict]:
+        """同じ銘柄コードの重複レコードを除去（最新更新日時を優先）"""
+        stock_records = {}
+        
+        for record in records:
+            stock_code = record.get('銘柄コード', '')
+            if not stock_code:
+                continue
+            
+            # 更新日時を取得（文字列として比較）
+            update_time = record.get('更新日時', '')
+            
+            # 既存レコードがないか、より新しい更新日時の場合に更新
+            if (stock_code not in stock_records or 
+                update_time > stock_records[stock_code].get('更新日時', '')):
+                stock_records[stock_code] = record
+        
+        return list(stock_records.values())
+    
+    def _remove_duplicates_by_date_stock(self, records: List[Dict]) -> List[Dict]:
+        """日付・銘柄コードの組み合わせで重複レコードを除去（最新更新日時を優先）"""
+        unique_records = {}
+        
+        for record in records:
+            date_str = record.get('日付', '')
+            stock_code = record.get('銘柄コード', '')
+            
+            if not date_str or not stock_code:
+                continue
+            
+            # 日付・銘柄コードの組み合わせをキーとする
+            key = f"{date_str}_{stock_code}"
+            
+            # 更新日時を取得（文字列として比較）
+            update_time = record.get('更新日時', '')
+            
+            # 既存レコードがないか、より新しい更新日時の場合に更新
+            if (key not in unique_records or 
+                update_time > unique_records[key].get('更新日時', '')):
+                unique_records[key] = record
+        
+        return list(unique_records.values())
 
 
 class PortfolioDataTransformer:
