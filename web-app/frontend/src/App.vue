@@ -5,8 +5,18 @@
     </header>
     
     <main>
+      <!-- エラー表示 -->
+      <div v-if="error" class="error-message">
+        {{ error }}
+      </div>
+      
+      <!-- ローディング表示 -->
+      <div v-if="isLoading" class="loading-message">
+        データを読み込み中...
+      </div>
+      
       <!-- サマリーカード -->
-      <section class="summary">
+      <section class="summary" v-if="!isLoading && !error">
         <div class="card">
           <h3>総評価額</h3>
           <p class="big-number">{{ totalValue.toLocaleString() }}円</p>
@@ -20,7 +30,7 @@
       </section>
       
       <!-- 保有銘柄一覧 -->
-      <section class="holdings">
+      <section class="holdings" v-if="!isLoading && !error">
         <h2>保有銘柄</h2>
         <table>
           <thead>
@@ -38,26 +48,27 @@
               <tr class="stock-row" @click="toggleDetails(stock.name)">
                 <td>
                   {{ stock.name }}
-                  <span v-if="stock.transactions.length > 1" class="detail-icon">📊</span>
+                  <span class="expand-icon">{{ expandedStock === stock.name ? '▼' : '▶' }}</span>
                 </td>
                 <td>{{ stock.quantity }}株</td>
-                <td>{{ stock.avgPrice.toLocaleString() }}円</td>
+                <td>{{ stock.averagePrice.toLocaleString() }}円</td>
                 <td>{{ stock.currentPrice.toLocaleString() }}円</td>
-                <td>{{ (stock.currentPrice * stock.quantity).toLocaleString() }}円</td>
+                <td>{{ stock.currentValue.toLocaleString() }}円</td>
                 <td :class="stock.profit >= 0 ? 'profit' : 'loss'">
                   {{ stock.profit >= 0 ? '+' : '' }}{{ stock.profit.toLocaleString() }}円
                 </td>
               </tr>
-              <!-- 詳細履歴表示 -->
+              
+              <!-- 詳細表示（展開時） -->
               <tr v-if="expandedStock === stock.name" class="detail-row">
                 <td colspan="6">
                   <div class="transaction-details">
                     <h4>取引履歴</h4>
-                    <div v-for="(transaction, index) in stock.transactions" :key="index" class="transaction">
+                    <div v-for="transaction in stock.transactions" :key="transaction.date" class="transaction">
                       <span class="date">{{ transaction.date }}</span>
                       <span class="amount">{{ transaction.quantity }}株</span>
                       <span class="price">@{{ transaction.price.toLocaleString() }}円</span>
-                      <span class="total">小計: {{ (transaction.quantity * transaction.price).toLocaleString() }}円</span>
+                      <span class="total">{{ (transaction.quantity * transaction.price).toLocaleString() }}円</span>
                     </div>
                   </div>
                 </td>
@@ -67,59 +78,53 @@
         </table>
       </section>
       
-      <!-- グラフ表示 -->
-      <section class="charts">
+      <!-- チャートエリア -->
+      <section class="charts" v-if="!isLoading && !error">
         <div class="chart-container">
-          <h2>ポートフォリオ構成</h2>
-          <canvas ref="pieChart" width="400" height="200"></canvas>
+          <h3>ポートフォリオ構成</h3>
+          <canvas ref="pieChart"></canvas>
         </div>
+        
         <div class="chart-container">
-          <h2>総損益推移</h2>
+          <h3>総損益推移</h3>
           <div class="chart-controls">
-            <label>期間選択：</label>
-            <select v-model="selectedPeriod" @change="updateLineChart">
-              <option value="6months">過去6ヶ月</option>
-              <option value="1year">過去1年</option>
-              <option value="all">全期間</option>
-            </select>
+            <button @click="changePeriod('6months')" :class="{ active: selectedPeriod === '6months' }">6ヶ月</button>
+            <button @click="changePeriod('1year')" :class="{ active: selectedPeriod === '1year' }">1年</button>
+            <button @click="changePeriod('all')" :class="{ active: selectedPeriod === 'all' }">全期間</button>
           </div>
-          <canvas ref="lineChart" width="400" height="200"></canvas>
+          <canvas ref="lineChart"></canvas>
         </div>
-      </section>
-      
-      <!-- 銘柄別損益グラフ -->
-      <section class="charts">
-        <div class="chart-container full-width">
-          <h2>銘柄別損益推移</h2>
+        
+        <div class="chart-container">
+          <h3>銘柄別損益推移</h3>
           <div class="chart-controls">
-            <label>銘柄選択：</label>
-            <select v-model="selectedStock" @change="updateStockChart">
-              <option value="all">全銘柄</option>
-              <option v-for="stock in stocks" :key="stock.name" :value="stock.name">
-                {{ stock.name }}
-              </option>
-            </select>
+            <button @click="changeStock('all')" :class="{ active: selectedStock === 'all' }">全銘柄</button>
+            <button v-for="stock in stocks" :key="stock.name" @click="changeStock(stock.name)" :class="{ active: selectedStock === stock.name }">
+              {{ stock.name }}
+            </button>
           </div>
-          <canvas ref="stockChart" width="800" height="300"></canvas>
+          <canvas ref="stockChart"></canvas>
         </div>
       </section>
     </main>
   </div>
 </template>
 
-<script setup>
+<script>
 /**
- * 投資ポートフォリオ管理ダッシュボード
+ * 投資ポートフォリオ管理アプリ
  * 
- * 主要機能：
- * - 保有銘柄一覧と損益表示
- * - ポートフォリオ構成円グラフ（パーセンテージ表示付き）
+ * 機能：
+ * - 保有銘柄の表示と損益計算
+ * - 複数回購入（買い増し）対応
+ * - ポートフォリオ構成円グラフ
  * - 総損益推移グラフ（期間選択可能）
  * - 銘柄別損益推移グラフ（取得時期ベース）
  * - 銘柄クリックで詳細取引履歴表示
  */
 import { ref, computed, onMounted } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { apiService } from './utils/api.js'
 
 // Chart.jsのすべてのコンポーネントを登録
 Chart.register(...registerables)
@@ -127,7 +132,7 @@ Chart.register(...registerables)
 // ===== データ定義セクション =====
 
 /**
- * 保有銘柄データ（ダミーデータ）
+ * 保有銘柄データ（APIから取得）
  * 
  * 各銘柄の構造：
  * - name: 銘柄名
@@ -136,43 +141,10 @@ Chart.register(...registerables)
  *   - date: 購入日（YYYY/MM/DD形式）
  *   - quantity: 購入株数
  *   - price: その時の購入価格
- * 
- * 注意：実際のデータに変更する場合は、この部分を修正してください
  */
-const stocks = ref([
-  {
-    name: 'トヨタ自動車',
-    currentPrice: 2800, // 現在の株価
-    transactions: [
-      { date: '2024/01/15', quantity: 50, price: 2400 }, // 1回目購入
-      { date: '2024/03/10', quantity: 30, price: 2600 }, // 2回目購入（買い増し）
-      { date: '2024/05/20', quantity: 20, price: 2700 }  // 3回目購入（買い増し）
-    ]
-  },
-  {
-    name: 'ソフトバンク', 
-    currentPrice: 1150,
-    transactions: [
-      { date: '2024/02/01', quantity: 100, price: 1200 }, // 1回目購入
-      { date: '2024/04/15', quantity: 100, price: 1200 }  // 2回目購入（同価格）
-    ]
-  },
-  {
-    name: '任天堂',
-    currentPrice: 6200,
-    transactions: [
-      { date: '2024/01/30', quantity: 50, price: 5600 } // 1回のみ購入
-    ]
-  },
-  {
-    name: 'DeNA',
-    currentPrice: 2350,
-    transactions: [
-      { date: '2024/03/01', quantity: 100, price: 2000 }, // 1回目購入
-      { date: '2024/06/01', quantity: 50, price: 2400 }   // 2回目購入（値上がり後）
-    ]
-  }
-])
+const stocks = ref([])
+const isLoading = ref(false)
+const error = ref(null)
 
 // ===== UI制御用の変数 =====
 
@@ -191,46 +163,23 @@ const toggleDetails = (stockName) => {
   expandedStock.value = expandedStock.value === stockName ? null : stockName
 }
 
-// ===== データ計算処理 =====
+/**
+ * 期間選択の変更
+ * @param {string} period - 期間（'6months', '1year', 'all'）
+ */
+const changePeriod = (period) => {
+  selectedPeriod.value = period
+  updateLineChart()
+}
 
 /**
- * 各銘柄の計算処理（平均価格、総数量、損益）
- * 
- * 複数回の買い増しがある場合：
- * - quantity: 全取引の合計株数
- * - avgPrice: 加重平均価格（総投資額 ÷ 総株数）
- * - profit: 現在価値 - 総投資額
+ * 銘柄選択の変更
+ * @param {string} stockName - 銘柄名（'all'または具体的な銘柄名）
  */
-stocks.value.forEach(stock => {
-  // 総数量計算（全ての取引の株数を合計）
-  stock.quantity = stock.transactions.reduce((sum, t) => sum + t.quantity, 0)
-  
-  // 平均価格計算（加重平均）
-  const totalCost = stock.transactions.reduce((sum, t) => sum + (t.quantity * t.price), 0)
-  stock.avgPrice = Math.round(totalCost / stock.quantity)
-  
-  // 損益計算（現在価値 - 投資額）
-  const totalCurrent = stock.currentPrice * stock.quantity
-  stock.profit = totalCurrent - totalCost
-})
-
-// ===== 集計値の計算（リアクティブ） =====
-
-/**
- * ポートフォリオ全体の評価額
- * @returns {number} 全銘柄の現在価値の合計
- */
-const totalValue = computed(() => {
-  return stocks.value.reduce((sum, stock) => sum + (stock.currentPrice * stock.quantity), 0)
-})
-
-/**
- * ポートフォリオ全体の損益
- * @returns {number} 全銘柄の損益の合計
- */
-const totalProfit = computed(() => {
-  return stocks.value.reduce((sum, stock) => sum + stock.profit, 0)
-})
+const changeStock = (stockName) => {
+  selectedStock.value = stockName
+  updateStockChart()
+}
 
 // ===== チャート関連の設定 =====
 
@@ -253,54 +202,33 @@ const selectedStock = ref('all')       // 銘柄別グラフの銘柄選択
 let lineChartInstance = null   // 総損益推移グラフのインスタンス
 let stockChartInstance = null  // 銘柄別損益グラフのインスタンス
 
-// 期間別ダミーデータ
-const profitData = {
+// 期間別データ（APIから取得）
+const profitData = ref({
   '6months': {
-    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
-    data: [10000, 25000, 15000, 35000, 45000, totalProfit.value]
+    labels: [],
+    data: []
   },
   '1year': {
-    labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
-    data: [-5000, 10000, 25000, 15000, 35000, 45000, 55000, 40000, 60000, 70000, 80000, totalProfit.value]
+    labels: [],
+    data: []
   },
   'all': {
-    labels: ['2023年1月', '2023年6月', '2023年12月', '2024年6月'],
-    data: [-20000, 30000, 50000, totalProfit.value]
+    labels: [],
+    data: []
   }
-}
+})
 
 const updateLineChart = () => {
   if (lineChartInstance) {
-    const currentData = profitData[selectedPeriod.value]
+    const currentData = profitData.value[selectedPeriod.value]
     lineChartInstance.data.labels = currentData.labels
     lineChartInstance.data.datasets[0].data = currentData.data
     lineChartInstance.update()
   }
 }
 
-// 銘柄別損益ダミーデータ（取得時期ベース）
-const stockProfitData = {
-  'トヨタ自動車': {
-    labels: ['2024/01/15', '2024/02/15', '2024/03/15', '2024/04/15', '2024/05/15', '2024/06/15'],
-    data: [-6000, -3000, 12000, 18000, 24000, 28000],
-    acquisitions: ['1回目購入', '', '2回目購入', '', '3回目購入', '']
-  },
-  'ソフトバンク': {
-    labels: ['2024/02/01', '2024/03/01', '2024/04/01', '2024/04/15', '2024/05/01', '2024/06/01'],
-    data: [0, -5000, -8000, -12000, -10000, -10000],
-    acquisitions: ['1回目購入', '', '', '2回目購入', '', '']
-  },
-  '任天堂': {
-    labels: ['2024/01/30', '2024/02/28', '2024/03/31', '2024/04/30', '2024/05/31', '2024/06/30'],
-    data: [10000, 15000, 20000, 25000, 28000, 30000],
-    acquisitions: ['購入', '', '', '', '', '']
-  },
-  'DeNA': {
-    labels: ['2024/03/01', '2024/04/01', '2024/05/01', '2024/06/01', '2024/06/15', '2024/06/30'],
-    data: [5000, 8000, 15000, 25000, 35000, 39500],
-    acquisitions: ['1回目購入', '', '', '2回目購入', '', '']
-  }
-}
+// 銘柄別損益データ（APIから取得）
+const stockProfitData = ref({})
 
 const updateStockChart = () => {
   if (stockChartInstance) {
@@ -311,7 +239,7 @@ const updateStockChart = () => {
         const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
         return {
           label: stock.name,
-          data: stockProfitData[stock.name].data,
+          data: stockProfitData.value[stock.name]?.data || [],
           borderColor: colors[index % colors.length],
           backgroundColor: colors[index % colors.length] + '20',
           fill: false,
@@ -326,28 +254,30 @@ const updateStockChart = () => {
       stockChartInstance.options.scales.x.title.text = '期間'
     } else {
       // 個別銘柄表示（実際の取得時期を表示）
-      const stockData = stockProfitData[selectedStock.value]
+      const stockData = stockProfitData.value[selectedStock.value]
       const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
-      const color = stockInfo.profit >= 0 ? '#28a745' : '#dc3545'
+      const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
       
-      stockChartInstance.data.labels = stockData.labels
-      stockChartInstance.data.datasets = [{
-        label: selectedStock.value + ' 損益推移',
-        data: stockData.data,
-        borderColor: color,
-        backgroundColor: color + '20',
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? '#ff6b35' : color
-        ),
-        pointRadius: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? 8 : 4
-        ),
-        pointHoverRadius: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? 10 : 6
-        )
-      }]
+      if (stockData) {
+        stockChartInstance.data.labels = stockData.labels
+        stockChartInstance.data.datasets = [{
+          label: selectedStock.value + ' 損益推移',
+          data: stockData.data,
+          borderColor: color,
+          backgroundColor: color + '20',
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: stockData.acquisitions?.map((acq, index) => 
+            acq !== '' ? '#ff6b35' : color
+          ) || [],
+          pointRadius: stockData.acquisitions?.map((acq, index) => 
+            acq !== '' ? 8 : 4
+          ) || [],
+          pointHoverRadius: stockData.acquisitions?.map((acq, index) => 
+            acq !== '' ? 10 : 6
+          ) || []
+        }]
+      }
       
       // 軸の設定を更新
       stockChartInstance.options.scales.x.title.text = '取得時期からの経過'
@@ -356,14 +286,52 @@ const updateStockChart = () => {
   }
 }
 
-onMounted(() => {
+// ===== API関数 =====
+
+/**
+ * ポートフォリオデータをAPIから取得
+ */
+const loadPortfolioData = async () => {
+  try {
+    isLoading.value = true
+    error.value = null
+    
+    const response = await apiService.getPortfolioData()
+    stocks.value = response.data.stocks || []
+    
+    // 推移データも取得
+    const historyResponse = await apiService.getProfitHistory()
+    const historyData = historyResponse.data
+    
+    // 期間別データの設定
+    profitData.value = {
+      '6months': historyData.periods?.sixMonths || { labels: [], data: [] },
+      '1year': historyData.periods?.oneYear || { labels: [], data: [] },
+      'all': historyData.periods?.all || { labels: [], data: [] }
+    }
+    
+    // 銘柄別データの設定
+    stockProfitData.value = historyData.stocks || {}
+    
+  } catch (err) {
+    console.error('ポートフォリオデータの取得に失敗しました:', err)
+    error.value = 'データの取得に失敗しました。バックエンドサーバーが起動していることを確認してください。'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  // データ取得
+  await loadPortfolioData()
+  
   // ポートフォリオ構成（円グラフ）
   new Chart(pieChart.value, {
     type: 'pie',
     data: {
       labels: stocks.value.map(stock => stock.name),
       datasets: [{
-        data: stocks.value.map(stock => stock.currentPrice * stock.quantity),
+        data: stocks.value.map(stock => stock.currentValue || 0),
         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
       }]
     },
@@ -378,8 +346,7 @@ onMounted(() => {
             label: function(context) {
               const total = context.dataset.data.reduce((sum, value) => sum + value, 0)
               const percentage = ((context.parsed / total) * 100).toFixed(1)
-              const value = context.parsed.toLocaleString()
-              return context.label + ': ' + value + '円 (' + percentage + '%)'
+              return context.label + ': ' + context.parsed.toLocaleString() + '円 (' + percentage + '%)'
             }
           }
         },
@@ -401,7 +368,7 @@ onMounted(() => {
   })
 
   // 損益推移（線グラフ）
-  const initialData = profitData[selectedPeriod.value]
+  const initialData = profitData.value[selectedPeriod.value]
   lineChartInstance = new Chart(lineChart.value, {
     type: 'line',
     data: {
@@ -417,12 +384,9 @@ onMounted(() => {
     },
     options: {
       responsive: true,
-      interaction: {
-        intersect: false,
-        mode: 'index'
-      },
       scales: {
         y: {
+          beginAtZero: true,
           ticks: {
             callback: function(value) {
               return value.toLocaleString() + '円'
@@ -438,7 +402,7 @@ onMounted(() => {
     const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
     return {
       label: stock.name,
-      data: stockProfitData[stock.name].data,
+      data: stockProfitData.value[stock.name]?.data || [],
       borderColor: colors[index % colors.length],
       backgroundColor: colors[index % colors.length] + '20',
       fill: false,
@@ -466,10 +430,7 @@ onMounted(() => {
           }
         },
         y: {
-          title: {
-            display: true,
-            text: '損益'
-          },
+          beginAtZero: true,
           ticks: {
             callback: function(value) {
               return value.toLocaleString() + '円'
@@ -478,9 +439,6 @@ onMounted(() => {
         }
       },
       plugins: {
-        legend: {
-          position: 'bottom'
-        },
         tooltip: {
           callbacks: {
             label: function(context) {
@@ -489,8 +447,8 @@ onMounted(() => {
             afterLabel: function(context) {
               // 個別銘柄の場合、取得タイミング情報を表示
               if (selectedStock.value !== 'all') {
-                const stockData = stockProfitData[selectedStock.value]
-                const acquisition = stockData.acquisitions[context.dataIndex]
+                const stockData = stockProfitData.value[selectedStock.value]
+                const acquisition = stockData?.acquisitions?.[context.dataIndex]
                 return acquisition !== '' ? '📍 ' + acquisition : ''
               }
               return ''
@@ -501,6 +459,37 @@ onMounted(() => {
     }
   })
 })
+
+// ===== 計算用のComputed Properties =====
+
+/**
+ * 総評価額の計算
+ */
+const totalValue = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.currentValue, 0)
+})
+
+/**
+ * 総損益の計算
+ */
+const totalProfit = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.profit, 0)
+})
+
+/**
+ * 総コスト（投資元本）の計算
+ */
+const totalCost = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.cost, 0)
+})
+
+/**
+ * 総損益率の計算
+ */
+const totalProfitRatio = computed(() => {
+  return totalCost.value > 0 ? (totalProfit.value / totalCost.value) * 100 : 0
+})
+
 </script>
 
 <style>
@@ -511,8 +500,9 @@ onMounted(() => {
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
 }
 
 #app {
@@ -526,14 +516,15 @@ header {
   margin-bottom: 30px;
 }
 
-h1 {
-  color: #333;
-  font-size: 2rem;
+header h1 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 10px;
 }
 
 .summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -573,12 +564,13 @@ h1 {
 
 .holdings h2 {
   margin-bottom: 20px;
-  color: #333;
+  color: #2c3e50;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 10px;
 }
 
 th, td {
@@ -588,13 +580,9 @@ th, td {
 }
 
 th {
-  background: #f8f9fa;
-  font-weight: bold;
-  color: #333;
-}
-
-tbody tr:hover {
-  background: #f8f9fa;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #666;
 }
 
 .stock-row {
@@ -603,11 +591,12 @@ tbody tr:hover {
 }
 
 .stock-row:hover {
-  background: #e3f2fd !important;
+  background-color: #f8f9fa;
 }
 
-.detail-icon {
-  margin-left: 5px;
+.expand-icon {
+  margin-left: 10px;
+  color: #007bff;
   font-size: 0.8rem;
 }
 
@@ -664,7 +653,7 @@ tbody tr:hover {
 
 .charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
   margin-top: 30px;
 }
@@ -676,31 +665,54 @@ tbody tr:hover {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.chart-container.full-width {
-  grid-column: 1 / -1;
-}
-
-.chart-container h2 {
-  margin-bottom: 20px;
-  color: #333;
-  text-align: center;
+.chart-container h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
 }
 
 .chart-controls {
-  margin-bottom: 15px;
-  text-align: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-.chart-controls label {
-  margin-right: 10px;
-  font-weight: 500;
-}
-
-.chart-controls select {
-  padding: 5px 10px;
+.chart-controls button {
+  padding: 8px 16px;
   border: 1px solid #ddd;
-  border-radius: 4px;
   background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-controls button:hover {
+  background: #f8f9fa;
+}
+
+.chart-controls button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+}
+
+.loading-message {
+  background: #d1ecf1;
+  color: #0c5460;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #bee5eb;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -710,6 +722,10 @@ tbody tr:hover {
   
   .charts {
     grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    min-width: auto;
   }
   
   table {

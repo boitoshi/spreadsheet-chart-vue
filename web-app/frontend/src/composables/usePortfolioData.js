@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { calculateProfitLoss, calculatePortfolioSummary } from '../utils/calculations.js'
+import { apiService } from '../utils/api.js'
 
 /**
  * ポートフォリオデータ管理用Composable
@@ -24,45 +25,15 @@ export const usePortfolioData = () => {
   })
   
   /**
-   * ダミーデータを取得（バックエンドなし開発用）
+   * ポートフォリオデータをAPIから取得
    */
   const fetchPortfolioData = async (params = {}) => {
     loading.value = true
     error.value = null
     
     try {
-      // ダミーデータを設定
-      const dummyData = [
-        {
-          stock: 'トヨタ自動車',
-          quantity: 100,
-          purchasePrice: 2500,
-          currentPrice: 2800
-        },
-        {
-          stock: 'ソフトバンク',
-          quantity: 200,
-          purchasePrice: 1200,
-          currentPrice: 1150
-        },
-        {
-          stock: '任天堂',
-          quantity: 50,
-          purchasePrice: 5600,
-          currentPrice: 6200
-        },
-        {
-          stock: 'DeNA',
-          quantity: 150,
-          purchasePrice: 2100,
-          currentPrice: 2350
-        }
-      ]
-      
-      // 実際のAPIを模擬した遅延
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      holdings.value = dummyData
+      const response = await apiService.getPortfolioData(params)
+      holdings.value = response.data.stocks || []
       
     } catch (err) {
       error.value = err.message
@@ -77,21 +48,11 @@ export const usePortfolioData = () => {
    */
   const updatePrice = async (stockSymbol, newPrice) => {
     try {
-      const response = await fetch('/api/manual_update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          stock: stockSymbol,
-          price: newPrice,
-          date: new Date().toISOString().split('T')[0]
-        })
+      await apiService.updatePrice({
+        stock: stockSymbol,
+        price: newPrice,
+        date: new Date().toISOString().split('T')[0]
       })
-      
-      if (!response.ok) {
-        throw new Error('価格更新に失敗しました')
-      }
       
       // データを再取得
       await fetchPortfolioData()

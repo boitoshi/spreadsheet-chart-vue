@@ -113,16 +113,11 @@ const formatCurrency = (amount) => {
   }).format(amount)
 }
 
-onMounted(() => {
-  console.log('PortfolioDashboard mounted - 簡素版')
-  // 即座にダミーデータを設定
-  holdings.value = [
-    { stock: 'トヨタ自動車', quantity: 100, purchasePrice: 2500, currentPrice: 2800 },
-    { stock: 'ソフトバンク', quantity: 200, purchasePrice: 1200, currentPrice: 1150 },
-    { stock: '任天堂', quantity: 50, purchasePrice: 5600, currentPrice: 6200 },
-    { stock: 'DeNA', quantity: 150, purchasePrice: 2100, currentPrice: 2350 }
-  ]
-  console.log('データ設定完了:', holdings.value)
+onMounted(async () => {
+  console.log('PortfolioDashboard mounted - API連携版')
+  // ポートフォリオデータをAPIから取得
+  await fetchPortfolioData()
+  console.log('データ取得完了:', holdingsWithCalc.value)
 })
 </script>
 

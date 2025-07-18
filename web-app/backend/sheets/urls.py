@@ -22,6 +22,7 @@ urlpatterns = [
     
     # 手動更新API
     path('update_stock_price/', update_stock_price, name='update_stock_price'),
+    path('api/manual_update/', update_stock_price, name='manual_update'),  # フロントエンド対応
     path('bulk_update_prices/', bulk_update_prices, name='bulk_update_prices'),
     path('save_monthly_data/', save_monthly_data, name='save_monthly_data'),
     path('get_update_history/', get_update_history, name='get_update_history'),

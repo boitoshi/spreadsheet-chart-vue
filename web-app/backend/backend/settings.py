@@ -21,21 +21,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # .envファイルを読み込む（このタイミングで読み込む）
 load_dotenv(BASE_DIR / '.env')
 
-# 以下の設定で環境変数を使用
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# 環境変数から設定を読み込み
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-bu8_mlj(*6qat+m9i1yhxb%9^nt=7%s=)gvz2%bw8p@_vn4juk')
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# 許可するホスト
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bu8_mlj(*6qat+m9i1yhxb%9^nt=7%s=)gvz2%bw8p@_vn4juk'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+# 本番環境設定
+if not DEBUG:
+    ALLOWED_HOSTS.append('.run.app')  # Cloud Run用
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -97,6 +96,7 @@ DATABASES = {
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -118,3 +118,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Vue開発サーバー（カスタムポート）
     "http://localhost:5173",  # VueのデフォルトURL
 ]
+
+# 本番環境のCORS設定
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS.extend([
+        "https://yourdomain.com",  # ConoHa WINGのドメインに変更
+        "https://www.yourdomain.com",
+    ])
+else:
+    CORS_ALLOW_ALL_ORIGINS = True  # 開発環境では全て許可
