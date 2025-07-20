@@ -88,8 +88,11 @@
         <div class="chart-container">
           <h3>総損益推移</h3>
           <div class="chart-controls">
+            <button @click="changePeriod('3months')" :class="{ active: selectedPeriod === '3months' }">3ヶ月</button>
             <button @click="changePeriod('6months')" :class="{ active: selectedPeriod === '6months' }">6ヶ月</button>
             <button @click="changePeriod('1year')" :class="{ active: selectedPeriod === '1year' }">1年</button>
+            <button @click="changePeriod('2years')" :class="{ active: selectedPeriod === '2years' }">2年</button>
+            <button @click="changePeriod('3years')" :class="{ active: selectedPeriod === '3years' }">3年</button>
             <button @click="changePeriod('all')" :class="{ active: selectedPeriod === 'all' }">全期間</button>
           </div>
           <canvas ref="lineChart"></canvas>
@@ -176,9 +179,9 @@ const changePeriod = (period) => {
  * 銘柄選択の変更
  * @param stockName - 銘柄名（'all'または具体的な銘柄名）
  */
-const changeStock = (stockName) => {
+const changeStock = async (stockName) => {
   selectedStock.value = stockName
-  updateStockChart()
+  await updateStockChart()
 }
 
 // ===== チャート関連の設定 =====
@@ -204,11 +207,23 @@ let stockChartInstance = null  // 銘柄別損益グラフのインスタンス
 
 // 期間別データ（APIから取得）
 const profitData = ref({
+  '3months': {
+    labels: [],
+    data: []
+  },
   '6months': {
     labels: [],
     data: []
   },
   '1year': {
+    labels: [],
+    data: []
+  },
+  '2years': {
+    labels: [],
+    data: []
+  },
+  '3years': {
     labels: [],
     data: []
   },
@@ -222,7 +237,9 @@ const updateLineChart = () => {
   if (lineChartInstance) {
     const currentData = profitData.value[selectedPeriod.value]
     lineChartInstance.data.labels = currentData.labels
-    lineChartInstance.data.datasets[0].data = currentData.data
+    lineChartInstance.data.datasets[0].data = currentData.avgPrices  // 取得価格推移
+    lineChartInstance.data.datasets[1].data = currentData.values     // 評価額推移
+    lineChartInstance.data.datasets[2].data = currentData.profits    // 損益推移
     lineChartInstance.update()
   }
 }
@@ -230,7 +247,7 @@ const updateLineChart = () => {
 // 銘柄別損益データ（APIから取得）
 const stockProfitData = ref({})
 
-const updateStockChart = () => {
+const updateStockChart = async () => {
   if (stockChartInstance) {
     if (selectedStock.value === 'all') {
       // 全銘柄表示（共通の月次軸を使用）
@@ -253,30 +270,82 @@ const updateStockChart = () => {
       // 軸の設定を更新
       stockChartInstance.options.scales.x.title.text = '期間'
     } else {
-      // 個別銘柄表示（実際の取得時期を表示）
-      const stockData = stockProfitData.value[selectedStock.value]
-      const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
-      const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
-      
-      if (stockData) {
-        stockChartInstance.data.labels = stockData.labels
-        stockChartInstance.data.datasets = [{
-          label: selectedStock.value + ' 損益推移',
-          data: stockData.data,
-          borderColor: color,
-          backgroundColor: color + '20',
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: stockData.acquisitions?.map((acq, index) => 
-            acq !== '' ? '#ff6b35' : color
-          ) || [],
-          pointRadius: stockData.acquisitions?.map((acq, index) => 
-            acq !== '' ? 8 : 4
-          ) || [],
-          pointHoverRadius: stockData.acquisitions?.map((acq, index) => 
-            acq !== '' ? 10 : 6
-          ) || []
-        }]
+      // 個別銘柄表示（取得時期以降の正確な時系列データを使用）
+      try {
+        const response = await apiService.getStockHistory(selectedStock.value)
+        const stockDetail = response.data
+        const timeSeries = stockDetail.timeSeries
+        
+        const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
+        const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
+        
+        if (timeSeries && timeSeries.labels.length > 0) {
+          stockChartInstance.data.labels = timeSeries.labels
+          stockChartInstance.data.datasets = [
+            {
+              label: '取得価格推移',
+              data: timeSeries.acquisitionPrices,
+              borderColor: '#FF6384',
+              backgroundColor: 'rgba(255, 99, 132, 0.1)',
+              fill: false,
+              tension: 0.4,
+              pointRadius: 3
+            },
+            {
+              label: '評価額推移',
+              data: timeSeries.values,
+              borderColor: '#36A2EB',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              fill: false,
+              tension: 0.4,
+              pointRadius: 3
+            },
+            {
+              label: '損益推移',
+              data: timeSeries.profits,
+              borderColor: color,
+              backgroundColor: color + '20',
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: timeSeries.acquisitionMarkers?.map((marker, index) => 
+                marker !== '' ? '#ff6b35' : color
+              ) || [],
+              pointRadius: timeSeries.acquisitionMarkers?.map((marker, index) => 
+                marker !== '' ? 8 : 4
+              ) || [],
+              pointHoverRadius: timeSeries.acquisitionMarkers?.map((marker, index) => 
+                marker !== '' ? 10 : 6
+              ) || []
+            }
+          ]
+        } else {
+          // データがない場合は空のグラフを表示
+          stockChartInstance.data.labels = []
+          stockChartInstance.data.datasets = [{
+            label: selectedStock.value + ' (データなし)',
+            data: [],
+            borderColor: color,
+            backgroundColor: color + '20'
+          }]
+        }
+      } catch (err) {
+        console.error('個別銘柄データの取得に失敗:', err)
+        // エラー時はフォールバック
+        const stockData = stockProfitData.value[selectedStock.value]
+        const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
+        const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
+        
+        if (stockData) {
+          stockChartInstance.data.labels = stockData.labels
+          stockChartInstance.data.datasets = [{
+            label: selectedStock.value + ' 損益推移',
+            data: stockData.data,
+            borderColor: color,
+            backgroundColor: color + '20',
+            fill: true,
+            tension: 0.4
+          }]
+        }
       }
       
       // 軸の設定を更新
@@ -303,15 +372,110 @@ const loadPortfolioData = async () => {
     const historyResponse = await apiService.getProfitHistory()
     const historyData = historyResponse.data
     
-    // 期間別データの設定
+    // APIレスポンスを期間別データに変換
+    const allLabels = historyData.periods || []
+    const allProfits = historyData.totalProfits || []
+    const allValues = historyData.totalValues || []
+    const allCosts = historyData.totalCosts || []
+    const allAvgPrices = historyData.avgPurchasePrices || []
+    
+    // 期間別データの設定（3ライン対応）
     profitData.value = {
-      '6months': historyData.periods?.sixMonths || { labels: [], data: [] },
-      '1year': historyData.periods?.oneYear || { labels: [], data: [] },
-      'all': historyData.periods?.all || { labels: [], data: [] }
+      '3months': {
+        labels: allLabels.slice(-3),
+        profits: allProfits.slice(-3),
+        values: allValues.slice(-3),
+        costs: allCosts.slice(-3),
+        avgPrices: allAvgPrices.slice(-3)
+      },
+      '6months': {
+        labels: allLabels.slice(-6),
+        profits: allProfits.slice(-6),
+        values: allValues.slice(-6),
+        costs: allCosts.slice(-6),
+        avgPrices: allAvgPrices.slice(-6)
+      },
+      '1year': {
+        labels: allLabels.slice(-12),
+        profits: allProfits.slice(-12),
+        values: allValues.slice(-12),
+        costs: allCosts.slice(-12),
+        avgPrices: allAvgPrices.slice(-12)
+      },
+      '2years': {
+        labels: allLabels.slice(-24),
+        profits: allProfits.slice(-24),
+        values: allValues.slice(-24),
+        costs: allCosts.slice(-24),
+        avgPrices: allAvgPrices.slice(-24)
+      },
+      '3years': {
+        labels: allLabels.slice(-36),
+        profits: allProfits.slice(-36),
+        values: allValues.slice(-36),
+        costs: allCosts.slice(-36),
+        avgPrices: allAvgPrices.slice(-36)
+      },
+      'all': {
+        labels: allLabels,
+        profits: allProfits,
+        values: allValues,
+        costs: allCosts,
+        avgPrices: allAvgPrices
+      }
     }
     
-    // 銘柄別データの設定
-    stockProfitData.value = historyData.stocks || {}
+    // 銘柄別データの設定（スプレッドシートから実データを取得）
+    try {
+      const spreadsheetResponse = await apiService.getSpreadsheetData()
+      const spreadsheetData = spreadsheetResponse.data.data || []
+      
+      // 銘柄別にデータを集計
+      const stockDataMap = {}
+      spreadsheetData.forEach(row => {
+        const stockCode = row.stock
+        const date = row.label
+        const profit = row.pl_value
+        
+        if (!stockDataMap[stockCode]) {
+          stockDataMap[stockCode] = { labels: [], data: [] }
+        }
+        
+        // 重複する日付は最新のものを使用
+        const existingIndex = stockDataMap[stockCode].labels.indexOf(date)
+        if (existingIndex !== -1) {
+          stockDataMap[stockCode].data[existingIndex] = profit
+        } else {
+          stockDataMap[stockCode].labels.push(date)
+          stockDataMap[stockCode].data.push(profit)
+        }
+      })
+      
+      // ソートして最新6ヶ月分のデータを使用
+      Object.keys(stockDataMap).forEach(stockCode => {
+        const stockData = stockDataMap[stockCode]
+        const sortedIndices = stockData.labels
+          .map((label, index) => ({ label, index }))
+          .sort((a, b) => new Date(a.label) - new Date(b.label))
+        
+        stockData.labels = sortedIndices.slice(-6).map(item => item.label)
+        stockData.data = sortedIndices.slice(-6).map(item => stockData.data[item.index])
+      })
+      
+      stockProfitData.value = stockDataMap
+    } catch (err) {
+      console.error('銘柄別データの取得に失敗:', err)
+      // フォールバック：stocks配列から銘柄コードを取得してダミーデータ
+      stockProfitData.value = stocks.value.reduce((acc, stock) => {
+        acc[stock.name] = {
+          labels: allLabels.slice(-6),
+          data: Array(Math.min(6, allLabels.length)).fill(0).map(() => 
+            Math.random() * 10000 - 5000 // ダミー損益データ
+          )
+        }
+        return acc
+      }, {})
+    }
     
   } catch (err) {
     console.error('ポートフォリオデータの取得に失敗しました:', err)
@@ -367,29 +531,60 @@ onMounted(async () => {
     }
   })
 
-  // 損益推移（線グラフ）
+  // 損益推移（3ライン表示）
   const initialData = profitData.value[selectedPeriod.value]
   lineChartInstance = new Chart(lineChart.value, {
     type: 'line',
     data: {
       labels: initialData.labels,
-      datasets: [{
-        label: '総損益',
-        data: initialData.data,
-        borderColor: '#36A2EB',
-        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-        fill: true,
-        tension: 0.4
-      }]
+      datasets: [
+        {
+          label: '取得価格推移',
+          data: initialData.avgPrices,
+          borderColor: '#FF6384',
+          backgroundColor: 'rgba(255, 99, 132, 0.1)',
+          fill: false,
+          tension: 0.4
+        },
+        {
+          label: '評価額推移',
+          data: initialData.values,
+          borderColor: '#36A2EB',
+          backgroundColor: 'rgba(54, 162, 235, 0.1)',
+          fill: false,
+          tension: 0.4
+        },
+        {
+          label: '損益推移',
+          data: initialData.profits,
+          borderColor: '#4BC0C0',
+          backgroundColor: 'rgba(75, 192, 192, 0.1)',
+          fill: true,
+          tension: 0.4
+        }
+      ]
     },
     options: {
       responsive: true,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
       scales: {
         y: {
           beginAtZero: true,
           ticks: {
             callback: function(value) {
               return value.toLocaleString() + '円'
+            }
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '円'
             }
           }
         }

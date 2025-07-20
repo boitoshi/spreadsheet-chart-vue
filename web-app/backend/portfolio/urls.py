@@ -14,6 +14,9 @@ urlpatterns = [
     # 損益推移履歴API
     path('api/portfolio/history/', views.PortfolioHistoryAPIView.as_view(), name='portfolio-history'),
     
-    # 個別銘柄詳細API（将来拡張用）
+    # 個別銘柄詳細API
     path('api/portfolio/stock/<str:stock_name>/', views.StockDetailAPIView.as_view(), name='stock-detail'),
+    
+    # データ品質検証API
+    path('api/portfolio/validate/', views.DataValidationAPIView.as_view(), name='data-validation'),
 ]

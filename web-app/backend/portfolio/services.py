@@ -63,28 +63,358 @@ class GoogleSheetsService:
             print(f"ポートフォリオデータ取得エラー: {e}")
             return []
     
-    def get_latest_performance_data(self) -> List[Dict]:
-        """損益レポートシートから最新の損益データを取得（重複除去）"""
+    def get_data_record_data(self) -> List[Dict]:
+        """データ記録シートから月末価格データを取得"""
         try:
-            performance_sheet = self.spreadsheet.worksheet(SHEET_NAMES['PERFORMANCE'])
-            records = performance_sheet.get_all_records()
+            data_record_sheet = self.spreadsheet.worksheet(SHEET_NAMES['DATA_RECORD'])
+            records = data_record_sheet.get_all_records()
+            return records
+        except Exception as e:
+            print(f"データ記録シート取得エラー: {e}")
+            return []
+    
+    def calculate_portfolio_performance(self, portfolio_data: List[Dict], data_record_data: List[Dict]) -> List[Dict]:
+        """ポートフォリオシートとデータ記録シートから時系列を正確に考慮して損益を計算"""
+        try:
+            from datetime import datetime
             
-            # 最新のデータのみを取得（日付でソートして最新月のデータ）
-            if not records:
-                return []
+            # データ記録シートを月末日付・銘柄コードでインデックス化
+            price_map = {}
+            parsed_dates = {}  # 日付文字列からdatetimeオブジェクトへのマッピング
             
-            # 日付で最新のデータをグループ化
-            latest_date = max(record['日付'] for record in records if record['日付'])
-            latest_records = [r for r in records if r['日付'] == latest_date]
+            for record in data_record_data:
+                date_key = record.get('月末日付', '')
+                stock_code = record.get('銘柄コード', '')
+                price = float(record.get('月末価格（円）', 0)) if record.get('月末価格（円）') else 0
+                
+                if date_key and stock_code and price > 0:
+                    # 日付の解析と正規化
+                    try:
+                        if '-' in date_key:
+                            parsed_date = datetime.strptime(date_key, '%Y-%m-%d')
+                        elif '/' in date_key:
+                            parsed_date = datetime.strptime(date_key, '%Y/%m/%d')
+                        else:
+                            continue
+                        
+                        parsed_dates[date_key] = parsed_date
+                        
+                        if date_key not in price_map:
+                            price_map[date_key] = {}
+                        price_map[date_key][stock_code] = price
+                    except ValueError:
+                        print(f"無効な日付形式をスキップ: {date_key}")
+                        continue
             
-            # 重複除去：同じ銘柄コードが複数ある場合、最新の更新日時のもののみ残す
-            unique_records = self._remove_duplicate_records(latest_records)
+            # ポートフォリオデータを銘柄・取引別に整理し、取得日でソート
+            portfolio_transactions = {}
+            for transaction in portfolio_data:
+                stock_code = transaction.get('銘柄コード', '')
+                stock_name = transaction.get('銘柄名', '')
+                purchase_date = transaction.get('取得日', '')
+                purchase_price = float(transaction.get('取得単価（円）', 0)) if transaction.get('取得単価（円）') else 0
+                quantity = int(transaction.get('保有株数', 0)) if transaction.get('保有株数') else 0
+                
+                if stock_code and purchase_date and purchase_price > 0 and quantity > 0:
+                    # 取得日の解析
+                    try:
+                        if '/' in purchase_date:
+                            parsed_purchase_date = datetime.strptime(purchase_date, '%Y/%m/%d')
+                        elif '-' in purchase_date:
+                            parsed_purchase_date = datetime.strptime(purchase_date, '%Y-%m-%d')
+                        else:
+                            continue
+                    except ValueError:
+                        print(f"無効な取得日をスキップ: {purchase_date}")
+                        continue
+                    
+                    if stock_code not in portfolio_transactions:
+                        portfolio_transactions[stock_code] = {
+                            'stock_name': stock_name,
+                            'transactions': []
+                        }
+                    
+                    portfolio_transactions[stock_code]['transactions'].append({
+                        'purchase_date': purchase_date,
+                        'purchase_date_parsed': parsed_purchase_date,
+                        'purchase_price': purchase_price,
+                        'quantity': quantity
+                    })
             
-            return unique_records
+            # 各銘柄の取引を取得日順にソート
+            for stock_code in portfolio_transactions:
+                portfolio_transactions[stock_code]['transactions'].sort(
+                    key=lambda x: x['purchase_date_parsed']
+                )
+            
+            # 月末日付を時系列順にソート
+            sorted_dates = sorted(price_map.keys(), key=lambda x: parsed_dates[x])
+            
+            # 各月末時点での損益計算
+            performance_data = []
+            
+            for date_key in sorted_dates:
+                month_end_date = parsed_dates[date_key]
+                
+                for stock_code, stock_info in portfolio_transactions.items():
+                    if stock_code in price_map[date_key]:
+                        current_price = price_map[date_key][stock_code]
+                        
+                        # その月末時点で既に取得済みの取引のみを抽出
+                        acquired_transactions = []
+                        for tx in stock_info['transactions']:
+                            # 月末日以前に取得された取引のみを対象（同日も含む）
+                            if tx['purchase_date_parsed'] <= month_end_date:
+                                acquired_transactions.append(tx)
+                        
+                        # 取得済みの取引がある場合のみ損益計算
+                        if acquired_transactions:
+                            # 累積保有株数と総取得額を計算
+                            total_quantity = sum(tx['quantity'] for tx in acquired_transactions)
+                            total_cost = sum(tx['quantity'] * tx['purchase_price'] for tx in acquired_transactions)
+                            avg_purchase_price = total_cost / total_quantity if total_quantity > 0 else 0
+                            
+                            # 評価額と損益を計算
+                            current_value = current_price * total_quantity
+                            profit = current_value - total_cost
+                            profit_rate = (profit / total_cost * 100) if total_cost > 0 else 0
+                            
+                            performance_data.append({
+                                '日付': date_key,
+                                '銘柄コード': stock_code,
+                                '銘柄名': stock_info['stock_name'],
+                                '取得単価': round(avg_purchase_price, 2),
+                                '月末価格': current_price,
+                                '保有株数': total_quantity,
+                                '取得額': round(total_cost, 0),
+                                '評価額': round(current_value, 0),
+                                '損益': round(profit, 0),
+                                '損益率(%)': round(profit_rate, 2),
+                                '最初の取得日': acquired_transactions[0]['purchase_date'],
+                                '取引回数': len(acquired_transactions)
+                            })
+                        # 取得前の期間では損益データを作成しない（時系列の正確性を保つ）
+            
+            print(f"損益計算完了: {len(performance_data)}件のレコードを生成")
+            return performance_data
             
         except Exception as e:
-            print(f"損益データ取得エラー: {e}")
+            print(f"損益計算エラー: {e}")
+            import traceback
+            traceback.print_exc()
             return []
+    
+    def validate_data_integrity(self, portfolio_data: List[Dict], data_record_data: List[Dict]) -> Dict:
+        """データの整合性と品質を検証"""
+        validation_result = {
+            'is_valid': True,
+            'warnings': [],
+            'errors': [],
+            'summary': {}
+        }
+        
+        try:
+            from datetime import datetime
+            
+            # ポートフォリオデータの検証
+            portfolio_issues = self._validate_portfolio_data(portfolio_data)
+            validation_result['warnings'].extend(portfolio_issues['warnings'])
+            validation_result['errors'].extend(portfolio_issues['errors'])
+            
+            # データ記録シートの検証
+            data_record_issues = self._validate_data_record(data_record_data)
+            validation_result['warnings'].extend(data_record_issues['warnings'])
+            validation_result['errors'].extend(data_record_issues['errors'])
+            
+            # クロス検証（ポートフォリオとデータ記録の整合性）
+            cross_validation = self._validate_cross_consistency(portfolio_data, data_record_data)
+            validation_result['warnings'].extend(cross_validation['warnings'])
+            validation_result['errors'].extend(cross_validation['errors'])
+            
+            # エラーがある場合はis_validをFalseに設定
+            if validation_result['errors']:
+                validation_result['is_valid'] = False
+            
+            # サマリー情報
+            validation_result['summary'] = {
+                'total_stocks': len(set(p.get('銘柄コード', '') for p in portfolio_data if p.get('銘柄コード'))),
+                'total_transactions': len(portfolio_data),
+                'total_price_records': len(data_record_data),
+                'date_range': self._get_date_range(data_record_data),
+                'validation_date': datetime.now().isoformat()
+            }
+            
+            print(f"データ検証完了: エラー{len(validation_result['errors'])}件、警告{len(validation_result['warnings'])}件")
+            
+        except Exception as e:
+            validation_result['is_valid'] = False
+            validation_result['errors'].append(f"検証処理エラー: {str(e)}")
+            print(f"データ検証エラー: {e}")
+        
+        return validation_result
+    
+    def _validate_portfolio_data(self, portfolio_data: List[Dict]) -> Dict:
+        """ポートフォリオデータの検証"""
+        issues = {'warnings': [], 'errors': []}
+        
+        for i, record in enumerate(portfolio_data):
+            stock_code = record.get('銘柄コード', '')
+            stock_name = record.get('銘柄名', '')
+            purchase_date = record.get('取得日', '')
+            purchase_price = record.get('取得単価（円）', '')
+            quantity = record.get('保有株数', '')
+            
+            # 必須フィールドの検証
+            if not stock_code:
+                issues['errors'].append(f"行{i+1}: 銘柄コードが未入力")
+            if not stock_name:
+                issues['warnings'].append(f"行{i+1}: 銘柄名が未入力")
+            if not purchase_date:
+                issues['errors'].append(f"行{i+1}: 取得日が未入力")
+            
+            # 日付形式の検証
+            if purchase_date:
+                try:
+                    if '/' in purchase_date:
+                        datetime.strptime(purchase_date, '%Y/%m/%d')
+                    elif '-' in purchase_date:
+                        datetime.strptime(purchase_date, '%Y-%m-%d')
+                    else:
+                        issues['errors'].append(f"行{i+1}: 取得日の形式が無効 ({purchase_date})")
+                except ValueError:
+                    issues['errors'].append(f"行{i+1}: 取得日の形式が無効 ({purchase_date})")
+            
+            # 価格の検証
+            try:
+                price_value = float(purchase_price) if purchase_price else 0
+                if price_value <= 0:
+                    issues['errors'].append(f"行{i+1}: 取得単価が無効 ({purchase_price})")
+            except (ValueError, TypeError):
+                issues['errors'].append(f"行{i+1}: 取得単価が数値ではない ({purchase_price})")
+            
+            # 株数の検証
+            try:
+                quantity_value = int(quantity) if quantity else 0
+                if quantity_value <= 0:
+                    issues['errors'].append(f"行{i+1}: 保有株数が無効 ({quantity})")
+            except (ValueError, TypeError):
+                issues['errors'].append(f"行{i+1}: 保有株数が数値ではない ({quantity})")
+        
+        return issues
+    
+    def _validate_data_record(self, data_record_data: List[Dict]) -> Dict:
+        """データ記録シートの検証"""
+        issues = {'warnings': [], 'errors': []}
+        
+        for i, record in enumerate(data_record_data):
+            date_key = record.get('月末日付', '')
+            stock_code = record.get('銘柄コード', '')
+            price = record.get('月末価格（円）', '')
+            
+            # 必須フィールドの検証
+            if not date_key:
+                issues['errors'].append(f"データ記録行{i+1}: 月末日付が未入力")
+            if not stock_code:
+                issues['errors'].append(f"データ記録行{i+1}: 銘柄コードが未入力")
+            
+            # 日付形式の検証
+            if date_key:
+                try:
+                    if '-' in date_key:
+                        datetime.strptime(date_key, '%Y-%m-%d')
+                    elif '/' in date_key:
+                        datetime.strptime(date_key, '%Y/%m/%d')
+                    else:
+                        issues['errors'].append(f"データ記録行{i+1}: 日付形式が無効 ({date_key})")
+                except ValueError:
+                    issues['errors'].append(f"データ記録行{i+1}: 日付形式が無効 ({date_key})")
+            
+            # 価格の検証
+            try:
+                price_value = float(price) if price else 0
+                if price_value <= 0:
+                    issues['warnings'].append(f"データ記録行{i+1}: 月末価格が0または未入力 ({price})")
+            except (ValueError, TypeError):
+                issues['errors'].append(f"データ記録行{i+1}: 月末価格が数値ではない ({price})")
+        
+        return issues
+    
+    def _validate_cross_consistency(self, portfolio_data: List[Dict], data_record_data: List[Dict]) -> Dict:
+        """ポートフォリオとデータ記録の整合性検証"""
+        issues = {'warnings': [], 'errors': []}
+        
+        # ポートフォリオに含まれる銘柄コード
+        portfolio_stocks = set(p.get('銘柄コード', '') for p in portfolio_data if p.get('銘柄コード'))
+        
+        # データ記録に含まれる銘柄コード
+        data_record_stocks = set(d.get('銘柄コード', '') for d in data_record_data if d.get('銘柄コード'))
+        
+        # ポートフォリオにあるがデータ記録にない銘柄
+        missing_price_data = portfolio_stocks - data_record_stocks
+        for stock_code in missing_price_data:
+            issues['errors'].append(f"銘柄{stock_code}: ポートフォリオに存在するが価格データが不足")
+        
+        # データ記録にあるがポートフォリオにない銘柄
+        extra_price_data = data_record_stocks - portfolio_stocks
+        for stock_code in extra_price_data:
+            issues['warnings'].append(f"銘柄{stock_code}: 価格データは存在するがポートフォリオに未登録")
+        
+        # 各銘柄の価格データ期間の確認
+        for stock_code in portfolio_stocks:
+            # 最早取得日を取得
+            stock_transactions = [p for p in portfolio_data if p.get('銘柄コード') == stock_code]
+            if stock_transactions:
+                earliest_date = min(
+                    self._parse_date(tx.get('取得日', '')) 
+                    for tx in stock_transactions 
+                    if self._parse_date(tx.get('取得日', ''))
+                )
+                
+                # 該当銘柄の価格データを確認
+                price_records = [d for d in data_record_data if d.get('銘柄コード') == stock_code]
+                if price_records:
+                    price_dates = [
+                        self._parse_date(d.get('月末日付', ''))
+                        for d in price_records
+                        if self._parse_date(d.get('月末日付', ''))
+                    ]
+                    
+                    if price_dates and earliest_date:
+                        latest_price_date = max(price_dates)
+                        if latest_price_date < earliest_date:
+                            issues['warnings'].append(f"銘柄{stock_code}: 価格データが取得日より古い")
+        
+        return issues
+    
+    def _parse_date(self, date_str: str):
+        """日付文字列をdatetimeオブジェクトに変換"""
+        if not date_str:
+            return None
+        try:
+            if '/' in date_str:
+                return datetime.strptime(date_str, '%Y/%m/%d')
+            elif '-' in date_str:
+                return datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            pass
+        return None
+    
+    def _get_date_range(self, data_record_data: List[Dict]) -> Dict:
+        """データ記録の日付範囲を取得"""
+        dates = []
+        for record in data_record_data:
+            date_obj = self._parse_date(record.get('月末日付', ''))
+            if date_obj:
+                dates.append(date_obj)
+        
+        if dates:
+            return {
+                'start': min(dates).strftime('%Y-%m-%d'),
+                'end': max(dates).strftime('%Y-%m-%d'),
+                'total_periods': len(set(d.strftime('%Y-%m') for d in dates))
+            }
+        else:
+            return {'start': None, 'end': None, 'total_periods': 0}
     
     def get_performance_history(self, period: str = 'all') -> List[Dict]:
         """損益推移履歴を期間指定で取得（重複除去）"""

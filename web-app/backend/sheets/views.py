@@ -13,16 +13,19 @@ def calculate_profit_or_loss(purchase_price, current_price, quantity=1):
         return 0.0
 
 def format_row_to_object(row, headers_index):
+    # 保有株数の処理（-1の場合はデフォルト値1を使用）
+    quantity = 1 if headers_index['quantity_idx'] == -1 else row[headers_index['quantity_idx']]
+    
     return {
         "label": row[headers_index['date_idx']],      # 月末日付
-        "stock": row[headers_index['stock_idx']],     # 銘柄
-        "value": row[headers_index['price_idx']],     # 報告月末価格
-        "purchase": row[headers_index['purchase_idx']], # 取得価格
-        "quantity": row[headers_index['quantity_idx']], # 保有株数
+        "stock": row[headers_index['stock_idx']],     # 銘柄コード
+        "value": row[headers_index['price_idx']],     # 月末価格
+        "purchase": row[headers_index['purchase_idx']], # 平均価格
+        "quantity": quantity,                         # 保有株数（デフォルト1）
         "pl_value": calculate_profit_or_loss(         # 損益
             row[headers_index['purchase_idx']], 
             row[headers_index['price_idx']], 
-            row[headers_index['quantity_idx']]
+            quantity
         )
     }
     
@@ -104,17 +107,63 @@ def get_data(request):
         headers = values[0]
         data_rows = values[1:]
 
-        # ヘッダーの列名を指定
-        try:
-            date_idx            = headers.index('月末日付') 
-            stock_idx           = headers.index('銘柄')
-            purchase_idx        = headers.index('取得価格（円）')  # 取得価格
-            # purchase_date_idx   = headers.index('取得日付') # 取得日付
-            quantity_idx        = headers.index('保有株数')     # 保有株数があれば
-            price_idx           = headers.index('報告月末価格（円）')   
-        except ValueError as e:
+        # デバッグ用：ヘッダー情報を返す
+        if 'debug' in request.GET:
             return JsonResponse(
-                {"error": f"Required column not found: {str(e)}"}, 
+                {"headers": headers, "total_columns": len(headers)}, 
+                json_dumps_params={'ensure_ascii': False}
+            )
+
+        # ヘッダーの列名を指定（柔軟に対応）
+        try:
+            # 列名のバリエーションに対応
+            date_idx = None
+            stock_idx = None
+            purchase_idx = None
+            quantity_idx = None
+            price_idx = None
+            
+            for i, header in enumerate(headers):
+                if '月末日付' in header or '日付' in header:
+                    date_idx = i
+                elif '銘柄コード' in header or '銘柄' in header or '株式' in header or '名前' in header:
+                    stock_idx = i
+                elif '平均価格' in header or '取得価格' in header or '購入価格' in header:
+                    purchase_idx = i
+                elif '保有株数' in header or '株数' in header:
+                    quantity_idx = i  # スプレッドシートにない場合はデフォルト値使用
+                elif '月末価格' in header or '現在価格' in header or '報告月末価格' in header:
+                    price_idx = i
+            
+            # 必須カラムのチェック（保有株数はオプション）
+            missing_columns = []
+            if date_idx is None:
+                missing_columns.append('日付関連')
+            if stock_idx is None:
+                missing_columns.append('銘柄関連')
+            if purchase_idx is None:
+                missing_columns.append('取得価格関連')
+            if price_idx is None:
+                missing_columns.append('現在価格関連')
+            
+            # 保有株数がない場合はデフォルト値（1株）を使用
+            if quantity_idx is None:
+                quantity_idx = -1  # -1は特別値としてデフォルト株数を示す
+                
+            if missing_columns:
+                return JsonResponse(
+                    {
+                        "error": f"Required columns not found: {', '.join(missing_columns)}", 
+                        "available_headers": headers,
+                        "hint": "Use ?debug=1 to see all available headers"
+                    }, 
+                    status=400,
+                    json_dumps_params={'ensure_ascii': False}
+                )
+                
+        except Exception as e:
+            return JsonResponse(
+                {"error": f"Header processing error: {str(e)}", "headers": headers}, 
                 status=400,
                 json_dumps_params={'ensure_ascii': False}
             )
