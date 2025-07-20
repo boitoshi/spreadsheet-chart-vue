@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import get_data
+from .views import get_data, api_index
 from .manual_updater import (
     update_stock_price, 
     bulk_update_prices, 
@@ -18,6 +18,8 @@ from .currency_views import (
 )
 
 urlpatterns = [
+    # ルートページ
+    path('', api_index, name='api_index'),
     path('get_data/', get_data, name='get_data'),
     
     # 手動更新API

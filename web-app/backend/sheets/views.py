@@ -1,5 +1,6 @@
 import datetime
 from django.http import JsonResponse
+from django.shortcuts import render
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
 from django.conf import settings
@@ -147,3 +148,66 @@ def get_data(request):
             status=500,
             json_dumps_params={'ensure_ascii': False}
         )
+
+def api_index(request):
+    """APIエンドポイント一覧表示"""
+    api_endpoints = [
+        {
+            'path': '/admin/',
+            'method': 'GET', 
+            'description': 'Django管理画面',
+            'category': '管理'
+        },
+        {
+            'path': '/get_data/',
+            'method': 'GET',
+            'description': 'Google Sheetsからポートフォリオデータを取得',
+            'parameters': 'start_month, end_month, stock_symbol',
+            'category': 'データ取得'
+        },
+        {
+            'path': '/api/manual_update/',
+            'method': 'POST',
+            'description': '手動での株価更新',
+            'category': 'データ更新'
+        },
+        {
+            'path': '/api/portfolio/',
+            'method': 'GET',
+            'description': 'ポートフォリオデータAPI（Vue.js用）',
+            'category': 'フロントエンド連携'
+        },
+        {
+            'path': '/api/portfolio/history/',
+            'method': 'GET',
+            'description': '損益推移履歴API',
+            'category': 'フロントエンド連携'
+        },
+        {
+            'path': '/portfolio/',
+            'method': 'GET',
+            'description': 'ポートフォリオデータ（外貨対応）',
+            'category': 'データ取得'
+        },
+        {
+            'path': '/currency_rates/',
+            'method': 'GET',
+            'description': '為替レート情報',
+            'category': 'データ取得'
+        },
+        {
+            'path': '/generate_report/<month>/',
+            'method': 'GET',
+            'description': '月次レポート生成',
+            'parameters': 'month (YYYY-MM形式)',
+            'category': 'レポート'
+        }
+    ]
+    
+    context = {
+        'api_endpoints': api_endpoints,
+        'project_name': '投資ポートフォリオ管理API',
+        'description': 'Vue.js + Django による投資ポートフォリオ管理システムのバックエンドAPI'
+    }
+    
+    return render(request, 'api_index.html', context)

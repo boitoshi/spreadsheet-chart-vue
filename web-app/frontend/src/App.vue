@@ -51,7 +51,7 @@
                   <span class="expand-icon">{{ expandedStock === stock.name ? '▼' : '▶' }}</span>
                 </td>
                 <td>{{ stock.quantity }}株</td>
-                <td>{{ stock.averagePrice.toLocaleString() }}円</td>
+                <td>{{ stock.avgPrice.toLocaleString() }}円</td>
                 <td>{{ stock.currentPrice.toLocaleString() }}円</td>
                 <td>{{ stock.currentValue.toLocaleString() }}円</td>
                 <td :class="stock.profit >= 0 ? 'profit' : 'loss'">
@@ -110,7 +110,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 /**
  * 投資ポートフォリオ管理アプリ
  * 
@@ -165,7 +165,7 @@ const toggleDetails = (stockName) => {
 
 /**
  * 期間選択の変更
- * @param {string} period - 期間（'6months', '1year', 'all'）
+ * @param period - 期間（'6months', '1year', 'all'）
  */
 const changePeriod = (period) => {
   selectedPeriod.value = period
@@ -174,7 +174,7 @@ const changePeriod = (period) => {
 
 /**
  * 銘柄選択の変更
- * @param {string} stockName - 銘柄名（'all'または具体的な銘柄名）
+ * @param stockName - 銘柄名（'all'または具体的な銘柄名）
  */
 const changeStock = (stockName) => {
   selectedStock.value = stockName
