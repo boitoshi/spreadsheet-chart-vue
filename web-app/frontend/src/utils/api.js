@@ -73,6 +73,11 @@ export const apiService = {
   // 手動価格更新
   updatePrice: (data) => {
     return api.post('/api/manual_update/', data)
+  },
+  
+  // データ品質検証
+  validatePortfolioData: () => {
+    return api.get('/api/portfolio/validate/')
   }
 }
 

@@ -121,13 +121,14 @@ class PortfolioHistoryAPIView(View):
             # 月別に集計
             monthly_summary = self._aggregate_monthly_data(performance_data)
             
-            # チャート用データ形式に変換
+            # チャート用データ形式に変換（証券アプリスタイル）
             chart_data = {
                 'periods': [data['date'] for data in monthly_summary],
                 'totalProfits': [data['total_profit'] for data in monthly_summary],
                 'totalValues': [data['total_value'] for data in monthly_summary],
                 'totalCosts': [data['total_cost'] for data in monthly_summary],
-                'avgPurchasePrices': [data['avg_purchase_price'] for data in monthly_summary]
+                'cumulativeInvestments': [data['total_cost'] for data in monthly_summary],  # 累積投資額（証券アプリスタイル）
+                'avgPurchasePrices': [data['avg_purchase_price'] for data in monthly_summary]  # 後方互換性のため残す
             }
             
             return JsonResponse(chart_data, safe=False, json_dumps_params={'ensure_ascii': False})
@@ -139,11 +140,12 @@ class PortfolioHistoryAPIView(View):
                 'totalProfits': [],
                 'totalValues': [],
                 'totalCosts': [],
+                'cumulativeInvestments': [],
                 'avgPurchasePrices': []
             }, status=500)
     
     def _aggregate_monthly_data(self, performance_data: List[Dict]) -> List[Dict]:
-        """月別データに集計"""
+        """月別データに集計（実際の累積取得額ベース）"""
         monthly_data = {}
         
         for record in performance_data:
@@ -154,21 +156,19 @@ class PortfolioHistoryAPIView(View):
                     'date': date_key,
                     'total_profit': 0,
                     'total_value': 0,
-                    'total_cost': 0,
-                    'total_purchase_amount': 0,
+                    'total_cost': 0,  # 実際の累積取得額
                     'total_quantity': 0
                 }
             
             monthly_data[date_key]['total_profit'] += record['損益']
             monthly_data[date_key]['total_value'] += record['評価額']
-            monthly_data[date_key]['total_cost'] += record['取得額']
-            monthly_data[date_key]['total_purchase_amount'] += record['取得単価'] * record['保有株数']
+            monthly_data[date_key]['total_cost'] += record['取得額']  # 実際に投資した金額の累計
             monthly_data[date_key]['total_quantity'] += record['保有株数']
         
-        # 平均取得価格を計算
+        # 実際の平均取得価格を計算（実際の累積投資額 ÷ 累積保有株数）
         for data in monthly_data.values():
             if data['total_quantity'] > 0:
-                data['avg_purchase_price'] = data['total_purchase_amount'] / data['total_quantity']
+                data['avg_purchase_price'] = data['total_cost'] / data['total_quantity']
             else:
                 data['avg_purchase_price'] = 0
         
@@ -233,41 +233,6 @@ class StockDetailAPIView(View):
             return JsonResponse({
                 'error': f'銘柄詳細取得エラー: {str(e)}'
             }, status=500)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class DataValidationAPIView(View):
-    """
-    データ品質検証API
-    スプレッドシートデータの整合性と品質を検証
-    """
-    
-    def get(self, request):
-        """データ検証を実行して結果を返す"""
-        try:
-            # Google Sheetsからデータ取得
-            sheets_service = GoogleSheetsService()
-            portfolio_data = sheets_service.get_portfolio_data()
-            data_record_data = sheets_service.get_data_record_data()
-            
-            # データ検証を実行
-            validation_result = sheets_service.validate_data_integrity(
-                portfolio_data, data_record_data
-            )
-            
-            # レスポンスにHTTPステータスを反映
-            status_code = 200 if validation_result['is_valid'] else 400
-            
-            return JsonResponse(validation_result, status=status_code, 
-                              json_dumps_params={'ensure_ascii': False})
-            
-        except Exception as e:
-            return JsonResponse({
-                'is_valid': False,
-                'errors': [f'検証処理エラー: {str(e)}'],
-                'warnings': [],
-                'summary': {}
-            }, status=500, json_dumps_params={'ensure_ascii': False})
     
     def _prepare_stock_time_series(self, stock_performance: List[Dict]) -> Dict:
         """銘柄の時系列データを準備（取得時期以降のみ）"""
@@ -338,3 +303,38 @@ class DataValidationAPIView(View):
         latest_records = [r for r in performance_data if r['日付'] == latest_date]
         
         return latest_records
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DataValidationAPIView(View):
+    """
+    データ品質検証API
+    スプレッドシートデータの整合性と品質を検証
+    """
+    
+    def get(self, request):
+        """データ検証を実行して結果を返す"""
+        try:
+            # Google Sheetsからデータ取得
+            sheets_service = GoogleSheetsService()
+            portfolio_data = sheets_service.get_portfolio_data()
+            data_record_data = sheets_service.get_data_record_data()
+            
+            # データ検証を実行
+            validation_result = sheets_service.validate_data_integrity(
+                portfolio_data, data_record_data
+            )
+            
+            # レスポンスにHTTPステータスを反映
+            status_code = 200 if validation_result['is_valid'] else 400
+            
+            return JsonResponse(validation_result, status=status_code, 
+                              json_dumps_params={'ensure_ascii': False})
+            
+        except Exception as e:
+            return JsonResponse({
+                'is_valid': False,
+                'errors': [f'検証処理エラー: {str(e)}'],
+                'warnings': [],
+                'summary': {}
+            }, status=500, json_dumps_params={'ensure_ascii': False})

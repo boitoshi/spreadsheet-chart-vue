@@ -7,7 +7,12 @@
     <main>
       <!-- エラー表示 -->
       <div v-if="error" class="error-message">
-        {{ error }}
+        <div class="error-content">
+          <div class="error-text">{{ error }}</div>
+          <button @click="retryDataLoad" class="retry-button" :disabled="isLoading">
+            {{ isLoading ? '更新中...' : 'データを再取得' }}
+          </button>
+        </div>
       </div>
       
       <!-- ローディング表示 -->
@@ -184,6 +189,17 @@ const changeStock = async (stockName) => {
   await updateStockChart()
 }
 
+/**
+ * データ再取得機能
+ * エラー時にユーザーがワンクリックでリトライできる
+ */
+const retryDataLoad = async () => {
+  console.log('データ再取得を開始...')
+  error.value = null  // エラーメッセージをクリア
+  await loadPortfolioData()
+  console.log('データ再取得完了')
+}
+
 // ===== チャート関連の設定 =====
 
 /**
@@ -237,7 +253,7 @@ const updateLineChart = () => {
   if (lineChartInstance) {
     const currentData = profitData.value[selectedPeriod.value]
     lineChartInstance.data.labels = currentData.labels
-    lineChartInstance.data.datasets[0].data = currentData.avgPrices  // 取得価格推移
+    lineChartInstance.data.datasets[0].data = currentData.cumulativeInvestments  // 累積投資額推移
     lineChartInstance.data.datasets[1].data = currentData.values     // 評価額推移
     lineChartInstance.data.datasets[2].data = currentData.profits    // 損益推移
     lineChartInstance.update()
@@ -248,110 +264,140 @@ const updateLineChart = () => {
 const stockProfitData = ref({})
 
 const updateStockChart = async () => {
-  if (stockChartInstance) {
-    if (selectedStock.value === 'all') {
-      // 全銘柄表示（共通の月次軸を使用）
-      const commonLabels = ['1月', '2月', '3月', '4月', '5月', '6月']
-      const datasets = stocks.value.map((stock, index) => {
-        const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
-        return {
-          label: stock.name,
-          data: stockProfitData.value[stock.name]?.data || [],
-          borderColor: colors[index % colors.length],
-          backgroundColor: colors[index % colors.length] + '20',
-          fill: false,
-          tension: 0.4
-        }
-      })
+  if (!stockChartInstance) {
+    console.error('stockChartInstance が初期化されていません')
+    return
+  }
+  
+  if (selectedStock.value === 'all') {
+    // 全銘柄表示（共通の月次軸を使用）
+    console.log('全銘柄表示モードでチャート更新中...')
+    const commonLabels = ['1月', '2月', '3月', '4月', '5月', '6月']
+    const datasets = stocks.value.map((stock, index) => {
+      const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+      return {
+        label: stock.name,
+        data: stockProfitData.value[stock.name]?.data || [],
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length] + '20',
+        fill: false,
+        tension: 0.4
+      }
+    })
+    
+    stockChartInstance.data.labels = commonLabels
+    stockChartInstance.data.datasets = datasets
+    
+    // 軸の設定を更新
+    stockChartInstance.options.scales.x.title.text = '期間'
+  } else {
+    // 個別銘柄表示（取得時期以降の正確な時系列データを使用）
+    console.log(`個別銘柄「${selectedStock.value}」のデータを取得中...`)
+    
+    try {
+      const response = await apiService.getStockHistory(selectedStock.value)
+      console.log('API レスポンス:', response)
       
-      stockChartInstance.data.labels = commonLabels
-      stockChartInstance.data.datasets = datasets
+      if (!response.data) {
+        throw new Error('APIレスポンスにdataプロパティがありません')
+      }
       
-      // 軸の設定を更新
-      stockChartInstance.options.scales.x.title.text = '期間'
-    } else {
-      // 個別銘柄表示（取得時期以降の正確な時系列データを使用）
-      try {
-        const response = await apiService.getStockHistory(selectedStock.value)
-        const stockDetail = response.data
-        const timeSeries = stockDetail.timeSeries
+      const stockDetail = response.data
+      const timeSeries = stockDetail.timeSeries
+      
+      console.log('銘柄詳細データ:', stockDetail)
+      console.log('時系列データ:', timeSeries)
+      
+      const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
+      const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
+      
+      if (timeSeries && timeSeries.labels && timeSeries.labels.length > 0) {
+        console.log(`時系列データあり: ${timeSeries.labels.length}件のデータポイント`)
         
-        const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
-        const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
-        
-        if (timeSeries && timeSeries.labels.length > 0) {
-          stockChartInstance.data.labels = timeSeries.labels
-          stockChartInstance.data.datasets = [
-            {
-              label: '取得価格推移',
-              data: timeSeries.acquisitionPrices,
-              borderColor: '#FF6384',
-              backgroundColor: 'rgba(255, 99, 132, 0.1)',
-              fill: false,
-              tension: 0.4,
-              pointRadius: 3
-            },
-            {
-              label: '評価額推移',
-              data: timeSeries.values,
-              borderColor: '#36A2EB',
-              backgroundColor: 'rgba(54, 162, 235, 0.1)',
-              fill: false,
-              tension: 0.4,
-              pointRadius: 3
-            },
-            {
-              label: '損益推移',
-              data: timeSeries.profits,
-              borderColor: color,
-              backgroundColor: color + '20',
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: timeSeries.acquisitionMarkers?.map((marker, index) => 
-                marker !== '' ? '#ff6b35' : color
-              ) || [],
-              pointRadius: timeSeries.acquisitionMarkers?.map((marker, index) => 
-                marker !== '' ? 8 : 4
-              ) || [],
-              pointHoverRadius: timeSeries.acquisitionMarkers?.map((marker, index) => 
-                marker !== '' ? 10 : 6
-              ) || []
-            }
-          ]
-        } else {
-          // データがない場合は空のグラフを表示
-          stockChartInstance.data.labels = []
-          stockChartInstance.data.datasets = [{
-            label: selectedStock.value + ' (データなし)',
-            data: [],
-            borderColor: color,
-            backgroundColor: color + '20'
-          }]
-        }
-      } catch (err) {
-        console.error('個別銘柄データの取得に失敗:', err)
-        // エラー時はフォールバック
-        const stockData = stockProfitData.value[selectedStock.value]
-        const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
-        const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
-        
-        if (stockData) {
-          stockChartInstance.data.labels = stockData.labels
-          stockChartInstance.data.datasets = [{
-            label: selectedStock.value + ' 損益推移',
-            data: stockData.data,
+        stockChartInstance.data.labels = timeSeries.labels
+        stockChartInstance.data.datasets = [
+          {
+            label: '取得価格推移',
+            data: timeSeries.acquisitionPrices || [],
+            borderColor: '#FF6384',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 3
+          },
+          {
+            label: '評価額推移',
+            data: timeSeries.values || [],
+            borderColor: '#36A2EB',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            fill: false,
+            tension: 0.4,
+            pointRadius: 3
+          },
+          {
+            label: '損益推移',
+            data: timeSeries.profits || [],
             borderColor: color,
             backgroundColor: color + '20',
             fill: true,
-            tension: 0.4
-          }]
-        }
+            tension: 0.4,
+            pointBackgroundColor: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? '#ff6b35' : color
+            ) || [],
+            pointRadius: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? 8 : 4
+            ) || [],
+            pointHoverRadius: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? 10 : 6
+            ) || []
+          }
+        ]
+        
+        console.log('チャートデータが設定されました')
+      } else {
+        console.warn('時系列データが空です')
+        // データがない場合は空のグラフを表示
+        stockChartInstance.data.labels = ['データなし']
+        stockChartInstance.data.datasets = [{
+          label: selectedStock.value + ' (データなし)',
+          data: [0],
+          borderColor: color,
+          backgroundColor: color + '20'
+        }]
       }
+    } catch (err) {
+      console.error('個別銘柄データ取得エラー詳細:', {
+        error: err,
+        message: err.message,
+        stack: err.stack,
+        selectedStock: selectedStock.value
+      })
       
-      // 軸の設定を更新
-      stockChartInstance.options.scales.x.title.text = '取得時期からの経過'
+      // エラー詳細を画面に表示（個別銘柄エラー）
+      console.warn(`銘柄「${selectedStock.value}」のデータ取得に失敗:`, err.message)
+      
+      // エラー時は明確にエラーを示すチャートを表示
+      stockChartInstance.data.labels = ['データ取得エラー']
+      stockChartInstance.data.datasets = [{
+        label: selectedStock.value + ' (API接続失敗)',
+        data: [0],
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220, 53, 69, 0.2)'
+      }]
+      
+      // 全体エラーとしては設定しない（銘柄切り替えで回復可能）
     }
+    
+    // 軸の設定を更新
+    stockChartInstance.options.scales.x.title.text = '取得時期からの経過'
+  }
+  
+  // チャート更新
+  try {
     stockChartInstance.update()
+    console.log('チャート更新完了')
+  } catch (updateErr) {
+    console.error('チャート更新エラー:', updateErr)
   }
 }
 
@@ -365,70 +411,91 @@ const loadPortfolioData = async () => {
     isLoading.value = true
     error.value = null
     
-    const response = await apiService.getPortfolioData()
-    stocks.value = response.data.stocks || []
+    console.log('ポートフォリオデータの並列取得を開始...')
     
-    // 推移データも取得
-    const historyResponse = await apiService.getProfitHistory()
-    const historyData = historyResponse.data
+    // メインデータと履歴データを並列取得
+    const [portfolioResponse, historyResponse, spreadsheetResponse] = await Promise.allSettled([
+      apiService.getPortfolioData(),
+      apiService.getProfitHistory(),
+      apiService.getSpreadsheetData()
+    ])
+    
+    // ポートフォリオデータの処理
+    if (portfolioResponse.status === 'fulfilled') {
+      stocks.value = portfolioResponse.value.data.stocks || []
+      console.log(`ポートフォリオデータ取得成功: ${stocks.value.length}銘柄`)
+    } else {
+      console.error('ポートフォリオデータ取得失敗:', portfolioResponse.reason)
+      throw new Error(`ポートフォリオデータ取得エラー: ${portfolioResponse.reason?.message}`)
+    }
+    
+    // 履歴データの処理
+    let historyData = { periods: [], totalProfits: [], totalValues: [], totalCosts: [], avgPurchasePrices: [] }
+    if (historyResponse.status === 'fulfilled') {
+      historyData = historyResponse.value.data
+      console.log(`履歴データ取得成功: ${historyData.periods?.length || 0}期間`)
+    } else {
+      console.error('履歴データ取得失敗:', historyResponse.reason)
+      // 履歴データは必須ではないため、警告のみでエラーにしない
+    }
     
     // APIレスポンスを期間別データに変換
     const allLabels = historyData.periods || []
     const allProfits = historyData.totalProfits || []
     const allValues = historyData.totalValues || []
     const allCosts = historyData.totalCosts || []
-    const allAvgPrices = historyData.avgPurchasePrices || []
+    const allCumulativeInvestments = historyData.cumulativeInvestments || historyData.totalCosts || []  // 累積投資額（後方互換性あり）
     
-    // 期間別データの設定（3ライン対応）
+    // 期間別データの設定（証券アプリスタイル：累積投資額＋評価額）
     profitData.value = {
       '3months': {
         labels: allLabels.slice(-3),
         profits: allProfits.slice(-3),
         values: allValues.slice(-3),
         costs: allCosts.slice(-3),
-        avgPrices: allAvgPrices.slice(-3)
+        cumulativeInvestments: allCumulativeInvestments.slice(-3)  // 累積投資額
       },
       '6months': {
         labels: allLabels.slice(-6),
         profits: allProfits.slice(-6),
         values: allValues.slice(-6),
         costs: allCosts.slice(-6),
-        avgPrices: allAvgPrices.slice(-6)
+        cumulativeInvestments: allCumulativeInvestments.slice(-6)
       },
       '1year': {
         labels: allLabels.slice(-12),
         profits: allProfits.slice(-12),
         values: allValues.slice(-12),
         costs: allCosts.slice(-12),
-        avgPrices: allAvgPrices.slice(-12)
+        cumulativeInvestments: allCumulativeInvestments.slice(-12)
       },
       '2years': {
         labels: allLabels.slice(-24),
         profits: allProfits.slice(-24),
         values: allValues.slice(-24),
         costs: allCosts.slice(-24),
-        avgPrices: allAvgPrices.slice(-24)
+        cumulativeInvestments: allCumulativeInvestments.slice(-24)
       },
       '3years': {
         labels: allLabels.slice(-36),
         profits: allProfits.slice(-36),
         values: allValues.slice(-36),
         costs: allCosts.slice(-36),
-        avgPrices: allAvgPrices.slice(-36)
+        cumulativeInvestments: allCumulativeInvestments.slice(-36)
       },
       'all': {
         labels: allLabels,
         profits: allProfits,
         values: allValues,
         costs: allCosts,
-        avgPrices: allAvgPrices
+        cumulativeInvestments: allCumulativeInvestments
       }
     }
     
-    // 銘柄別データの設定（スプレッドシートから実データを取得）
-    try {
-      const spreadsheetResponse = await apiService.getSpreadsheetData()
-      const spreadsheetData = spreadsheetResponse.data.data || []
+    // 銘柄別データの設定（並列取得結果を使用）
+    if (spreadsheetResponse.status === 'fulfilled') {
+      const spreadsheetData = spreadsheetResponse.value.data.data || []
+      console.log(`スプレッドシートデータ取得成功: ${spreadsheetData.length}レコード`)
       
       // 銘柄別にデータを集計
       const stockDataMap = {}
@@ -463,15 +530,13 @@ const loadPortfolioData = async () => {
       })
       
       stockProfitData.value = stockDataMap
-    } catch (err) {
-      console.error('銘柄別データの取得に失敗:', err)
-      // フォールバック：stocks配列から銘柄コードを取得してダミーデータ
+    } else {
+      console.error('銘柄別データ取得失敗:', spreadsheetResponse.reason)
+      // エラー時も最小限のダミーデータを設定
       stockProfitData.value = stocks.value.reduce((acc, stock) => {
         acc[stock.name] = {
           labels: allLabels.slice(-6),
-          data: Array(Math.min(6, allLabels.length)).fill(0).map(() => 
-            Math.random() * 10000 - 5000 // ダミー損益データ
-          )
+          data: Array(Math.min(6, allLabels.length)).fill(0)
         }
         return acc
       }, {})
@@ -531,7 +596,7 @@ onMounted(async () => {
     }
   })
 
-  // 損益推移（3ライン表示）
+  // 損益推移（証券アプリスタイル：累積投資額＋評価額＋損益）
   const initialData = profitData.value[selectedPeriod.value]
   lineChartInstance = new Chart(lineChart.value, {
     type: 'line',
@@ -539,12 +604,14 @@ onMounted(async () => {
       labels: initialData.labels,
       datasets: [
         {
-          label: '取得価格推移',
-          data: initialData.avgPrices,
+          label: '累積投資額',
+          data: initialData.cumulativeInvestments,
           borderColor: '#FF6384',
           backgroundColor: 'rgba(255, 99, 132, 0.1)',
           fill: false,
-          tension: 0.4
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 6
         },
         {
           label: '評価額推移',
@@ -552,7 +619,9 @@ onMounted(async () => {
           borderColor: '#36A2EB',
           backgroundColor: 'rgba(54, 162, 235, 0.1)',
           fill: false,
-          tension: 0.4
+          tension: 0.4,
+          pointRadius: 4,
+          pointHoverRadius: 6
         },
         {
           label: '損益推移',
@@ -560,7 +629,9 @@ onMounted(async () => {
           borderColor: '#4BC0C0',
           backgroundColor: 'rgba(75, 192, 192, 0.1)',
           fill: true,
-          tension: 0.4
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5
         }
       ]
     },
@@ -898,6 +969,38 @@ th {
   border-radius: 8px;
   margin-bottom: 20px;
   border: 1px solid #f5c6cb;
+}
+
+.error-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.error-text {
+  flex: 1;
+}
+
+.retry-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.retry-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.retry-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
 }
 
 .loading-message {
