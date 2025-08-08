@@ -24,17 +24,18 @@ logger = logging.getLogger(__name__)
 def get_gspread_client():
     """Google Sheetsクライアントを取得"""
     try:
-        credentials_info = getattr(settings, 'GOOGLE_SHEETS_CREDENTIALS', None)
-        if credentials_info:
-            credentials = Credentials.from_service_account_info(
-                credentials_info, scopes=[
+        # 設定は settings.GOOGLE_APPLICATION_CREDENTIALS（ファイルパス）に統一
+        credentials_path = getattr(settings, 'GOOGLE_APPLICATION_CREDENTIALS', None)
+        if credentials_path:
+            credentials = Credentials.from_service_account_file(
+                credentials_path, scopes=[
                     'https://www.googleapis.com/auth/spreadsheets',
                     'https://www.googleapis.com/auth/drive'
                 ]
             )
             return gspread.authorize(credentials)
         else:
-            logger.warning("Google Sheets credentials not configured")
+            logger.warning("Google Sheets credentials path not configured (GOOGLE_APPLICATION_CREDENTIALS)")
             return None
     except Exception as e:
         logger.error(f"Google Sheets client initialization error: {e}")
@@ -47,7 +48,8 @@ def get_spreadsheet():
         return None
         
     try:
-        spreadsheet_id = getattr(settings, 'GOOGLE_SHEETS_ID', None)
+        # スプレッドシートIDは settings.SPREADSHEET_ID に統一
+        spreadsheet_id = getattr(settings, 'SPREADSHEET_ID', None)
         if spreadsheet_id:
             return client.open_by_key(spreadsheet_id)
         else:

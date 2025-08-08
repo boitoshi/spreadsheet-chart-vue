@@ -8,15 +8,15 @@ from . import views
 app_name = 'portfolio'
 
 urlpatterns = [
-    # メインポートフォリオデータAPI
+    # 既存（レガシー）パス
     path('api/portfolio/', views.PortfolioAPIView.as_view(), name='portfolio-data'),
-    
-    # 損益推移履歴API
     path('api/portfolio/history/', views.PortfolioHistoryAPIView.as_view(), name='portfolio-history'),
-    
-    # 個別銘柄詳細API
     path('api/portfolio/stock/<str:stock_name>/', views.StockDetailAPIView.as_view(), name='stock-detail'),
-    
-    # データ品質検証API
     path('api/portfolio/validate/', views.DataValidationAPIView.as_view(), name='data-validation'),
+
+    # 標準化（v1 用）パス
+    path('portfolio/', views.PortfolioAPIView.as_view(), name='v1-portfolio-data'),
+    path('portfolio/history/', views.PortfolioHistoryAPIView.as_view(), name='v1-portfolio-history'),
+    path('portfolio/stock/<str:stock_name>/', views.StockDetailAPIView.as_view(), name='v1-stock-detail'),
+    path('portfolio/validate/', views.DataValidationAPIView.as_view(), name='v1-data-validation'),
 ]

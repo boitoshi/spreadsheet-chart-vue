@@ -56,7 +56,7 @@
 
 ```
 spreadsheet-chart-vue/
-├── frontend/                    # Vue.js フロントエンド
+├── web-app/frontend/            # Vue.js フロントエンド
 │   ├── src/
 │   │   ├── components/         # Vueコンポーネント
 │   │   │   ├── BlogExport.vue
@@ -76,8 +76,8 @@ spreadsheet-chart-vue/
 │   │   ├── router/             # ルーティング設定
 │   │   └── utils/              # ユーティリティ関数
 │   └── package.json
-├── backend/                     # Django バックエンド
-│   ├── sheets_api/             # メインアプリケーション
+├── web-app/backend/             # Django バックエンド
+│   ├── sheets/                 # メインアプリケーション
 │   │   ├── views.py           # データ取得API
 │   │   ├── manual_updater.py  # 手動更新API
 │   │   ├── report_generator.py # レポート生成API
@@ -102,7 +102,7 @@ spreadsheet-chart-vue/
 ### フロントエンド
 
 ```bash
-cd frontend
+cd web-app/frontend
 npm install
 npm run dev
 ```
@@ -110,18 +110,18 @@ npm run dev
 ### バックエンド
 
 ```bash
-cd backend
+cd web-app/backend
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
 
-### 環境変数設定
+### 環境変数設定（統一）
 
 ```bash
-# backend/.env
-GOOGLE_SHEETS_ID=your_spreadsheet_id
-GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
+# web-app/backend/.env
+SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 ```
 
 ## 📖 使用方法
@@ -138,19 +138,28 @@ GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
 - `/report/2024-01` で指定月のレポート表示
 - 複数形式でのエクスポート
 
-## 🔧 API エンドポイント
+## 🔧 API エンドポイント（標準化）
+
+推奨プレフィックス: `/api/v1/`（レガシーエンドポイントも当面は存続）
 
 ### データ取得
-- `GET /api/get_data/` - スプレッドシートデータ取得
+- `GET /api/v1/data/records/` - スプレッドシートデータ取得（クエリ: `start_month`, `end_month`, `stock`）
 
 ### 手動更新
-- `POST /api/update_stock_price/` - 株価更新
-- `POST /api/bulk_update_prices/` - 一括価格更新
-- `POST /api/save_monthly_data/` - 月次データ保存
+- `POST /api/v1/manual/update/` - 株価更新
+- `POST /api/v1/manual/bulk-update/` - 一括価格更新
+- `POST /api/v1/monthly/save/` - 月次データ保存
 
 ### レポート生成
-- `GET /api/generate_report/{month}/` - 月次レポート生成
-- `GET /api/generate_blog_content/{month}/` - ブログ用コンテンツ生成
+- `GET /api/v1/reports/generate/{month}/` - 月次レポート生成
+- `GET /api/v1/reports/blog/{month}/` - ブログ用コンテンツ生成
+- `GET /api/v1/reports/templates/` - テンプレート一覧
+
+### ポートフォリオ
+- `GET /api/v1/portfolio/` - メインデータ（Vue 用）
+- `GET /api/v1/portfolio/history/` - 損益推移
+- `GET /api/v1/portfolio/stock/{name}/` - 個別銘柄
+- `GET /api/v1/portfolio/validate/` - データ検証
 
 ## 📊 データ形式
 
@@ -185,10 +194,10 @@ GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
 ## 🎨 カスタマイズ
 
 ### テーマカラー
-`frontend/src/style.css` でカラーパレットを変更可能
+`web-app/frontend/src/style.css` でカラーパレットを変更可能
 
 ### レポートテンプレート
-`backend/templates/report_template.html` でHTMLレポートの外観をカスタマイズ
+`web-app/backend/templates/report_template.html` でHTMLレポートの外観をカスタマイズ
 
 ### ブログテンプレート
 `docs/monthly-reports/templates/blog-template.md` でブログ投稿用テンプレートを編集

@@ -57,10 +57,13 @@ def get_data(request):
         end_month_str = request.GET.get('end_month', '2024-12')
         stock_symbol = request.GET.get('stock', None)
 
-        # start_month と end_month の変換
+        # start_month と end_month の変換（end_month は月末日に補正）
         try:
             start_month = datetime.datetime.strptime(start_month_str, '%Y-%m')
-            end_month = datetime.datetime.strptime(end_month_str, '%Y-%m')
+            end_month_base = datetime.datetime.strptime(end_month_str, '%Y-%m')
+            # 月末日を求める: 翌月1日の前日
+            next_month = (end_month_base.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+            end_month = next_month - datetime.timedelta(days=1)
         except ValueError:
             return JsonResponse(
                 {"error": "Invalid date format. Use YYYY-MM."}, 
