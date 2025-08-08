@@ -33,10 +33,27 @@ packages = ["collectors", "config", "schedulers"]
 target-version = "py312"
 line-length = 88
 select = [
-    "E", "W", "F", "I", "B", "C4", "UP"
+    "E", "W", "F", "I", "B", "C4", "UP", "ANN"
 ]
+extend-ignore = [
+    "ANN101",  # Missing type annotation for self in method
+    "ANN102",  # Missing type annotation for cls in classmethod
+]
+fix = true
+show-fixes = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+show_error_codes = true
+pretty = true

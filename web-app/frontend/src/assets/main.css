@@ -1,0 +1,266 @@
+/* TailwindCSS の基本ディレクティブ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* カスタムベーススタイル */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* フォーカス可能要素のカスタムフォーカススタイル */
+  *:focus {
+    @apply outline-none;
+  }
+
+  *:focus-visible {
+    @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-white rounded-sm;
+  }
+
+  /* カスタムスクロールバー */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+
+  /* モダンなフォント設定 */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 { @apply text-4xl leading-tight; }
+  h2 { @apply text-3xl leading-snug; }
+  h3 { @apply text-2xl leading-snug; }
+  h4 { @apply text-xl leading-normal; }
+  h5 { @apply text-lg leading-normal; }
+  h6 { @apply text-base leading-normal; }
+}
+
+/* カスタムコンポーネントスタイル */
+@layer components {
+  /* ボタンスタイル */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 ease-in-out;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 border-gray-300 hover:bg-gray-50 focus:ring-primary-500 shadow-sm hover:shadow-md;
+  }
+
+  .btn-success {
+    @apply btn bg-success-600 text-white hover:bg-success-700 focus:ring-success-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* カードスタイル */
+  .card {
+    @apply bg-white rounded-xl shadow-soft border border-gray-200 overflow-hidden;
+    transition: all 0.3s ease;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-soft-lg hover:border-gray-300 hover:-translate-y-1;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200 bg-gray-50;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 bg-gray-50 border-t border-gray-200;
+  }
+
+  /* インプットスタイル */
+  .input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+  }
+
+  .input-error {
+    @apply border-danger-300 text-danger-900 placeholder-danger-300 focus:border-danger-500 focus:ring-danger-500;
+  }
+
+  /* ラベルスタイル */
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .label-error {
+    @apply text-danger-700;
+  }
+
+  /* バッジスタイル */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+
+  .badge-success {
+    @apply badge bg-success-100 text-success-800;
+  }
+
+  .badge-danger {
+    @apply badge bg-danger-100 text-danger-800;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning-100 text-warning-800;
+  }
+
+  /* ローディングスピナー */
+  .spinner {
+    @apply inline-block animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite];
+  }
+
+  /* チャート用のコンテナ */
+  .chart-container {
+    @apply relative bg-white rounded-xl p-6 shadow-soft border border-gray-200;
+    min-height: 400px;
+  }
+
+  /* ポートフォリオテーブル */
+  .portfolio-table {
+    @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow-soft;
+  }
+
+  .portfolio-table th {
+    @apply bg-gray-50 px-6 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider border-b border-gray-200;
+  }
+
+  .portfolio-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-b border-gray-100;
+  }
+
+  .portfolio-table tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .portfolio-table tbody tr {
+    @apply hover:bg-gray-50 transition-colors duration-150;
+  }
+
+  /* 数値表示用のユーティリティ */
+  .profit-positive {
+    @apply text-success-600 font-semibold;
+  }
+
+  .profit-negative {
+    @apply text-danger-600 font-semibold;
+  }
+
+  .profit-neutral {
+    @apply text-gray-600 font-medium;
+  }
+
+  /* グラデーション背景 */
+  .gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, theme('colors.primary.500') 0%, theme('colors.primary.700') 100%);
+  }
+
+  /* ダークモード対応（将来的な拡張用） */
+  .dark .card {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .dark .card-header,
+  .dark .card-footer {
+    @apply bg-gray-700 border-gray-600;
+  }
+
+  .dark .input {
+    @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400;
+  }
+
+  .dark .portfolio-table th {
+    @apply bg-gray-700 text-gray-300;
+  }
+
+  .dark .portfolio-table td {
+    @apply text-gray-300 border-gray-700;
+  }
+
+  .dark .portfolio-table tbody tr {
+    @apply hover:bg-gray-700;
+  }
+}
+
+/* カスタムユーティリティ */
+@layer utilities {
+  /* テキストバランス */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* カスタムトランジション */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 視覚的な区切り */
+  .divider {
+    @apply border-t border-gray-200 my-6;
+  }
+
+  /* レスポンシブなフォントサイズ */
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+
+  /* 安全なエリア対応 */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* パフォーマンス最適化 */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+}

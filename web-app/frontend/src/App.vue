@@ -281,7 +281,10 @@ const updateStockChart = async () => {
         borderColor: colors[index % colors.length],
         backgroundColor: colors[index % colors.length] + '20',
         fill: false,
-        tension: 0.4
+        tension: 0.1,  // キビキビした線形補間
+        pointRadius: 1,  // ポイントを小さく
+        pointHoverRadius: 4,
+        borderWidth: 2
       }
     })
     
@@ -322,8 +325,10 @@ const updateStockChart = async () => {
             borderColor: '#FF6384',
             backgroundColor: 'rgba(255, 99, 132, 0.1)',
             fill: false,
-            tension: 0.4,
-            pointRadius: 3
+            tension: 0.1,  // キビキビした線形補間
+            pointRadius: 1,  // ポイントを小さく
+            pointHoverRadius: 4,
+            borderWidth: 2
           },
           {
             label: '評価額推移',
@@ -331,8 +336,10 @@ const updateStockChart = async () => {
             borderColor: '#36A2EB',
             backgroundColor: 'rgba(54, 162, 235, 0.1)',
             fill: false,
-            tension: 0.4,
-            pointRadius: 3
+            tension: 0.1,  // キビキビした線形補間
+            pointRadius: 1,  // ポイントを小さく
+            pointHoverRadius: 4,
+            borderWidth: 2
           },
           {
             label: '損益推移',
@@ -340,16 +347,17 @@ const updateStockChart = async () => {
             borderColor: color,
             backgroundColor: color + '20',
             fill: true,
-            tension: 0.4,
+            tension: 0.1,  // キビキビした線形補間
             pointBackgroundColor: timeSeries.acquisitionMarkers?.map((marker) => 
               marker !== '' ? '#ff6b35' : color
             ) || [],
             pointRadius: timeSeries.acquisitionMarkers?.map((marker) => 
-              marker !== '' ? 8 : 4
+              marker !== '' ? 6 : 0  // 取得マーカー時のみポイント表示
             ) || [],
             pointHoverRadius: timeSeries.acquisitionMarkers?.map((marker) => 
-              marker !== '' ? 10 : 6
-            ) || []
+              marker !== '' ? 8 : 3
+            ) || [],
+            borderWidth: 2
           }
         ]
         
@@ -609,9 +617,10 @@ onMounted(async () => {
           borderColor: '#FF6384',
           backgroundColor: 'rgba(255, 99, 132, 0.1)',
           fill: false,
-          tension: 0.4,
-          pointRadius: 4,
-          pointHoverRadius: 6
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 1,  // ポイントを小さく
+          pointHoverRadius: 4,
+          borderWidth: 2
         },
         {
           label: '評価額推移',
@@ -619,9 +628,10 @@ onMounted(async () => {
           borderColor: '#36A2EB',
           backgroundColor: 'rgba(54, 162, 235, 0.1)',
           fill: false,
-          tension: 0.4,
-          pointRadius: 4,
-          pointHoverRadius: 6
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 1,  // ポイントを小さく
+          pointHoverRadius: 4,
+          borderWidth: 2
         },
         {
           label: '損益推移',
@@ -629,9 +639,10 @@ onMounted(async () => {
           borderColor: '#4BC0C0',
           backgroundColor: 'rgba(75, 192, 192, 0.1)',
           fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 0,  // ポイントなし
+          pointHoverRadius: 3,
+          borderWidth: 2
         }
       ]
     },
@@ -672,7 +683,10 @@ onMounted(async () => {
       borderColor: colors[index % colors.length],
       backgroundColor: colors[index % colors.length] + '20',
       fill: false,
-      tension: 0.4
+      tension: 0.1,  // キビキビした線形補間
+      pointRadius: 1,  // ポイントを小さく
+      pointHoverRadius: 4,
+      borderWidth: 2
     }
   })
 
