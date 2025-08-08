@@ -124,6 +124,12 @@ SPREADSHEET_ID=your_spreadsheet_id
 GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 ```
 
+フロントエンド/バックエンドの環境変数テンプレート：
+- `web-app/frontend/.env.example`（`VITE_API_BASE_URL` など）
+- `web-app/backend/.env.example`（`SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` など）
+
+必要に応じて `.env`/`.env.development`/`.env.production` を上記を参考に作成してください。
+
 ## 📖 使用方法
 
 ### 1. ダッシュボード
@@ -160,6 +166,20 @@ GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 - `GET /api/v1/portfolio/history/` - 損益推移
 - `GET /api/v1/portfolio/stock/{name}/` - 個別銘柄
 - `GET /api/v1/portfolio/validate/` - データ検証
+
+## ✅ CI/疎通チェック
+
+スクリプトでAPIの疎通確認ができます（BASE_URLは環境変数で上書き可能）。
+
+- Python:
+  - `python scripts/api_health_check.py`（例: `BASE_URL=http://localhost:8000 python scripts/api_health_check.py`）
+- Bash + curl + jq:
+  - `bash scripts/api_health_check.sh`（例: `BASE_URL=https://your-backend.example.com bash scripts/api_health_check.sh`）
+
+チェック対象:
+- `/api/v1/portfolio/` が `summary`/`stocks` を返す
+- `/api/v1/portfolio/history/` が主要配列を返す
+- `/api/v1/data/records/` が `data` 配列を返す
 
 ## 📊 データ形式
 

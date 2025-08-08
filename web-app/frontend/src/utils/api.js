@@ -49,35 +49,35 @@ export const apiService = {
   // スプレッドシートデータを取得
   getSpreadsheetData: (params = {}) => {
     const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/get_data/?${queryParams}`)
+    return api.get(`/api/v1/data/records/?${queryParams}`)
   },
   
   // ポートフォリオデータを取得
   getPortfolioData: (params = {}) => {
     const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/portfolio/?${queryParams}`)
+    return api.get(`/api/v1/portfolio/?${queryParams}`)
   },
   
   // 銘柄別履歴データを取得
   getStockHistory: (stockName, params = {}) => {
     const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/portfolio/stock/${stockName}/?${queryParams}`)
+    return api.get(`/api/v1/portfolio/stock/${stockName}/?${queryParams}`)
   },
   
   // 損益推移データを取得
   getProfitHistory: (params = {}) => {
     const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/portfolio/history/?${queryParams}`)
+    return api.get(`/api/v1/portfolio/history/?${queryParams}`)
   },
   
   // 手動価格更新
   updatePrice: (data) => {
-    return api.post('/api/manual_update/', data)
+    return api.post('/api/v1/manual/update/', data)
   },
   
   // データ品質検証
   validatePortfolioData: () => {
-    return api.get('/api/portfolio/validate/')
+    return api.get('/api/v1/portfolio/validate/')
   }
 }
 

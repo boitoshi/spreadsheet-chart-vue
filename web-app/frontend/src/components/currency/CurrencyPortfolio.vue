@@ -131,7 +131,8 @@ export default {
     // ポートフォリオデータ取得
     const fetchPortfolioData = async () => {
       try {
-        const response = await fetch('/api/portfolio/')
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+        const response = await fetch(`${baseUrl}/api/v1/portfolio/`)
         const data = await response.json()
         
         if (data.error) {

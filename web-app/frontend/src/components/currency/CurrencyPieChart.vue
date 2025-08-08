@@ -222,7 +222,8 @@ export default {
         error.value = ''
         
         // ポートフォリオデータ取得
-        const portfolioResponse = await fetch('/api/portfolio/')
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+        const portfolioResponse = await fetch(`${baseUrl}/api/v1/portfolio/`)
         const portfolioResult = await portfolioResponse.json()
         
         if (portfolioResult.error) {
