@@ -33,32 +33,28 @@
 </template>
   
   <script setup>
-  import { ref, onMounted } from 'vue'
+  import { ref, onMounted, watch } from 'vue'
   import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale, Filler } from 'chart.js'
   import { Line } from 'vue-chartjs'
+  import { apiService } from '../../utils/api.js'
   
   // Chart.jsのプラグイン登録
   ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale, Filler)
   
-  // データを直接定義
-  const data = ref(null)
+  // サーバから取得した履歴データ
+  const history = ref(null)
   const error = ref(null)
   const loading = ref(false)
 
-  const stockOptions = ref([])
+  // 本チャートはサーバ集計（全体）に統一
+  const stockOptions = ref(['all'])
   const selectedStock = ref('all')
   const profitChartData = ref({
     labels: [],
     datasets: [],
   })
 
-  const updateChart = () => {
-  // DOM要素の存在確認を追加
-  const canvas = document.getElementById('line-chart')
-  if (!canvas) return  // canvas が見つからない場合は処理中断
-
-  const ctx = canvas.getContext('2d')
-  }
+  // 互換：未使用の直接描画は撤去（vue-chartjsが描画）
   
   // チャートオプション設定
   const chartOptions = ref({
@@ -81,15 +77,6 @@
   watch([startDate, endDate], () => {
     updateProfitChartData()
   })
-  // データ取得時の処理
-  watch(data, (newData) => {
-    if (newData?.length) {
-      // ユニークな銘柄を取得
-      const uniqueStocks = [...new Set(newData.map(item => item.stock))]
-      stockOptions.value = uniqueStocks
-      updateProfitChartData()
-    }
-  })
   
   // 期間選択用の変数を追加
   const startDate = ref('2023-06')
@@ -97,96 +84,59 @@
     
   // グラフデータ更新関数
   const updateProfitChartData = () => {
-    if (!data.value?.length) return
+    if (!history.value) return
 
-  // 日付でフィルタリング
-  const filteredByDate = data.value.filter(item => {
-    const itemDate = item.label.substring(0, 7) // YYYY-MM-DD → YYYY-MM
-    return itemDate >= startDate.value && itemDate <= endDate.value
-  })
+    const periods = history.value.periods || []
+    const totalCosts = history.value.totalCosts || []
+    const totalValues = history.value.totalValues || []
 
-  const sortedData = [...filteredByDate].sort((a, b) => 
-    new Date(a.label) - new Date(b.label)
-  )
-  profitChartData.value.labels = [...new Set(sortedData.map(item => item.label))]
+    // 月フィルタ（YYYY-MMで比較）
+    const indices = periods
+      .map((p, i) => ({ i, m: (p || '').toString().substring(0, 7) }))
+      .filter(({ m }) => (!startDate.value || m >= startDate.value) && (!endDate.value || m <= endDate.value))
+      .map(({ i }) => i)
 
-  if (selectedStock.value === 'all') {
-    const purchaseData = profitChartData.value.labels.map(date => {
-      return sortedData
-        .filter(item => item.label === date)
-        .reduce((total, item) => total + (parseFloat(item.purchase) * parseFloat(item.quantity)), 0)
-    })
+    const labels = indices.map(i => periods[i])
+    const purchaseData = indices.map(i => Number(totalCosts[i] || 0))
+    const valuationData = indices.map(i => Number(totalValues[i] || 0))
 
-    const valuationData = profitChartData.value.labels.map(date => {
-      return sortedData
-        .filter(item => item.label === date)
-        .reduce((total, item) => total + (parseFloat(item.value) * parseFloat(item.quantity)), 0)
-    })
-
-    profitChartData.value.datasets = [
-      {
-        label: '取得額合計',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        data: purchaseData,
-        fill: false,
-      },
-      {
-        label: '評価額合計',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        data: valuationData,
-        fill: true,
-      }
-    ]
-  } else {
-    const stockData = sortedData.filter(item => item.stock === selectedStock.value)
-        
-    const purchaseData = profitChartData.value.labels.map(date => {
-      const item = stockData.find(item => item.label === date)
-      return item ? parseFloat(item.purchase) * parseFloat(item.quantity) : 0
-    })
-
-    const valuationData = profitChartData.value.labels.map(date => {
-      const item = stockData.find(item => item.label === date)
-      return item ? parseFloat(item.value) * parseFloat(item.quantity) : 0
-    })
-
-    profitChartData.value.datasets = [
-      {
-        label: '取得額',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        data: purchaseData,
-        fill: false,
-      },
-      {
-        label: '評価額',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        data: valuationData,
-        fill: true,
-      }
-    ]
-  }
-};
+    profitChartData.value = {
+      labels,
+      datasets: [
+        {
+          label: '取得額合計',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          data: purchaseData,
+          fill: false,
+        },
+        {
+          label: '評価額合計',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          data: valuationData,
+          fill: true,
+        }
+      ]
+    }
+  };
   
-  // 選択変更時にデータを更新
-  watch(selectedStock, updateProfitChartData);
-  
-  // 初期データ取得
-  onMounted(() => {
-    console.log('ProfitChart mounted')
-    // ダミーデータを直接設定
-    data.value = [
-      { label: '2024-01-01', stock: 'トヨタ自動車', quantity: 100, purchase: 2500, value: 2600 },
-      { label: '2024-01-01', stock: 'ソフトバンク', quantity: 200, purchase: 1200, value: 1180 },
-      { label: '2024-02-01', stock: 'トヨタ自動車', quantity: 100, purchase: 2500, value: 2700 },
-      { label: '2024-02-01', stock: 'ソフトバンク', quantity: 200, purchase: 1200, value: 1150 },
-    ]
-    
-    stockOptions.value = ['トヨタ自動車', 'ソフトバンク']
-    updateProfitChartData()
+  // 選択変更（現状は all のみ）
+  watch(selectedStock, updateProfitChartData)
+
+  // 初期データ取得（バックエンド履歴）
+  onMounted(async () => {
+    try {
+      loading.value = true
+      const { data } = await apiService.getProfitHistory({ period: 'all' })
+      history.value = data
+      updateProfitChartData()
+    } catch (e) {
+      error.value = e?.message || '履歴データの取得に失敗しました'
+      console.error('Profit history fetch error:', e)
+    } finally {
+      loading.value = false
+    }
   })
   </script>
   

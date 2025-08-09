@@ -42,7 +42,7 @@
           <tr v-for="holding in holdingsWithCalc" :key="holding.stock">
             <td>{{ holding.stock }}</td>
             <td>{{ holding.quantity }}</td>
-            <td>{{ formatCurrency(holding.purchasePrice) }}</td>
+            <td>{{ formatCurrency(holding.avgPrice) }}</td>
             <td>{{ formatCurrency(holding.currentPrice) }}</td>
             <td>{{ formatCurrency(holding.totalCurrent) }}</td>
             <td :class="holding.profitLoss >= 0 ? 'profit' : 'loss'">

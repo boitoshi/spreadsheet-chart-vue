@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
-import { calculateProfitLoss, calculatePortfolioSummary } from '../utils/calculations.js'
+// バックエンドを単一の計算ソースにするため、
+// フロント側の再計算は最小限に留める
 import { apiService } from '../utils/api.js'
 
 /**
@@ -10,18 +11,46 @@ export const usePortfolioData = () => {
   const loading = ref(false)
   const error = ref(null)
   
-  // 計算されたポートフォリオサマリー
+  // サーバ値からサマリーを算出（totalCost/currentValue/profit ベース）
   const portfolioSummary = computed(() => {
     if (!holdings.value.length) return null
-    return calculatePortfolioSummary(holdings.value)
+
+    const totals = holdings.value.reduce((acc, h) => {
+      const totalCost = Number(h.totalCost ?? 0)
+      const currentValue = Number(h.currentValue ?? 0)
+      const profit = Number(h.profit ?? (currentValue - totalCost))
+      acc.totalPurchase += totalCost
+      acc.totalCurrent += currentValue
+      acc.totalProfitLoss += profit
+      return acc
+    }, { totalPurchase: 0, totalCurrent: 0, totalProfitLoss: 0 })
+
+    const rateBase = totals.totalPurchase
+    const totalProfitLossRate = rateBase > 0 ? (totals.totalProfitLoss / rateBase) * 100 : 0
+
+    return { ...totals, totalProfitLossRate }
   })
   
-  // 銘柄別損益データ
+  // 銘柄別損益データ（バックエンド値を反映し、必要最小限の派生値のみ計算）
   const holdingsWithCalc = computed(() => {
-    return holdings.value.map(holding => ({
-      ...holding,
-      ...calculateProfitLoss(holding.purchasePrice, holding.currentPrice, holding.quantity)
-    }))
+    return holdings.value.map(h => {
+      const quantity = Number(h.quantity ?? 0)
+      const avgPrice = Number(h.avgPrice ?? 0)
+      const currentPrice = Number(h.currentPrice ?? 0)
+      const totalPurchase = Number(h.totalCost ?? quantity * avgPrice)
+      const totalCurrent = Number(h.currentValue ?? quantity * currentPrice)
+      const profitLoss = Number(h.profit ?? (totalCurrent - totalPurchase))
+      const profitLossRate = totalPurchase > 0 ? (profitLoss / totalPurchase) * 100 : 0
+
+      return {
+        ...h,
+        // 既存UI互換のためのフィールド名を付与
+        totalPurchase,
+        totalCurrent,
+        profitLoss,
+        profitLossRate
+      }
+    })
   })
   
   /**
@@ -33,6 +62,7 @@ export const usePortfolioData = () => {
     
     try {
       const response = await apiService.getPortfolioData(params)
+      // サーバ整形済みデータをそのまま保持
       holdings.value = response.data.stocks || []
       
     } catch (err) {
