@@ -12,8 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -113,17 +113,23 @@ MIDDLEWARE = [
     *MIDDLEWARE,
 ]
 
-# Vue側のURLを許可
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Vue開発サーバー（カスタムポート）
-    "http://localhost:5173",  # VueのデフォルトURL
+# CORS 設定（環境変数で柔軟に制御）
+# 例: CORS_ALLOWED_ORIGINS=https://example.com,https://www.example.com
+_env_allowed = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+_default_dev = [
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
-# 本番環境のCORS設定
-if not DEBUG:
-    CORS_ALLOWED_ORIGINS.extend([
-        "https://yourdomain.com",  # ConoHa WINGのドメインに変更
-        "https://www.yourdomain.com",
-    ])
+if os.getenv("CORS_ALLOW_ALL_ORIGINS", "").lower() in {"1", "true", "yes"}:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
 else:
-    CORS_ALLOW_ALL_ORIGINS = True  # 開発環境では全て許可
+    CORS_ALLOW_ALL_ORIGINS = False
+    if _env_allowed:
+        CORS_ALLOWED_ORIGINS = [o.strip() for o in _env_allowed.split(",") if o.strip()]
+    else:
+        # デフォルトは開発向けオリジンを許可
+        CORS_ALLOWED_ORIGINS = _default_dev
+
+    # 本番で特定ドメインを追加したい場合は CORS_ALLOWED_ORIGINS 環境変数で指定

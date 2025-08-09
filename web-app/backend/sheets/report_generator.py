@@ -3,21 +3,16 @@
 月次レポートとブログ用コンテンツを自動生成
 """
 
-import json
 import logging
-from datetime import datetime, date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional, Any, Tuple
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.template.loader import render_to_string
-from django.conf import settings
+from datetime import datetime
+from typing import Any
+
 import gspread
+from django.conf import settings
+from django.http import HttpResponse, JsonResponse
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_http_methods
 from google.oauth2.service_account import Credentials
-import base64
-from io import BytesIO
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +41,7 @@ def get_spreadsheet():
     client = get_gspread_client()
     if not client:
         return None
-        
+
     try:
         # スプレッドシートIDは settings.SPREADSHEET_ID に統一
         spreadsheet_id = getattr(settings, 'SPREADSHEET_ID', None)
@@ -75,22 +70,22 @@ def generate_report(request, month):
                 'success': False,
                 'error': 'Invalid month format. Use YYYY-MM'
             }, status=400)
-        
+
         # レポートデータを生成
         report_data = generate_monthly_report_data(month)
-        
+
         if not report_data['success']:
             return JsonResponse({
                 'success': False,
                 'error': report_data['error']
             }, status=500)
-        
+
         return JsonResponse({
             'success': True,
             'data': report_data['data'],
             'generated_at': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Report generation error: {e}")
         return JsonResponse({
@@ -108,16 +103,16 @@ def generate_blog_content(request, month):
     try:
         format_type = request.GET.get('format', 'html')  # html, markdown, json
         include_images = request.GET.get('include_images', 'false').lower() == 'true'
-        
+
         # レポートデータを取得
         report_data = generate_monthly_report_data(month)
-        
+
         if not report_data['success']:
             return JsonResponse({
                 'success': False,
                 'error': report_data['error']
             }, status=500)
-        
+
         # フォーマットに応じてコンテンツを生成
         if format_type == 'markdown':
             content = generate_markdown_content(report_data['data'], include_images)
@@ -150,7 +145,7 @@ def generate_blog_content(request, month):
                 content_type='text/html',
                 headers={'Content-Disposition': f'attachment; filename="report-{month}.html"'}
             )
-        
+
     except Exception as e:
         logger.error(f"Blog content generation error: {e}")
         return JsonResponse({
@@ -191,13 +186,13 @@ def get_report_templates(request):
             'sections': ['summary', 'chart', 'highlights', 'commentary']
         }
     ]
-    
+
     return JsonResponse({
         'success': True,
         'templates': templates
     })
 
-def generate_monthly_report_data(month: str) -> Dict[str, Any]:
+def generate_monthly_report_data(month: str) -> dict[str, Any]:
     """
     月次レポートデータを生成
     """
@@ -208,22 +203,22 @@ def generate_monthly_report_data(month: str) -> Dict[str, Any]:
                 'success': False,
                 'error': 'Unable to access spreadsheet'
             }
-        
+
         # ポートフォリオデータを取得
         portfolio_data = get_portfolio_data(spreadsheet)
-        
+
         # 価格履歴データを取得
         price_history = get_price_history(spreadsheet, month)
-        
+
         # サマリーを計算
         summary = calculate_summary(portfolio_data, price_history, month)
-        
+
         # トピックスを取得
         topics = get_monthly_topics(month)
-        
+
         # 所感を生成
         commentary = generate_commentary(summary, portfolio_data, month)
-        
+
         return {
             'success': True,
             'data': {
@@ -236,7 +231,7 @@ def generate_monthly_report_data(month: str) -> Dict[str, Any]:
                 'generated_at': datetime.now().isoformat()
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Monthly report data generation error: {e}")
         return {
@@ -244,14 +239,14 @@ def generate_monthly_report_data(month: str) -> Dict[str, Any]:
             'error': f'Failed to generate report data: {str(e)}'
         }
 
-def get_portfolio_data(spreadsheet) -> List[Dict[str, Any]]:
+def get_portfolio_data(spreadsheet) -> list[dict[str, Any]]:
     """
     ポートフォリオデータを取得
     """
     try:
         portfolio_sheet = spreadsheet.worksheet('Portfolio')
         all_values = portfolio_sheet.get_all_values()
-        
+
         portfolio_data = []
         for row in all_values[1:]:  # ヘッダーをスキップ
             if len(row) >= 7 and row[0]:  # 有効なデータ行
@@ -259,7 +254,7 @@ def get_portfolio_data(spreadsheet) -> List[Dict[str, Any]]:
                 market_value = float(row[5]) if row[5] else 0
                 avg_price = float(row[3]) if row[3] else 0
                 profit_rate = (profit / (market_value - profit)) * 100 if (market_value - profit) > 0 else 0
-                
+
                 portfolio_data.append({
                     'ticker': row[0],
                     'name': row[1],
@@ -270,25 +265,25 @@ def get_portfolio_data(spreadsheet) -> List[Dict[str, Any]]:
                     'profit': profit,
                     'profit_rate': profit_rate
                 })
-        
+
         return portfolio_data
-        
+
     except Exception as e:
         logger.error(f"Portfolio data retrieval error: {e}")
         return []
 
-def get_price_history(spreadsheet, month: str) -> List[Dict[str, Any]]:
+def get_price_history(spreadsheet, month: str) -> list[dict[str, Any]]:
     """
     価格履歴データを取得
     """
     try:
         price_sheet = spreadsheet.worksheet('Price Data')
         all_values = price_sheet.get_all_values()
-        
+
         # 指定月のデータをフィルタ
         month_start = f"{month}-01"
         month_end = f"{month}-31"  # 簡易的な月末
-        
+
         price_history = []
         for row in all_values[1:]:  # ヘッダーをスキップ
             if len(row) >= 4 and row[0]:
@@ -301,35 +296,35 @@ def get_price_history(spreadsheet, month: str) -> List[Dict[str, Any]]:
                         'quantity': int(row[4]) if len(row) > 4 and row[4] else 0,
                         'transaction_type': row[5] if len(row) > 5 else 'update'
                     })
-        
+
         # 日付順にソート
         price_history.sort(key=lambda x: x['date'])
-        
+
         return price_history
-        
+
     except Exception as e:
         logger.error(f"Price history retrieval error: {e}")
         return []
 
-def calculate_summary(portfolio_data: List[Dict], price_history: List[Dict], month: str) -> Dict[str, Any]:
+def calculate_summary(portfolio_data: list[dict], price_history: list[dict], month: str) -> dict[str, Any]:
     """
     サマリーデータを計算
     """
     total_value = sum(stock['market_value'] for stock in portfolio_data)
     total_profit = sum(stock['profit'] for stock in portfolio_data)
     total_investment = total_value - total_profit
-    
+
     # 月次変化を計算（簡易版）
     monthly_transactions = [t for t in price_history if t['transaction_type'] in ['buy', 'sell']]
     monthly_profit = sum(
         t['quantity'] * t['price'] * (-1 if t['transaction_type'] == 'sell' else 1)
         for t in monthly_transactions
     )
-    
+
     # 前月比計算（ダミーデータ）
     monthly_change = 15.2 if monthly_profit > 0 else -8.3
     total_return = (total_profit / total_investment) * 100 if total_investment > 0 else 0
-    
+
     return {
         'total_value': total_value,
         'total_profit': total_profit,
@@ -342,7 +337,7 @@ def calculate_summary(portfolio_data: List[Dict], price_history: List[Dict], mon
         'negative_stocks': len([s for s in portfolio_data if s['profit'] < 0])
     }
 
-def get_monthly_topics(month: str) -> List[Dict[str, Any]]:
+def get_monthly_topics(month: str) -> list[dict[str, Any]]:
     """
     月次トピックスを取得（ダミーデータ）
     実際の実装では外部ニュースAPIや手動入力データから取得
@@ -359,24 +354,24 @@ def get_monthly_topics(month: str) -> List[Dict[str, Any]]:
             'content': '好決算を発表した企業の株価が大きく上昇しました。'
         }
     ]
-    
+
     return topics
 
-def generate_commentary(summary: Dict, portfolio_data: List[Dict], month: str) -> str:
+def generate_commentary(summary: dict, portfolio_data: list[dict], month: str) -> str:
     """
     所感を自動生成
     """
     positive_count = summary['positive_stocks']
     total_count = summary['portfolio_count']
     monthly_profit = summary['monthly_profit']
-    
+
     if monthly_profit > 0:
         performance = "好調"
         trend = "上昇基調"
     else:
         performance = "軟調"
         trend = "調整局面"
-    
+
     commentary = f"""今月は全体的に{performance}な結果となりました。
 
 保有{total_count}銘柄中{positive_count}銘柄がプラスとなり、
@@ -387,10 +382,10 @@ def generate_commentary(summary: Dict, portfolio_data: List[Dict], month: str) -
 
 来月も長期的な視点を維持しながら、
 バランスの取れた投資を継続していく予定です。"""
-    
+
     return commentary
 
-def generate_markdown_content(report_data: Dict, include_images: bool = False) -> str:
+def generate_markdown_content(report_data: dict, include_images: bool = False) -> str:
     """
     Markdown形式のコンテンツを生成
     """
@@ -398,7 +393,7 @@ def generate_markdown_content(report_data: Dict, include_images: bool = False) -
     summary = report_data['summary']
     portfolio = report_data['portfolio']
     commentary = report_data['commentary']
-    
+
     content = f"""# {month} 投資成績レポート
 
 > ポケモン世代の投資ブログ - Monthly Report  
@@ -449,7 +444,7 @@ def generate_markdown_content(report_data: Dict, include_images: bool = False) -
 
     return content
 
-def generate_html_content(report_data: Dict, include_images: bool = False) -> str:
+def generate_html_content(report_data: dict, include_images: bool = False) -> str:
     """
     HTML形式のコンテンツを生成
     """
@@ -457,7 +452,7 @@ def generate_html_content(report_data: Dict, include_images: bool = False) -> st
     summary = report_data['summary']
     portfolio = report_data['portfolio']
     commentary = report_data['commentary']
-    
+
     # HTMLテンプレートを使用してコンテンツを生成
     context = {
         'month': month,
@@ -467,7 +462,7 @@ def generate_html_content(report_data: Dict, include_images: bool = False) -> st
         'include_images': include_images,
         'generated_date': datetime.now().strftime('%Y年%m月%d日')
     }
-    
+
     try:
         # Djangoテンプレートを使用
         html_content = render_to_string('report_template.html', context)
@@ -476,7 +471,7 @@ def generate_html_content(report_data: Dict, include_images: bool = False) -> st
         # テンプレートが見つからない場合は簡単なHTMLを生成
         return generate_simple_html(report_data, include_images)
 
-def generate_simple_html(report_data: Dict, include_images: bool = False) -> str:
+def generate_simple_html(report_data: dict, include_images: bool = False) -> str:
     """
     シンプルなHTML形式のコンテンツを生成
     """
@@ -484,7 +479,7 @@ def generate_simple_html(report_data: Dict, include_images: bool = False) -> str
     summary = report_data['summary']
     portfolio = report_data['portfolio']
     commentary = report_data['commentary']
-    
+
     html = f"""
 <div class="investment-report">
     <header class="report-header">
@@ -660,15 +655,15 @@ def generate_simple_html(report_data: Dict, include_images: bool = False) -> str
 
     return html
 
-def generate_excerpt(report_data: Dict) -> str:
+def generate_excerpt(report_data: dict) -> str:
     """
     ブログ投稿用の要約を生成
     """
     summary = report_data['summary']
     month = report_data['month']
-    
+
     profit_status = "好調" if summary['monthly_profit'] >= 0 else "軟調"
-    
+
     return f"{month}の投資成績をレポート。今月は{profit_status}な結果となり、" \
            f"月次損益は{'+' if summary['monthly_profit'] >= 0 else ''}{summary['monthly_profit']:,.0f}円、" \
            f"ポートフォリオ全体の評価額は{summary['total_value']:,.0f}円となりました。"

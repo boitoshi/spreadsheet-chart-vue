@@ -44,40 +44,89 @@ api.interceptors.response.use(
   }
 )
 
+// 汎用: 404 の場合にフォールバックパスへリトライ
+async function getWithFallback(paths = [], params = {}) {
+  const qs = new URLSearchParams(params).toString()
+  let lastErr
+  for (const p of paths) {
+    try {
+      const url = qs ? `${p}?${qs}` : p
+      return await api.get(url)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        lastErr = err
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastErr || new Error('All fallback GET paths failed')
+}
+
+async function postWithFallback(paths = [], data = {}) {
+  let lastErr
+  for (const p of paths) {
+    try {
+      return await api.post(p, data)
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        lastErr = err
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastErr || new Error('All fallback POST paths failed')
+}
+
 // API エンドポイント関数
 export const apiService = {
   // スプレッドシートデータを取得
   getSpreadsheetData: (params = {}) => {
-    const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/v1/data/records/?${queryParams}`)
+    return getWithFallback([
+      '/api/v1/data/records/',
+      '/get_data/'
+    ], params)
   },
   
   // ポートフォリオデータを取得
   getPortfolioData: (params = {}) => {
-    const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/v1/portfolio/?${queryParams}`)
+    return getWithFallback([
+      '/api/v1/portfolio/',
+      '/api/portfolio/'
+    ], params)
   },
   
   // 銘柄別履歴データを取得
   getStockHistory: (stockName, params = {}) => {
-    const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/v1/portfolio/stock/${stockName}/?${queryParams}`)
+    return getWithFallback([
+      `/api/v1/portfolio/stock/${stockName}/`,
+      `/api/portfolio/stock/${stockName}/`
+    ], params)
   },
   
   // 損益推移データを取得
   getProfitHistory: (params = {}) => {
-    const queryParams = new URLSearchParams(params).toString()
-    return api.get(`/api/v1/portfolio/history/?${queryParams}`)
+    return getWithFallback([
+      '/api/v1/portfolio/history/',
+      '/api/portfolio/history/'
+    ], params)
   },
   
   // 手動価格更新
   updatePrice: (data) => {
-    return api.post('/api/v1/manual/update/', data)
+    return postWithFallback([
+      '/api/v1/manual/update/',
+      '/api/manual_update/'
+    ], data)
   },
   
   // データ品質検証
   validatePortfolioData: () => {
-    return api.get('/api/v1/portfolio/validate/')
+    return getWithFallback([
+      '/api/v1/portfolio/validate/',
+      '/api/portfolio/validate/'
+    ])
   }
 }
 
