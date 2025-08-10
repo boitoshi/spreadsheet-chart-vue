@@ -61,6 +61,7 @@ warn_redundant_casts = true
 show_error_codes = true
 pretty = true
 plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
 
 [tool.django-stubs]
 django_settings_module = "backend.settings"
@@ -68,6 +69,12 @@ django_settings_module = "backend.settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "backend.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[dependency-groups]
+dev = [
+    "django-stubs>=5.2.2",
+    "mypy>=1.17.0",
+]
 
 # Per-module mypy ignores for third-party libs without type hints
 [[tool.mypy.overrides]]

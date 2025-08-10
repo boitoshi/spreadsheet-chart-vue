@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import (
     Any,
     NotRequired,
-    Optional,
     TypedDict,
 )
 
@@ -16,6 +15,7 @@ from google.oauth2.service_account import Credentials
 
 # 共通設定をインポート
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", "shared"))
+
 try:
     # HEADERS は使用していないので除外
     from sheets_config import SCOPES, SHEET_NAMES
@@ -62,8 +62,8 @@ class GoogleSheetsService:
 
     def __init__(self) -> None:
         """Google Sheets APIクライアントを初期化"""
-        self.gc: Optional[Any] = None
-        self.spreadsheet: Optional[Any] = None
+        self.gc: Any | None = None
+        self.spreadsheet: Any | None = None
         self._setup_credentials()
 
     def _setup_credentials(self) -> None:
@@ -505,7 +505,7 @@ class GoogleSheetsService:
 
         return issues
 
-    def _parse_date(self, date_str: str) -> Optional[datetime]:
+    def _parse_date(self, date_str: str) -> datetime | None:
         """日付文字列をdatetimeオブジェクトに変換"""
         if not date_str:
             return None
