@@ -561,6 +561,16 @@ const loadPortfolioData = async () => {
 onMounted(async () => {
   // データ取得
   await loadPortfolioData()
+  // エラー時はチャート初期化をスキップ（DOM参照も未定義になるのを防止）
+  if (error.value) {
+    console.warn('データ取得エラーのため、チャート初期化をスキップします')
+    return
+  }
+  // DOM参照の存在チェック
+  if (!pieChart.value || !lineChart.value || !stockChart.value) {
+    console.warn('チャートの描画先が見つかりません（DOM未準備）')
+    return
+  }
   
   // ポートフォリオ構成（円グラフ）
   new Chart(pieChart.value, {

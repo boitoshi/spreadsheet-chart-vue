@@ -84,17 +84,16 @@ export const apiService = {
   // スプレッドシートデータを取得
   getSpreadsheetData: (params = {}) => {
     return getWithFallback([
-      '/api/v1/data/records/',
-      '/get_data/'
+      '/api/v1/data/records/'
     ], params)
   },
   
   // ポートフォリオデータを取得
   getPortfolioData: (params = {}) => {
-    return getWithFallback([
-      '/api/v1/portfolio/',
-      '/api/portfolio/'
-    ], params)
+    const qs = new URLSearchParams(params).toString()
+    const path = '/api/v1/portfolio/'
+    const url = qs ? `${path}?${qs}` : path
+    return api.get(url)
   },
   
   // 銘柄別履歴データを取得
@@ -108,8 +107,7 @@ export const apiService = {
   // 損益推移データを取得
   getProfitHistory: (params = {}) => {
     return getWithFallback([
-      '/api/v1/portfolio/history/',
-      '/api/portfolio/history/'
+      '/api/v1/portfolio/history/'
     ], params)
   },
   
@@ -124,8 +122,7 @@ export const apiService = {
   // データ品質検証
   validatePortfolioData: () => {
     return getWithFallback([
-      '/api/v1/portfolio/validate/',
-      '/api/portfolio/validate/'
+      '/api/v1/portfolio/validate/'
     ])
   }
 }

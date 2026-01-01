@@ -25,6 +25,7 @@ urlpatterns = [
     path('', include('portfolio.urls')),
 
     # 標準化: バージョン付きAPIプレフィックス
-    path('api/v1/', include('sheets.urls')),
+    # portfolio を先に含めることで /api/v1/portfolio/ を優先
     path('api/v1/', include('portfolio.urls')),
+    path('api/v1/', include('sheets.urls')),
 ]

@@ -57,3 +57,8 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 show_error_codes = true
 pretty = true
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.4",
+]
