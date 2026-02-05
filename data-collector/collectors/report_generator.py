@@ -3,6 +3,8 @@
 from datetime import datetime
 from typing import Any
 
+from stock_utils import get_currency_from_symbol, is_foreign_stock
+
 
 class BlogReportGenerator:
     """ブログ記事用レポート生成クラス"""
@@ -132,8 +134,19 @@ class BlogReportGenerator:
                     (p for p in portfolio_data if p.get("銘柄コード") == symbol), {}
                 )
 
-                currency = portfolio_entry.get("通貨", "JPY")
-                is_foreign = portfolio_entry.get("外国株フラグ") == "○"
+                # 通貨とフラグを取得（空の場合は自動判定）
+                currency = portfolio_entry.get("通貨", "")
+                foreign_flag = portfolio_entry.get("外国株フラグ", "")
+
+                # 自動判定ロジックを適用
+                if not currency or currency == "JPY":
+                    currency = get_currency_from_symbol(symbol)
+
+                # 外国株フラグが空または不明な場合、銘柄コードから判定
+                if not foreign_flag or foreign_flag not in ["○", "×"]:
+                    is_foreign = is_foreign_stock(symbol, currency)
+                else:
+                    is_foreign = foreign_flag == "○"
 
                 # 市場データ
                 market_data = {

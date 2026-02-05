@@ -14,6 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "config"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "shared"))
 
 from chart_generator import ChartDataGenerator
+from chart_image_generator import ChartImageGenerator
 from report_generator import BlogReportGenerator
 from settings import CURRENCY_SETTINGS, GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
 from sheets_writer import SheetsDataWriter
@@ -428,10 +429,18 @@ class PortfolioDataCollector:
             print("❌ レポートデータが取得できませんでした")
             return
 
-        # グラフデータ生成（オプション）
+        # グラフデータ生成
         chart_gen = ChartDataGenerator(self.sheets_writer)
         chart_data = chart_gen.generate_monthly_chart_data(year, month, months=6)
         report_data["chart_data"] = chart_data
+
+        # チャート画像生成
+        print("\n📊 チャート画像を生成中...")
+        chart_image_gen = ChartImageGenerator(self.sheets_writer)
+        chart_paths = chart_image_gen.generate_all_charts(
+            year, month, report_data, chart_data
+        )
+        report_data["chart_images"] = chart_paths
 
         # Markdown生成
         template_engine = MarkdownTemplateEngine()
@@ -445,8 +454,15 @@ class PortfolioDataCollector:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(markdown)
 
-        print(f"✅ ブログ記事下書きを生成しました: {output_path}")
+        print(f"\n✅ ブログ記事下書きを生成しました: {output_path}")
         print("   WordPressにコピー&ペーストしてご利用ください")
+
+        # 生成されたチャート画像のパス表示
+        if chart_paths.get("portfolio"):
+            print("\n📈 生成されたチャート画像:")
+            print(f"  - ポートフォリオ全体: {chart_paths['portfolio']}")
+            for symbol, path in chart_paths.get("stocks", {}).items():
+                print(f"  - {symbol}: {path}")
 
         # プレビュー表示
         preview_lines = markdown.split("\n")[:20]
