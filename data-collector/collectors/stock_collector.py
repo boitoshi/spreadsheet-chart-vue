@@ -1,16 +1,16 @@
-import yfinance as yf
-import pandas as pd
 from datetime import datetime, timedelta
+
+import yfinance as yf
 from currency_converter import CurrencyConverter
 
 
 class StockDataCollector:
     """株価データ収集クラス"""
-    
+
     def __init__(self):
         """初期化"""
         self.currency_converter = CurrencyConverter()
-    
+
     def get_stock_data(self, symbol, year, month):
         """株価データを取得
         
@@ -29,21 +29,21 @@ class StockDataCollector:
                 end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
             else:
                 end_date = datetime(year, month + 1, 1) - timedelta(days=1)
-            
+
             # yfinanceでデータ取得
             ticker = yf.Ticker(symbol)
             data = ticker.history(start=start_date, end=end_date + timedelta(days=1))
-            
+
             if data.empty:
                 print(f"⚠️ {symbol} のデータが取得できませんでした")
                 return None
-            
+
             return data
-        
+
         except Exception as e:
             print(f"株価データ取得エラー ({symbol}): {e}")
             return None
-    
+
     def calculate_stock_metrics(self, stock_data, symbol, purchase_price, shares, convert_to_jpy=True):
         """株価メトリクスを計算
         
@@ -66,10 +66,10 @@ class StockDataCollector:
             average_price = stock_data['Close'].mean()
             monthly_change = ((month_end_price / month_start_price) - 1) * 100
             average_volume = stock_data['Volume'].mean()
-            
+
             # 通貨判定と換算
             currency = self.currency_converter.get_currency_from_symbol(symbol)
-            
+
             if convert_to_jpy and currency != 'JPY':
                 # 外貨を円換算
                 exchange_rate = self.currency_converter.get_exchange_rate(currency)
@@ -77,12 +77,12 @@ class StockDataCollector:
                     print(f"⚠️ {symbol} の為替レート取得に失敗、元通貨で計算します")
                     exchange_rate = 1.0
                     currency = 'JPY'  # エラー時は円として扱う
-                
+
                 month_end_price_jpy = month_end_price * exchange_rate
                 highest_price_jpy = highest_price * exchange_rate
                 lowest_price_jpy = lowest_price * exchange_rate
                 average_price_jpy = average_price * exchange_rate
-                
+
                 print(f"  💱 {currency}/JPY レート: {exchange_rate:.2f}円")
             else:
                 # 円またはそのまま
@@ -91,13 +91,13 @@ class StockDataCollector:
                 lowest_price_jpy = lowest_price
                 average_price_jpy = average_price
                 exchange_rate = 1.0
-            
+
             # 損益計算（円ベース）
             purchase_amount = purchase_price * shares
             current_amount = month_end_price_jpy * shares
             profit_loss = current_amount - purchase_amount
             profit_rate = (profit_loss / purchase_amount) * 100
-            
+
             return {
                 'symbol': symbol,
                 'currency': currency,
@@ -113,7 +113,7 @@ class StockDataCollector:
                 'profit_loss': round(profit_loss, 2),
                 'profit_rate': round(profit_rate, 2)
             }
-            
+
         except Exception as e:
             print(f"メトリクス計算エラー ({symbol}): {e}")
             return None

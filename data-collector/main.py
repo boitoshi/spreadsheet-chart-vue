@@ -13,30 +13,33 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "collectors"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "config"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "shared"))
 
+from chart_generator import ChartDataGenerator
+from report_generator import BlogReportGenerator
 from settings import CURRENCY_SETTINGS, GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
 from sheets_writer import SheetsDataWriter
 from stock_collector import StockDataCollector
+from template_engine import MarkdownTemplateEngine
 
 
 class PortfolioDataCollector:
     """ポートフォリオデータ収集メインクラス"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初期化"""
         self.stock_collector = StockDataCollector()
         self.sheets_writer = SheetsDataWriter(
             GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
         )
 
-    def collect_monthly_data(self, year, month):
+    def collect_monthly_data(self, year: int, month: int) -> bool:
         """月次データ収集（全シート更新）
 
         Args:
-            year (int): 年
-            month (int): 月
+            year: 年
+            month: 月
 
         Returns:
-            bool: 成功/失敗
+            成功/失敗
         """
         print(f"\n📊 {year}年{month}月のポートフォリオ分析を開始...")
 
@@ -71,7 +74,7 @@ class PortfolioDataCollector:
             print("❌ データの取得に失敗しました")
             return False
 
-    def _setup_sheets(self):
+    def _setup_sheets(self) -> bool:
         """Google Sheets接続・初期化"""
         if not self.sheets_writer.setup_google_sheets():
             print("❌ Google Sheets接続に失敗しました")
@@ -84,15 +87,17 @@ class PortfolioDataCollector:
         self.sheets_writer.setup_currency_sheet()
         return True
 
-    def _collect_stock_data(self, year, month):
+    def _collect_stock_data(
+        self, year: int, month: int
+    ) -> tuple[list, list, datetime] | None:
         """株価データ収集・計算処理
 
         Args:
-            year (int): 年
-            month (int): 月
+            year: 年
+            month: 月
 
         Returns:
-            tuple: (data_record_results, performance_results, last_day) or None
+            (data_record_results, performance_results, last_day) または None
         """
         # ポートフォリオ情報取得
         portfolio_data = self.sheets_writer.get_portfolio_data()
@@ -170,12 +175,13 @@ class PortfolioDataCollector:
                 )
 
             print(
-                f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 ({metrics['profit_rate']:+.1f}%){currency_info}"
+                f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 "
+                f"({metrics['profit_rate']:+.1f}%){currency_info}"
             )
 
         return data_record_results, performance_results, last_day
 
-    def _update_currency_rates(self, date=None):
+    def _update_currency_rates(self, date: datetime | None = None) -> None:
         """為替レート更新"""
         if not CURRENCY_SETTINGS.get("update_rates_with_stocks", True):
             return
@@ -188,14 +194,14 @@ class PortfolioDataCollector:
             target_date = date if date else datetime.now()
             self.sheets_writer.save_currency_rates(exchange_rates, target_date)
 
-    def update_currency_rates_only(self, date=None):
+    def update_currency_rates_only(self, date: datetime | None = None) -> bool:
         """為替レートのみ更新
 
         Args:
-            date (datetime, optional): 更新日付（デフォルトは現在日時）
+            date: 更新日付（デフォルトは現在日時）
 
         Returns:
-            bool: 成功/失敗
+            成功/失敗
         """
         print("\n💱 === 為替レート更新開始 ===")
 
@@ -212,15 +218,15 @@ class PortfolioDataCollector:
         print("🎉 為替レートの更新が完了しました！")
         return True
 
-    def update_market_data_only(self, year, month):
+    def update_market_data_only(self, year: int, month: int) -> bool:
         """市場データ（データ記録）のみ更新
 
         Args:
-            year (int): 年
-            month (int): 月
+            year: 年
+            month: 月
 
         Returns:
-            bool: 成功/失敗
+            成功/失敗
         """
         print(f"\n📈 === {year}年{month}月 市場データ更新開始 ===")
 
@@ -245,15 +251,15 @@ class PortfolioDataCollector:
             print("❌ 市場データの保存に失敗しました")
             return False
 
-    def update_performance_only(self, year, month):
+    def update_performance_only(self, year: int, month: int) -> bool:
         """損益レポートのみ更新
 
         Args:
-            year (int): 年
-            month (int): 月
+            year: 年
+            month: 月
 
         Returns:
-            bool: 成功/失敗
+            成功/失敗
         """
         print(f"\n📊 === {year}年{month}月 損益レポート更新開始 ===")
 
@@ -280,19 +286,24 @@ class PortfolioDataCollector:
             return False
 
     def collect_range_data(
-        self, start_year, start_month, end_year, end_month, auto_confirm=False
-    ):
+        self,
+        start_year: int,
+        start_month: int,
+        end_year: int,
+        end_month: int,
+        auto_confirm: bool = False,
+    ) -> dict:
         """期間範囲でのデータ収集
 
         Args:
-            start_year (int): 開始年
-            start_month (int): 開始月
-            end_year (int): 終了年
-            end_month (int): 終了月
-            auto_confirm (bool): 自動確認フラグ（非対話型実行用）
+            start_year: 開始年
+            start_month: 開始月
+            end_year: 終了年
+            end_month: 終了月
+            auto_confirm: 自動確認フラグ（非対話型実行用）
 
         Returns:
-            dict: 実行結果サマリー
+            実行結果サマリー
         """
         print("\n📊 === 期間範囲データ収集開始 ===")
         print(
@@ -336,7 +347,8 @@ class PortfolioDataCollector:
         while (current_year, current_month) <= (end_year, end_month):
             current_count += 1
             print(
-                f"\n📊 [{current_count}/{total_months}] {current_year}年{current_month}月のデータ収集中..."
+                f"\n📊 [{current_count}/{total_months}] "
+                f"{current_year}年{current_month}月のデータ収集中..."
             )
 
             try:
@@ -394,7 +406,57 @@ class PortfolioDataCollector:
             "error_details": error_details,
         }
 
-    def run_interactive(self):
+    def generate_blog_draft(self, year: int, month: int) -> None:
+        """ブログ記事下書きを生成
+
+        Args:
+            year: 年
+            month: 月
+        """
+        print(f"\n📝 === {year}年{month}月 ブログ記事下書き生成 ===")
+
+        # Google Sheets設定
+        if not self.sheets_writer.setup_google_sheets():
+            print("❌ Google Sheets接続に失敗しました")
+            return
+
+        # レポートデータ取得
+        report_gen = BlogReportGenerator(self.sheets_writer)
+        report_data = report_gen.get_monthly_report_data(year, month)
+
+        if not report_data:
+            print("❌ レポートデータが取得できませんでした")
+            return
+
+        # グラフデータ生成（オプション）
+        chart_gen = ChartDataGenerator(self.sheets_writer)
+        chart_data = chart_gen.generate_monthly_chart_data(year, month, months=6)
+        report_data["chart_data"] = chart_data
+
+        # Markdown生成
+        template_engine = MarkdownTemplateEngine()
+        markdown = template_engine.render("blog_template.md", report_data)
+
+        # ファイル保存
+        output_dir = "output"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"blog_draft_{year}_{month:02d}.md")
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(markdown)
+
+        print(f"✅ ブログ記事下書きを生成しました: {output_path}")
+        print("   WordPressにコピー&ペーストしてご利用ください")
+
+        # プレビュー表示
+        preview_lines = markdown.split("\n")[:20]
+        print("\n📄 プレビュー（最初の20行）:")
+        print("=" * 60)
+        print("\n".join(preview_lines))
+        print("..." if len(markdown.split("\n")) > 20 else "")
+        print("=" * 60)
+
+    def run_interactive(self) -> None:
         """対話型実行"""
         print("=== 📊 ポートフォリオデータ収集システム ===")
         print("🎯 Django backend連携対応版")
@@ -408,6 +470,7 @@ class PortfolioDataCollector:
                 print("4. ポートフォリオサマリー表示")
                 print("5. シート初期化")
                 print("6. 現在の為替レート表示")
+                print("7. 📝 ブログ記事下書き生成")
                 print("0. 終了")
 
                 choice = input("\n選択してください: ").strip()
@@ -535,6 +598,17 @@ class PortfolioDataCollector:
                         self.sheets_writer.save_currency_rates(rates, datetime.now())
                         print("✅ 為替レートをスプレッドシートに保存しました")
 
+                elif choice == "7":
+                    # ブログ記事下書き生成
+                    year = int(input("年を入力してください (例: 2024): "))
+                    month = int(input("月を入力してください (1-12): "))
+
+                    if month < 1 or month > 12:
+                        print("月は1-12の範囲で入力してください。")
+                        continue
+
+                    self.generate_blog_draft(year, month)
+
                 else:
                     print("❌ 無効な選択です")
 
@@ -547,7 +621,7 @@ class PortfolioDataCollector:
                 print(f"❌ エラーが発生しました: {e}")
 
 
-def main():
+def main() -> None:
     """メイン関数"""
     if not SPREADSHEET_ID:
         print("❌ SPREADSHEET_IDが設定されていません。.envファイルを確認してください。")
@@ -576,7 +650,8 @@ def main():
             end_year = int(sys.argv[4])
             end_month = int(sys.argv[5])
             print(
-                f"期間範囲モード: {start_year}年{start_month}月〜{end_year}年{end_month}月のデータを収集します"
+                f"期間範囲モード: {start_year}年{start_month}月〜"
+                f"{end_year}年{end_month}月のデータを収集します"
             )
             collector.collect_range_data(
                 start_year, start_month, end_year, end_month, auto_confirm=True
@@ -606,6 +681,15 @@ def main():
         except ValueError:
             print("❌ 年と月は数値で指定してください")
             print("使用例: python main.py --performance 2024 12")
+    elif len(sys.argv) == 4 and sys.argv[1] == "--blog":
+        try:
+            year = int(sys.argv[2])
+            month = int(sys.argv[3])
+            print(f"ブログ記事生成モード: {year}年{month}月")
+            collector.generate_blog_draft(year, month)
+        except ValueError:
+            print("❌ 年と月は数値で指定してください")
+            print("使用例: python main.py --blog 2024 12")
     else:
         # 対話型実行
         collector.run_interactive()
