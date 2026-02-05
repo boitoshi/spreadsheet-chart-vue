@@ -92,41 +92,77 @@ spreadsheet-chart-vue/
 └── README.md
 ```
 
-## 🚀 セットアップ
+## 🚀 ローカル開発環境のセットアップ
 
 ### 前提条件
-- Node.js 16+
-- Python 3.8+
-- Google Sheets API の認証情報
+- **uv**: 0.5以上（Pythonバージョン管理含む）
+- **Node.js**: 22以上（npm 10以上）
+- **Google Sheets API**: 認証情報（service-account.json）
 
-### フロントエンド
+### 1. uv でPythonをインストール
 
 ```bash
+# uv自体のインストール（未インストールの場合）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Python 3.12をインストール
+uv python install 3.12
+
+# インストール確認
+uv python list
+```
+
+### 2. プロジェクトセットアップ
+
+```bash
+# プロジェクトルートに移動
+cd /path/to/spreadsheet-chart-vue
+
+# ルートワークスペースのセットアップ
+uv venv .venv --python 3.12
+uv sync --dev
+
+# data-collector
+cd data-collector && uv sync --dev && cd ..
+
+# backend
+cd web-app/backend && uv sync --dev && cd ../..
+cp web-app/backend/.env.example web-app/backend/.env
+# .envファイルを編集（SPREADSHEET_ID, GOOGLE_APPLICATION_CREDENTIALS等）
+cd web-app/backend && uv run python manage.py migrate && cd ../..
+
+# frontend
+cd web-app/frontend && npm install && cd ../..
+```
+
+### 3. 開発サーバー起動
+
+#### 方法A: VS Codeタスク（推奨）
+1. VS Codeでプロジェクトを開く
+2. `Cmd + Shift + B`（Mac）
+3. "🚀 全開発サーバー起動" を選択
+
+#### 方法B: 手動起動
+```bash
+# ターミナル1: Django Backend
+cd web-app/backend
+uv run python manage.py runserver
+
+# ターミナル2: Vue Frontend
 cd web-app/frontend
-npm install
 npm run dev
 ```
 
-### バックエンド
+### アクセスURL
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
 
-```bash
-cd web-app/backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-
-### 環境変数設定（統一）
-
-```bash
-# web-app/backend/.env
-SPREADSHEET_ID=your_spreadsheet_id
-GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
-```
+### 環境変数設定
 
 フロントエンド/バックエンドの環境変数テンプレート：
 - `web-app/frontend/.env.example`（`VITE_API_BASE_URL` など）
 - `web-app/backend/.env.example`（`SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` など）
+- `data-collector/.env`（`GOOGLE_APPLICATION_CREDENTIALS` のパスをローカル絶対パスに修正）
 
 必要に応じて `.env`/`.env.development`/`.env.production` を上記を参考に作成してください。
 

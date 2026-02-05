@@ -12,12 +12,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.1.0",
-    "mypy>=1.7.0",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+# ワークスペースルートはビルド不要
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
 
 # uvワークスペース設定
 [tool.uv.workspace]
@@ -29,7 +29,6 @@ members = [
 [tool.uv]
 dev-dependencies = [
     "ruff>=0.1.0",
-    "mypy>=1.7.0",
 ]
 
 [tool.ruff]
@@ -39,7 +38,5 @@ select = [
     "E", "W", "F", "I", "B", "C4", "UP"
 ]
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
+[tool.ty]
+# ty設定（Astral社製の超高速型チェッカー）

@@ -223,3 +223,37 @@ mv .env.example config/
 ---
 
 どちらの提案も現在の構成より大幅に改善されます。プロジェクトの規模と将来性を考慮して選択してください。
+
+---
+
+## 2026-02-06: Docker/devcontainerからローカル開発環境への移行
+
+### 実施内容
+- devcontainer環境を削除し、ローカル開発環境に完全移行
+- **uv一本でPythonバージョン管理** - pyenv不要
+- **型チェッカーをtyに変更** - Astral社製の超高速型チェッカー（ruff + ty）
+- uvワークスペース + npm によるハイブリッド構成
+- VS Code設定（settings/tasks/launch.json）の移行
+- README.md, CLAUDE.md の更新
+
+### 削除したファイル
+- `.devcontainer/` ディレクトリ全体
+
+### 技術スタック（移行後）
+- **Python管理**: uv（バージョン管理含む）
+- **Python型チェック**: ty（Astral社製、mypyの代替）
+- **Python リンター/フォーマッター**: ruff
+- **Node.js**: npm（バージョン管理はnvm推奨だが任意）
+- **開発環境**: VS Code（ローカルネイティブ）
+- **デプロイ**: Docker（本番用Dockerfileは維持）
+
+### 重要な変更点
+- `pyproject.toml` - mypyからtyに変更、ルートプロジェクトからbuild-systemを削除
+- `data-collector/.env` - GOOGLE_APPLICATION_CREDENTIALSのパスをdevcontainer用からローカル絶対パスに変更
+- `.vscode/` - settings.json, tasks.json, launch.jsonを新規作成・更新
+
+### 今後の課題
+- [ ] CI/CDパイプラインでのuvとPython 3.12バージョン統一
+- [ ] 本番Dockerfileの定期的なメンテナンス
+- [ ] チーム開発時の.vscode設定共有方法検討
+- [ ] tyの言語サーバー統合（VS Code拡張機能が利用可能になった場合）

@@ -20,10 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "ruff>=0.1.0",
-    "mypy>=1.7.0",
     "pytest>=7.4.0",
     "pytest-django>=4.7.0",
-    "django-stubs>=4.2.0",
 ]
 
 [build-system]
@@ -51,36 +49,9 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-strict = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-show_error_codes = true
-pretty = true
-plugins = ["mypy_django_plugin.main"]
-ignore_missing_imports = true
-
-[tool.django-stubs]
-django_settings_module = "backend.settings"
+[tool.ty]
+# ty設定（Astral社製の超高速型チェッカー）
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "backend.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
-
-[dependency-groups]
-dev = [
-    "django-stubs>=5.2.2",
-    "mypy>=1.17.0",
-]
-
-# Per-module mypy ignores for third-party libs without type hints
-[[tool.mypy.overrides]]
-module = [
-  "gspread",
-  "google.*",
-  "sheets_config",
-]
-ignore_missing_imports = true

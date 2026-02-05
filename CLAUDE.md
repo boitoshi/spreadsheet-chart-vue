@@ -42,33 +42,31 @@ spreadsheet-chart-vue/
 ## 開発コマンド
 
 ### ①データ収集フロー（月次実行）
-- **依存関係インストール**: `cd data-collector && uv sync`
+- **依存関係インストール**: `cd data-collector && uv sync --dev`
 - **対話型実行**: `cd data-collector && uv run python main.py`
 - **バッチ実行**: `cd data-collector && uv run python main.py 2024 12`
-- **スケジューラー**: `cd data-collector && uv run monthly-runner`
-- **uvスクリプト**: `cd data-collector && uv run collect-data`
 
 ### ②Webアプリケーションフロー
 
-#### フロントエンド（ポート3000で動作）
-- **開発サーバー**: `cd web-app/frontend && npm run dev` 
-  - アクセス: http://localhost:3000/
-  - 自動的にポート3000・ホスト0.0.0.0で起動
-- **ビルド**: `cd web-app/frontend && npm run build`
-- **プレビュー**: `cd web-app/frontend && npm run preview`
+#### フロントエンド（ポート3000）
+- **開発サーバー**: `cd web-app/frontend && npm run dev`
 - **依存関係インストール**: `cd web-app/frontend && npm install`
 
-#### 注意点
-- フロントエンドは現在ダミーデータで完全動作
-- 実際のデータ連携はバックエンド実装後に対応予定
+#### バックエンド（ポート8000）
+- **開発サーバー**: `cd web-app/backend && uv run python manage.py runserver`
+- **マイグレーション**: `cd web-app/backend && uv run python manage.py migrate`
+- **依存関係インストール**: `cd web-app/backend && uv sync --dev`
 
-#### バックエンド  
-- **開発サーバー**: `cd web-app/backend && python manage.py runserver`
-- **マイグレーション**: `cd web-app/backend && python manage.py migrate`
-- **依存関係インストール**: `cd web-app/backend && pip install -r requirements.txt`
+### Python環境管理（uvベース）
+- **Pythonインストール**: `uv python install 3.12`
+- **仮想環境作成**: `uv venv .venv --python 3.12`
+- **依存関係同期**: `uv sync --dev`
+- **コードチェック**: `uv run ruff check . --fix`
+- **型チェック**: `uvx ty check`
 
 ### 環境設定
 - **環境変数設定**: web-app/backend/.env ファイルで GOOGLE_APPLICATION_CREDENTIALS と SPREADSHEET_ID を設定
+- **data-collector/.env**: GOOGLE_APPLICATION_CREDENTIALSのパスをローカル絶対パスに修正
 - **シート構成**: ポートフォリオ（銘柄管理）、データ記録（Django backend用）、損益レポート
 
 ## 主要コンポーネント（現在の実装状況）
