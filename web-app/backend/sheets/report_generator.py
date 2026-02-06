@@ -1,58 +1,20 @@
 """
 レポート生成機能
 月次レポートとブログ用コンテンツを自動生成
+計算ロジックはportfolio/services.pyのGoogleSheetsServiceに委譲
 """
 
 import logging
 from datetime import datetime
 from typing import Any
 
-import gspread
-from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
-from google.oauth2.service_account import Credentials
+
+from portfolio.services import GoogleSheetsService
 
 logger = logging.getLogger(__name__)
-
-def get_gspread_client():
-    """Google Sheetsクライアントを取得"""
-    try:
-        # 設定は settings.GOOGLE_APPLICATION_CREDENTIALS（ファイルパス）に統一
-        credentials_path = getattr(settings, 'GOOGLE_APPLICATION_CREDENTIALS', None)
-        if credentials_path:
-            credentials = Credentials.from_service_account_file(
-                credentials_path, scopes=[
-                    'https://www.googleapis.com/auth/spreadsheets',
-                    'https://www.googleapis.com/auth/drive'
-                ]
-            )
-            return gspread.authorize(credentials)
-        else:
-            logger.warning("Google Sheets credentials path not configured (GOOGLE_APPLICATION_CREDENTIALS)")
-            return None
-    except Exception as e:
-        logger.error(f"Google Sheets client initialization error: {e}")
-        return None
-
-def get_spreadsheet():
-    """スプレッドシートを取得"""
-    client = get_gspread_client()
-    if not client:
-        return None
-
-    try:
-        # スプレッドシートIDは settings.SPREADSHEET_ID に統一
-        spreadsheet_id = getattr(settings, 'SPREADSHEET_ID', None)
-        if spreadsheet_id:
-            return client.open_by_key(spreadsheet_id)
-        else:
-            spreadsheet_name = getattr(settings, 'GOOGLE_SHEETS_NAME', 'Portfolio Data')
-            return client.open(spreadsheet_name)
-    except Exception as e:
-        logger.error(f"Spreadsheet access error: {e}")
-        return None
 
 @require_http_methods(["GET"])
 def generate_report(request, month):
@@ -195,37 +157,53 @@ def get_report_templates(request):
 def generate_monthly_report_data(month: str) -> dict[str, Any]:
     """
     月次レポートデータを生成
+    計算はportfolio/services.pyのGoogleSheetsServiceに委譲
     """
     try:
-        spreadsheet = get_spreadsheet()
-        if not spreadsheet:
+        sheets_service = GoogleSheetsService()
+        portfolio_data = sheets_service.get_portfolio_data()
+        data_record_data = sheets_service.get_data_record_data()
+
+        if not portfolio_data:
             return {
                 'success': False,
-                'error': 'Unable to access spreadsheet'
+                'error': 'ポートフォリオデータが取得できませんでした'
             }
 
-        # ポートフォリオデータを取得
-        portfolio_data = get_portfolio_data(spreadsheet)
+        # 統一された計算ロジックで損益を算出（買い増し・加重平均対応）
+        performance_data = sheets_service.calculate_portfolio_performance(
+            portfolio_data, data_record_data
+        )
 
-        # 価格履歴データを取得
-        price_history = get_price_history(spreadsheet, month)
+        # 指定月のデータを抽出（月末日付が "YYYY-MM-" で始まるもの）
+        month_performance = [
+            p for p in performance_data if p['日付'].startswith(month)
+        ]
+
+        # 最新月のデータがなければ全期間の最新を使用
+        if not month_performance and performance_data:
+            latest_date = max(p['日付'] for p in performance_data)
+            month_performance = [p for p in performance_data if p['日付'] == latest_date]
+
+        # レポート用のポートフォリオデータ形式に変換
+        report_portfolio = _build_report_portfolio(month_performance)
 
         # サマリーを計算
-        summary = calculate_summary(portfolio_data, price_history, month)
+        summary = _build_report_summary(report_portfolio, performance_data, month)
 
         # トピックスを取得
         topics = get_monthly_topics(month)
 
         # 所感を生成
-        commentary = generate_commentary(summary, portfolio_data, month)
+        commentary = generate_commentary(summary, report_portfolio, month)
 
         return {
             'success': True,
             'data': {
                 'month': month,
                 'summary': summary,
-                'portfolio': portfolio_data,
-                'price_history': price_history,
+                'portfolio': report_portfolio,
+                'price_history': [],
                 'topics': topics,
                 'commentary': commentary,
                 'generated_at': datetime.now().isoformat()
@@ -239,102 +217,66 @@ def generate_monthly_report_data(month: str) -> dict[str, Any]:
             'error': f'Failed to generate report data: {str(e)}'
         }
 
-def get_portfolio_data(spreadsheet) -> list[dict[str, Any]]:
-    """
-    ポートフォリオデータを取得
-    """
-    try:
-        portfolio_sheet = spreadsheet.worksheet('Portfolio')
-        all_values = portfolio_sheet.get_all_values()
 
-        portfolio_data = []
-        for row in all_values[1:]:  # ヘッダーをスキップ
-            if len(row) >= 7 and row[0]:  # 有効なデータ行
-                profit = float(row[6]) if row[6] else 0
-                market_value = float(row[5]) if row[5] else 0
-                avg_price = float(row[3]) if row[3] else 0
-                profit_rate = (profit / (market_value - profit)) * 100 if (market_value - profit) > 0 else 0
+def _build_report_portfolio(month_performance: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """calculate_portfolio_performanceの結果をレポート用フォーマットに変換"""
+    report_portfolio = []
+    for p in month_performance:
+        total_cost = float(p.get('取得額', 0))
+        profit = float(p.get('損益', 0))
+        profit_rate = float(p.get('損益率(%)', 0))
 
-                portfolio_data.append({
-                    'ticker': row[0],
-                    'name': row[1],
-                    'quantity': int(row[2]) if row[2] else 0,
-                    'avg_price': avg_price,
-                    'current_price': float(row[4]) if row[4] else 0,
-                    'market_value': market_value,
-                    'profit': profit,
-                    'profit_rate': profit_rate
-                })
+        report_portfolio.append({
+            'ticker': p.get('銘柄コード', ''),
+            'name': p.get('銘柄名', ''),
+            'quantity': int(p.get('保有株数', 0)),
+            'avg_price': float(p.get('取得単価', 0)),
+            'current_price': float(p.get('月末価格', 0)),
+            'market_value': float(p.get('評価額', 0)),
+            'profit': profit,
+            'profit_rate': profit_rate,
+        })
+    return report_portfolio
 
-        return portfolio_data
 
-    except Exception as e:
-        logger.error(f"Portfolio data retrieval error: {e}")
-        return []
-
-def get_price_history(spreadsheet, month: str) -> list[dict[str, Any]]:
-    """
-    価格履歴データを取得
-    """
-    try:
-        price_sheet = spreadsheet.worksheet('Price Data')
-        all_values = price_sheet.get_all_values()
-
-        # 指定月のデータをフィルタ
-        month_start = f"{month}-01"
-        month_end = f"{month}-31"  # 簡易的な月末
-
-        price_history = []
-        for row in all_values[1:]:  # ヘッダーをスキップ
-            if len(row) >= 4 and row[0]:
-                if month_start <= row[0] <= month_end:
-                    price_history.append({
-                        'date': row[0],
-                        'ticker': row[1],
-                        'name': row[2],
-                        'price': float(row[3]) if row[3] else 0,
-                        'quantity': int(row[4]) if len(row) > 4 and row[4] else 0,
-                        'transaction_type': row[5] if len(row) > 5 else 'update'
-                    })
-
-        # 日付順にソート
-        price_history.sort(key=lambda x: x['date'])
-
-        return price_history
-
-    except Exception as e:
-        logger.error(f"Price history retrieval error: {e}")
-        return []
-
-def calculate_summary(portfolio_data: list[dict], price_history: list[dict], month: str) -> dict[str, Any]:
-    """
-    サマリーデータを計算
-    """
-    total_value = sum(stock['market_value'] for stock in portfolio_data)
-    total_profit = sum(stock['profit'] for stock in portfolio_data)
+def _build_report_summary(
+    report_portfolio: list[dict[str, Any]],
+    all_performance: list[dict[str, Any]],
+    month: str,
+) -> dict[str, Any]:
+    """レポート用サマリーデータを構築"""
+    total_value = sum(s['market_value'] for s in report_portfolio)
+    total_profit = sum(s['profit'] for s in report_portfolio)
     total_investment = total_value - total_profit
+    total_return = (total_profit / total_investment * 100) if total_investment > 0 else 0
 
-    # 月次変化を計算（簡易版）
-    monthly_transactions = [t for t in price_history if t['transaction_type'] in ['buy', 'sell']]
-    monthly_profit = sum(
-        t['quantity'] * t['price'] * (-1 if t['transaction_type'] == 'sell' else 1)
-        for t in monthly_transactions
-    )
-
-    # 前月比計算（ダミーデータ）
-    monthly_change = 15.2 if monthly_profit > 0 else -8.3
-    total_return = (total_profit / total_investment) * 100 if total_investment > 0 else 0
+    # 前月の損益を取得して月次変化を算出
+    monthly_profit = total_profit
+    monthly_change = 0.0
+    dates = sorted({p['日付'] for p in all_performance})
+    current_months = [d for d in dates if d.startswith(month)]
+    if current_months:
+        current_date = current_months[-1]
+        idx = dates.index(current_date)
+        if idx > 0:
+            prev_date = dates[idx - 1]
+            prev_profit = sum(
+                float(p.get('損益', 0)) for p in all_performance if p['日付'] == prev_date
+            )
+            monthly_profit = total_profit - prev_profit
+            if prev_profit != 0:
+                monthly_change = ((total_profit - prev_profit) / abs(prev_profit)) * 100
 
     return {
         'total_value': total_value,
         'total_profit': total_profit,
         'total_investment': total_investment,
         'monthly_profit': monthly_profit,
-        'monthly_change': monthly_change,
-        'total_return': total_return,
-        'portfolio_count': len(portfolio_data),
-        'positive_stocks': len([s for s in portfolio_data if s['profit'] > 0]),
-        'negative_stocks': len([s for s in portfolio_data if s['profit'] < 0])
+        'monthly_change': round(monthly_change, 1),
+        'total_return': round(total_return, 1),
+        'portfolio_count': len(report_portfolio),
+        'positive_stocks': len([s for s in report_portfolio if s['profit'] > 0]),
+        'negative_stocks': len([s for s in report_portfolio if s['profit'] < 0]),
     }
 
 def get_monthly_topics(month: str) -> list[dict[str, Any]]:

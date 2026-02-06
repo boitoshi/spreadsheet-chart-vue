@@ -8,30 +8,20 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
 
-def calculate_profit_or_loss(purchase_price, current_price, quantity=1):
-    try:
-        return (float(current_price) - float(purchase_price)) * int(quantity)
-    except:
-        return 0.0
-
-def format_row_to_object(row, headers_index):
-    # 保有株数の処理（-1の場合はデフォルト値1を使用）
+def format_row_to_market_data(row, headers_index):
+    """データ記録シートの行を市場データとしてフォーマット（損益計算はportfolio/に委譲）"""
     quantity = 1 if headers_index['quantity_idx'] == -1 else row[headers_index['quantity_idx']]
 
     return {
         "label": row[headers_index['date_idx']],      # 月末日付
         "stock": row[headers_index['stock_idx']],     # 銘柄コード
         "value": row[headers_index['price_idx']],     # 月末価格
-        "purchase": row[headers_index['purchase_idx']], # 平均価格
+        "purchase": row[headers_index['purchase_idx']], # 取得価格
         "quantity": quantity,                         # 保有株数（デフォルト1）
-        "pl_value": calculate_profit_or_loss(         # 損益
-            row[headers_index['purchase_idx']],
-            row[headers_index['price_idx']],
-            quantity
-        )
     }
 
-def filter_and_calculate(data_rows, start_month, end_month, stock_symbol, headers_index):
+def filter_market_data(data_rows, start_month, end_month, stock_symbol, headers_index):
+    """データ記録シートから市場データをフィルタリングして返す"""
     filtered_data = []
     for row in data_rows:
         if len(row) <= max(headers_index.values()):
@@ -48,7 +38,7 @@ def filter_and_calculate(data_rows, start_month, end_month, stock_symbol, header
         if stock_symbol and row[headers_index['stock_idx']] != stock_symbol:
             continue
 
-        filtered_data.append(format_row_to_object(row, headers_index))
+        filtered_data.append(format_row_to_market_data(row, headers_index))
 
     return filtered_data
 
@@ -183,13 +173,13 @@ def get_data(request):
 
 
 
-        # フィルタリング
-        filtered_data = filter_and_calculate(
+        # フィルタリング（市場データのみ返却、損益計算はportfolio/ APIに委譲）
+        filtered_data = filter_market_data(
             data_rows,
             start_month,
             end_month,
             stock_symbol,
-            headers_index     # ← これだけでOK！
+            headers_index
         )
 
         return JsonResponse(

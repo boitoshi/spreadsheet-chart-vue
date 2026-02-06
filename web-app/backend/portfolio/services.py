@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import (
     Any,
     NotRequired,
@@ -48,13 +48,6 @@ class ValidationResult(TypedDict):
     errors: list[str]
     warnings: list[str]
     summary: ValidationSummary
-
-
-class ChartMonthly(TypedDict):
-    date: str
-    total_profit: float
-    total_value: float
-    total_cost: float
 
 
 class GoogleSheetsService:
@@ -535,131 +528,6 @@ class GoogleSheetsService:
         else:
             return RangeSummary(start=None, end=None, total_periods=0)
 
-    def get_performance_history(self, period: str = "all") -> list[ChartMonthly]:
-        """損益推移履歴を期間指定で取得"""
-        try:
-            assert self.spreadsheet is not None
-            performance_sheet = self.spreadsheet.worksheet(SHEET_NAMES["PERFORMANCE"])
-            records = performance_sheet.get_all_records()
-
-            if not records:
-                return []
-
-            filtered_records = self._filter_by_period(records, period)
-            deduplicated_records = self._remove_duplicates_by_date_stock(
-                filtered_records
-            )
-            monthly_summary = self._create_monthly_summary(deduplicated_records)
-
-            return monthly_summary
-
-        except Exception as e:
-            print(f"履歴データ取得エラー: {e}")
-            return []
-
-    def _filter_by_period(
-        self, records: list[dict[str, Any]], period: str
-    ) -> list[dict[str, Any]]:
-        """期間に基づいてレコードをフィルタリング"""
-        if period == "all":
-            return records
-
-        now = datetime.now()
-
-        if period == "6months":
-            cutoff_date = now - timedelta(days=180)
-        elif period == "1year":
-            cutoff_date = now - timedelta(days=365)
-        else:
-            return records
-
-        filtered = []
-        for record in records:
-            try:
-                date_str = str(record["日付"]).replace("-末", "-01")
-                record_date = datetime.strptime(date_str[:10], "%Y-%m-%d")
-
-                if record_date >= cutoff_date:
-                    filtered.append(record)
-            except (ValueError, TypeError):
-                continue
-
-        return filtered
-
-    def _create_monthly_summary(
-        self, records: list[dict[str, Any]]
-    ) -> list[ChartMonthly]:
-        """月次サマリーを作成"""
-        monthly_data: dict[str, ChartMonthly] = {}
-
-        for record in records:
-            try:
-                date_key = str(record["日付"])
-
-                if date_key not in monthly_data:
-                    monthly_data[date_key] = ChartMonthly(
-                        date=date_key,
-                        total_profit=0.0,
-                        total_value=0.0,
-                        total_cost=0.0,
-                    )
-
-                profit = float(record.get("損益", 0) or 0)
-                value = float(record.get("評価額", 0) or 0)
-                cost = float(record.get("取得額", 0) or 0)
-
-                monthly_data[date_key]["total_profit"] += profit
-                monthly_data[date_key]["total_value"] += value
-                monthly_data[date_key]["total_cost"] += cost
-
-            except (ValueError, TypeError, KeyError):
-                continue
-
-        sorted_data = sorted(monthly_data.values(), key=lambda x: x["date"])
-        return sorted_data
-
-    def _remove_duplicate_records(
-        self, records: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """同じ銘柄コードの重複レコードを除去"""
-        stock_records: dict[str, dict[str, Any]] = {}
-
-        for record in records:
-            stock_code = record.get("銘柄コード", "")
-            if not stock_code:
-                continue
-
-            update_time = record.get("更新日時", "")
-
-            if stock_code not in stock_records or update_time > stock_records[
-                stock_code
-            ].get("更新日時", ""):
-                stock_records[stock_code] = record
-
-        return list(stock_records.values())
-
-    def _remove_duplicates_by_date_stock(
-        self, records: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """日付・銘柄コードの組み合わせで重複レコードを除去"""
-        unique_records: dict[str, dict[str, Any]] = {}
-
-        for record in records:
-            date_str = record.get("日付", "")
-            stock_code = record.get("銘柄コード", "")
-
-            if not date_str or not stock_code:
-                continue
-
-            key = f"{date_str}_{stock_code}"
-            update_time = record.get("更新日時", "")
-
-            if key not in unique_records or update_time > unique_records[key].get(
-                "更新日時", ""
-            ):
-                unique_records[key] = record
-
-        return list(unique_records.values())
 
 
 class PortfolioDataTransformer:
