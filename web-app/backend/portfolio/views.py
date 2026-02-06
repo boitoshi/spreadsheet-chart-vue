@@ -127,8 +127,9 @@ class PortfolioHistoryAPIView(View):
                 'totalProfits': [data['total_profit'] for data in monthly_summary],
                 'totalValues': [data['total_value'] for data in monthly_summary],
                 'totalCosts': [data['total_cost'] for data in monthly_summary],
-                'cumulativeInvestments': [data['total_cost'] for data in monthly_summary],  # 累積投資額（証券アプリスタイル）
-                'avgPurchasePrices': [data['avg_purchase_price'] for data in monthly_summary]  # 後方互換性のため残す
+                'cumulativeInvestments': [data['total_cost'] for data in monthly_summary],
+                'avgPurchasePrices': [data['avg_purchase_price'] for data in monthly_summary],
+                'fxImpacts': [data['fx_impact'] for data in monthly_summary]
             }
 
             return JsonResponse(chart_data, safe=False, json_dumps_params={'ensure_ascii': False})
@@ -141,11 +142,12 @@ class PortfolioHistoryAPIView(View):
                 'totalValues': [],
                 'totalCosts': [],
                 'cumulativeInvestments': [],
-                'avgPurchasePrices': []
+                'avgPurchasePrices': [],
+                'fxImpacts': []
             }, status=500)
 
     def _aggregate_monthly_data(self, performance_data: list[dict]) -> list[dict]:
-        """月別データに集計（実際の累積取得額ベース）"""
+        """月別データに集計（実際の累積取得額ベース、為替分離対応）"""
         monthly_data = {}
 
         for record in performance_data:
@@ -156,23 +158,23 @@ class PortfolioHistoryAPIView(View):
                     'date': date_key,
                     'total_profit': 0,
                     'total_value': 0,
-                    'total_cost': 0,  # 実際の累積取得額
-                    'total_quantity': 0
+                    'total_cost': 0,
+                    'total_quantity': 0,
+                    'fx_impact': 0,
                 }
 
             monthly_data[date_key]['total_profit'] += record['損益']
             monthly_data[date_key]['total_value'] += record['評価額']
-            monthly_data[date_key]['total_cost'] += record['取得額']  # 実際に投資した金額の累計
+            monthly_data[date_key]['total_cost'] += record['取得額']
             monthly_data[date_key]['total_quantity'] += record['保有株数']
+            monthly_data[date_key]['fx_impact'] += record.get('為替影響額', 0)
 
-        # 実際の平均取得価格を計算（実際の累積投資額 ÷ 累積保有株数）
         for data in monthly_data.values():
             if data['total_quantity'] > 0:
                 data['avg_purchase_price'] = data['total_cost'] / data['total_quantity']
             else:
                 data['avg_purchase_price'] = 0
 
-        # 日付でソート
         return sorted(monthly_data.values(), key=lambda x: x['date'])
 
 

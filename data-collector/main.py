@@ -113,7 +113,21 @@ class PortfolioDataCollector:
         for holding in portfolio_data:
             symbol = holding["銘柄コード"]
             name = holding["銘柄名"]
-            purchase_price = float(holding["取得単価（円）"])
+            purchase_price_local = float(
+                holding.get("取得単価", 0) or holding.get("取得単価（円）", 0)
+            )
+            currency = holding.get("取得通貨", "JPY") or "JPY"
+            purchase_fx_rate = (
+                float(holding.get("取得時レート", 0) or 0) if currency != "JPY" else 0
+            )
+            purchase_price_jpy = float(holding.get("取得単価（円）", 0) or 0)
+            # 取得単価（円）が未設定の場合は計算
+            if purchase_price_jpy == 0:
+                purchase_price_jpy = (
+                    purchase_price_local * purchase_fx_rate
+                    if purchase_fx_rate
+                    else purchase_price_local
+                )
             shares = int(holding["保有株数"])
 
             print(f"  📈 {name} ({symbol}) を処理中...")
@@ -123,41 +137,64 @@ class PortfolioDataCollector:
             if stock_data is None:
                 continue
 
-            # メトリクス計算
+            # メトリクス計算（円換算済み）
             metrics = self.stock_collector.calculate_stock_metrics(
-                stock_data, symbol, purchase_price, shares
+                stock_data, symbol, purchase_price_jpy, shares
             )
             if metrics is None:
                 continue
 
-            # 市場データ専用のデータ記録形式（保有情報を除外）
+            # 為替分離計算
+            local_currency_pl = 0.0
+            fx_impact = 0.0
+            if currency != "JPY" and purchase_fx_rate > 0:
+                # 現地通貨での損益
+                local_currency_pl = round(
+                    (metrics["month_end_price_local"] - purchase_price_local) * shares,
+                    2,
+                )
+                # 為替影響 = 実際の円建て損益 - 取得時レートでの円建て損益
+                profit_at_purchase_rate = (
+                    (metrics["month_end_price_local"] - purchase_price_local)
+                    * purchase_fx_rate
+                    * shares
+                )
+                fx_impact = round(metrics["profit_loss"] - profit_at_purchase_rate, 0)
+
+            # 市場データ（現地通貨価格・為替レート情報を追加）
             data_record_results.append(
                 [
-                    last_day.strftime("%Y-%m-%d"),  # 月末日付
-                    symbol,  # 銘柄コード
-                    metrics["month_end_price"],  # 月末価格（円）
-                    metrics["highest_price"],  # 最高値
-                    metrics["lowest_price"],  # 最安値
-                    metrics["average_price"],  # 平均価格
-                    metrics["monthly_change"],  # 月間変動率(%)
-                    metrics["average_volume"],  # 平均出来高
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # 取得日時
+                    last_day.strftime("%Y-%m-%d"),
+                    symbol,
+                    metrics["month_end_price_local"],
+                    metrics["currency"],
+                    metrics["exchange_rate"] or "",
+                    metrics["month_end_price"],
+                    metrics["highest_price"],
+                    metrics["lowest_price"],
+                    metrics["average_price"],
+                    metrics["monthly_change"],
+                    metrics["average_volume"],
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 ]
             )
 
-            # 損益レポート用データ準備
+            # 損益レポート（日付をYYYY-MM-DDに統一、為替分離列を追加）
             performance_results.append(
                 [
-                    f"{year}-{month:02d}-末",
+                    last_day.strftime("%Y-%m-%d"),
                     symbol,
                     name,
-                    purchase_price,
+                    purchase_price_jpy,
                     metrics["month_end_price"],
                     shares,
                     metrics["purchase_amount"],
                     metrics["current_amount"],
                     metrics["profit_loss"],
                     metrics["profit_rate"],
+                    currency,
+                    local_currency_pl,
+                    fx_impact,
                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 ]
             )
@@ -168,9 +205,12 @@ class PortfolioDataCollector:
                 currency_info = (
                     f" [{metrics['currency']}: {metrics['exchange_rate']:.2f}円]"
                 )
+                if fx_impact != 0:
+                    currency_info += f" (為替影響: {fx_impact:+,.0f}円)"
 
             print(
-                f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 ({metrics['profit_rate']:+.1f}%){currency_info}"
+                f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 "
+                f"({metrics['profit_rate']:+.1f}%){currency_info}"
             )
 
         return data_record_results, performance_results, last_day

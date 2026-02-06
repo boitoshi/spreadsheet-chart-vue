@@ -105,10 +105,14 @@ class GoogleSheetsService:
         portfolio_data: list[dict[str, Any]],
         data_record_data: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """ポートフォリオシートとデータ記録シートから時系列を正確に考慮して損益を計算"""
+        """ポートフォリオシートとデータ記録シートから時系列を正確に考慮して損益を計算
+        為替分離（現地通貨損益・為替影響額）にも対応"""
         try:
             # データ記録シートを月末日付・銘柄コードでインデックス化
             price_map: dict[str, dict[str, float]] = {}
+            local_price_map: dict[str, dict[str, float]] = {}
+            fx_rate_map: dict[str, dict[str, float]] = {}
+            currency_map: dict[str, dict[str, str]] = {}
             parsed_dates: dict[str, datetime] = {}
 
             for record in data_record_data:
@@ -133,7 +137,29 @@ class GoogleSheetsService:
 
                         if date_key not in price_map:
                             price_map[date_key] = {}
+                            local_price_map[date_key] = {}
+                            fx_rate_map[date_key] = {}
+                            currency_map[date_key] = {}
+
                         price_map[date_key][stock_code] = price
+
+                        # 新列: 現地通貨価格・為替レート（存在しない場合は円=そのまま）
+                        local_price = (
+                            float(record.get("現地通貨価格", 0))
+                            if record.get("現地通貨価格")
+                            else price
+                        )
+                        fx_rate = (
+                            float(record.get("為替レート", 0))
+                            if record.get("為替レート")
+                            else 0
+                        )
+                        currency = record.get("通貨", "JPY") or "JPY"
+
+                        local_price_map[date_key][stock_code] = local_price
+                        fx_rate_map[date_key][stock_code] = fx_rate
+                        currency_map[date_key][stock_code] = currency
+
                     except ValueError:
                         print(f"無効な日付形式をスキップ: {date_key}")
                         continue
@@ -144,11 +170,25 @@ class GoogleSheetsService:
                 stock_code = transaction.get("銘柄コード", "")
                 stock_name = transaction.get("銘柄名", "")
                 purchase_date = transaction.get("取得日", "")
+                # 新列対応: 取得単価（円）を優先、なければ取得単価を使用
                 purchase_price = (
                     float(transaction.get("取得単価（円）", 0))
                     if transaction.get("取得単価（円）")
+                    else float(transaction.get("取得単価", 0))
+                    if transaction.get("取得単価")
                     else 0
                 )
+                purchase_price_local = (
+                    float(transaction.get("取得単価", 0))
+                    if transaction.get("取得単価")
+                    else purchase_price
+                )
+                purchase_fx_rate = (
+                    float(transaction.get("取得時レート", 0))
+                    if transaction.get("取得時レート")
+                    else 0
+                )
+                tx_currency = transaction.get("取得通貨", "JPY") or "JPY"
                 quantity = (
                     int(transaction.get("保有株数", 0))
                     if transaction.get("保有株数")
@@ -174,6 +214,7 @@ class GoogleSheetsService:
                     if stock_code not in portfolio_transactions:
                         portfolio_transactions[stock_code] = {
                             "stock_name": stock_name,
+                            "currency": tx_currency,
                             "transactions": [],
                         }
 
@@ -182,6 +223,8 @@ class GoogleSheetsService:
                             "purchase_date": purchase_date,
                             "purchase_date_parsed": parsed_purchase_date,
                             "purchase_price": purchase_price,
+                            "purchase_price_local": purchase_price_local,
+                            "purchase_fx_rate": purchase_fx_rate,
                             "quantity": quantity,
                         }
                     )
@@ -204,15 +247,23 @@ class GoogleSheetsService:
                 for stock_code, stock_info in portfolio_transactions.items():
                     if stock_code in price_map[date_key]:
                         current_price = price_map[date_key][stock_code]
+                        current_local_price = local_price_map[date_key].get(
+                            stock_code, current_price
+                        )
+                        current_fx_rate = fx_rate_map[date_key].get(stock_code, 0)
+                        stock_currency = currency_map[date_key].get(
+                            stock_code, stock_info.get("currency", "JPY")
+                        )
 
                         # その月末時点で既に取得済みの取引のみを抽出
-                        acquired_transactions = []
-                        for tx in stock_info["transactions"]:
-                            if tx["purchase_date_parsed"] <= month_end_date:
-                                acquired_transactions.append(tx)
+                        acquired_transactions = [
+                            tx
+                            for tx in stock_info["transactions"]
+                            if tx["purchase_date_parsed"] <= month_end_date
+                        ]
 
                         if acquired_transactions:
-                            # 累積保有株数と総取得額を計算
+                            # 累積保有株数と総取得額（円）を計算
                             total_quantity = sum(
                                 tx["quantity"] for tx in acquired_transactions
                             )
@@ -224,12 +275,46 @@ class GoogleSheetsService:
                                 total_cost / total_quantity if total_quantity > 0 else 0
                             )
 
-                            # 評価額と損益を計算
+                            # 評価額と損益を計算（円建て）
                             current_value = current_price * total_quantity
                             profit = current_value - total_cost
                             profit_rate = (
                                 (profit / total_cost * 100) if total_cost > 0 else 0
                             )
+
+                            # 為替分離計算
+                            local_currency_pl = 0.0
+                            fx_impact = 0.0
+                            if stock_currency != "JPY" and current_fx_rate > 0:
+                                total_cost_local = sum(
+                                    tx["quantity"] * tx["purchase_price_local"]
+                                    for tx in acquired_transactions
+                                )
+                                # 現地通貨損益
+                                local_currency_pl = round(
+                                    current_local_price * total_quantity
+                                    - total_cost_local,
+                                    2,
+                                )
+                                # 加重平均の取得時レート
+                                total_qty_with_rate = sum(
+                                    tx["quantity"]
+                                    for tx in acquired_transactions
+                                    if tx["purchase_fx_rate"] > 0
+                                )
+                                if total_qty_with_rate > 0:
+                                    avg_purchase_fx_rate = sum(
+                                        tx["quantity"] * tx["purchase_fx_rate"]
+                                        for tx in acquired_transactions
+                                        if tx["purchase_fx_rate"] > 0
+                                    ) / total_qty_with_rate
+                                    # 為替影響 = 実際の円建て損益 - 取得時レートでの円建て損益
+                                    profit_at_purchase_rate = (
+                                        local_currency_pl * avg_purchase_fx_rate
+                                    )
+                                    fx_impact = round(
+                                        profit - profit_at_purchase_rate, 0
+                                    )
 
                             performance_data.append(
                                 {
@@ -243,6 +328,9 @@ class GoogleSheetsService:
                                     "評価額": round(current_value, 0),
                                     "損益": round(profit, 0),
                                     "損益率(%)": round(profit_rate, 2),
+                                    "通貨": stock_currency,
+                                    "現地通貨損益": local_currency_pl,
+                                    "為替影響額": fx_impact,
                                     "最初の取得日": acquired_transactions[0][
                                         "purchase_date"
                                     ],
