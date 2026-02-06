@@ -1,6 +1,29 @@
-# 📁 ディレクトリ構成最適化提案
+# 📁 プロジェクト進行状況と今後の計画
 
-## 🔍 現在の問題点
+## 🎯 2025年7月20日完了済み項目
+
+### ✅ 時系列精度向上（重要）
+- **時系列を正確に考慮した損益計算ロジック完成**: 取得時期以前の期間での損益計算を排除し、webサイト公開レベルの正確性を実現
+- **銘柄別表示期間制御の実装**: 個別銘柄選択時に取得開始時期以降のデータのみ表示
+- **データ品質保証と妥当性検証機能**: 包括的なデータ検証とリアルタイム品質監視
+
+### 🔧 技術実装完了
+- Django Cloud Run デプロイメント完成
+- Google Sheets API 統合とエラーハンドリング
+- Vue.js フロントエンドとCloud Run バックエンドの連携
+- 3ライン表示チャート（取得価格・評価額・損益推移）
+
+## ⚠️ 現在の課題（次回優先対応）
+
+### 🚨 高優先度
+1. **総損益推移の全銘柄統合**: 現在は任天堂のみ、DeNAとエヌビディアも含める必要あり
+2. **銘柄別損益推移グラフ非表示問題**: 個別銘柄選択時にグラフが表示されない
+
+### 📊 中優先度  
+3. **フロントエンドでの個別銘柄データ取得**: 新しいAPIエンドポイントとの完全連携
+4. **全銘柄統合チャートのパフォーマンス最適化**
+
+## 🔍 既存の構成課題
 
 ### 1. 構成の課題
 - バックエンドとフロントエンドが同階層で分かりにくい
@@ -200,3 +223,112 @@ mv .env.example config/
 ---
 
 どちらの提案も現在の構成より大幅に改善されます。プロジェクトの規模と将来性を考慮して選択してください。
+
+---
+
+## 2026-02-06: 計算ロジック整理・為替分離・ビルド環境整備
+
+### 完了: バックエンド二重計算ロジックの解消
+- `sheets/views.py`: `calculate_profit_or_loss()` を削除し、市場データのみ返すエンドポイントに変更
+- `portfolio/services.py`: 5つの未使用メソッド + `ChartMonthly` TypedDict を削除
+- `report_generator.py`: 独自Google Sheets接続を廃止し、`GoogleSheetsService` 経由に統一
+- 損益計算は `calculate_portfolio_performance()` に一本化
+
+### 完了: 為替分離計算の実装
+- **data-collector**: 現地通貨価格・為替レート・取得時レートをスプレッドシートに記録する列を追加
+- **data-collector**: 損益レポートの日付形式を「YYYY-MM-末」からYYYY-MM-DDに統一
+- **data-collector**: 外国株の為替分離計算（現地通貨損益・為替影響額）を追加
+- **web-app backend**: `calculate_portfolio_performance()` に為替分離ロジックを追加（加重平均取得時レート対応）
+- **web-app backend**: チャートAPIレスポンスに `fxImpacts` 配列を追加
+- **shared**: `sheets_config.py` のヘッダー定義を新構成に更新
+- **テスト**: `tests/test_fx_calculation.py` に8件のユニットテスト追加（全パス）
+
+### 完了: フロントエンドビルド環境整備
+- `package.json` が存在しなかったため新規作成（vue, chart.js, axios, vue-chartjs等）
+- `tsconfig.json` / `tsconfig.node.json` を新規作成
+- `.gitignore` の `*.json` ルールを修正（`package.json` 等が追跡されるように）
+- `npm install` → `vue-tsc --noEmit` → `vite build` すべて成功確認
+
+### スプレッドシート新構成（為替分離対応後）
+| シート | 追加列 |
+|--------|--------|
+| ポートフォリオ | 取得単価、取得通貨、取得時レート、取得単価（円） |
+| データ記録 | 現地通貨価格、通貨、為替レート |
+| 損益レポート | 通貨、現地通貨損益、為替影響額 |
+
+### 運用手順（為替分離の反映）
+1. スプレッドシートの既存データをクリア
+2. `data-collector` を実行 → 新フォーマットでデータが記録される
+3. web-appのAPIが為替分離データを返すようになる
+
+---
+
+## 今後の実装計画
+
+### Phase A: デプロイ・インフラ整備（高優先度）
+- [ ] Cloud Run バックエンドとの接続確認（`VITE_API_BASE_URL` 設定）
+- [ ] フロントエンドのデプロイ先選定・設定（ConoHa WING or WordPress サブディレクトリ）
+- [ ] スプレッドシートクリア → data-collector再実行 → 新フォーマットデータの動作確認
+
+### Phase B: フロントエンドUI改修（高優先度）
+- [ ] **証券アプリ / Yahoo Finance風のUIリデザイン**
+  - ダークテーマまたはプロフェッショナルカラースキーム
+  - エリアチャート（損益域の塗りつぶし + ゼロライン表示）
+  - ホバー時クロスヘア + ツールチップ（各時点の損益金額表示）
+  - 銘柄ごとの損益率バッジ（+5.2% ↑ のような表示）
+  - 為替影響の分離表示（`fxImpacts` API対応済み）
+  - 期間セレクター（1M / 3M / 6M / 1Y / ALL）
+- [ ] `App.vue` の単一ファイル構成を見直し、Router + コンポーネント分割
+- [ ] レスポンシブ対応の改善（モバイル・タブレット）
+
+### Phase C: コンテンツ連携機能（中優先度）
+- [ ] **WordPress月次レポート記事の自動下書き生成**
+  - `report_generator.py` を拡張し、WordPress REST APIで下書き投稿
+  - data-collectorの実行時に連動して月次レポートを生成
+- [ ] **銘柄トピックス / ニュース表示**
+  - 各保有銘柄の関連ニュースを表示するセクション
+  - Yahoo Finance / Google Finance等の検索ページへのリンク誘導
+  - 決算発表日カレンダー的な表示（将来的）
+- [ ] **ブログエクスポート機能の強化**
+  - 既存の `BlogExport.vue` / `CurrencyBlogExport.vue` を活用
+  - 為替影響を含む月次サマリーのMarkdown/HTML出力
+
+### Phase D: 既知の課題（中優先度、旧課題を整理）
+- [ ] 総損益推移の全銘柄統合（旧課題: 現在は計算ロジック修正済み、フロント反映待ち）
+- [ ] 銘柄別損益推移グラフの個別銘柄表示修正
+- [ ] CI/CDパイプラインでのuvとPython 3.12バージョン統一
+- [ ] 本番Dockerfileの定期的なメンテナンス
+
+---
+
+## 2026-02-06: Docker/devcontainerからローカル開発環境への移行
+
+### 実施内容
+- devcontainer環境を削除し、ローカル開発環境に完全移行
+- **uv一本でPythonバージョン管理** - pyenv不要
+- **型チェッカーをtyに変更** - Astral社製の超高速型チェッカー（ruff + ty）
+- uvワークスペース + npm によるハイブリッド構成
+- VS Code設定（settings/tasks/launch.json）の移行
+- README.md, CLAUDE.md の更新
+
+### 削除したファイル
+- `.devcontainer/` ディレクトリ全体
+
+### 技術スタック（移行後）
+- **Python管理**: uv（バージョン管理含む）
+- **Python型チェック**: ty（Astral社製、mypyの代替）
+- **Python リンター/フォーマッター**: ruff
+- **Node.js**: npm（バージョン管理はnvm推奨だが任意）
+- **開発環境**: VS Code（ローカルネイティブ）
+- **デプロイ**: Docker（本番用Dockerfileは維持）
+
+### 重要な変更点
+- `pyproject.toml` - mypyからtyに変更、ルートプロジェクトからbuild-systemを削除
+- `data-collector/.env` - GOOGLE_APPLICATION_CREDENTIALSのパスをdevcontainer用からローカル絶対パスに変更
+- `.vscode/` - settings.json, tasks.json, launch.jsonを新規作成・更新
+
+### 今後の課題
+- [ ] CI/CDパイプラインでのuvとPython 3.12バージョン統一
+- [ ] 本番Dockerfileの定期的なメンテナンス
+- [ ] チーム開発時の.vscode設定共有方法検討
+- [ ] tyの言語サーバー統合（VS Code拡張機能が利用可能になった場合）

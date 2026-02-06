@@ -1,0 +1,54 @@
+name: "CI: Lint と型チェック"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  frontend-typecheck:
+    name: "フロントエンド型チェック (vue-tsc)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app/frontend
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+      - name: Node をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-app/frontend/package-lock.json
+      - name: 依存関係をインストール
+        # lockfile が無い場合に備えて install を使用
+        run: npm install
+      - name: 型チェック (vue-tsc)
+        run: npm run type-check
+
+  backend-lint-typecheck:
+    name: "バックエンド Lint と型チェック (ruff + mypy)"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app/backend
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+      - name: Python をセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: 依存関係をインストール
+        # 開発オプションを含めてインストール（ruff/mypy/django-stubs 等）
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+      - name: 速攻 Lint (ruff)
+        # pyproject.toml の設定を使用
+        run: ruff check .
+      - name: 型チェック (mypy)
+        # Django プラグイン設定は pyproject.toml 参照
+        run: mypy sheets portfolio reports

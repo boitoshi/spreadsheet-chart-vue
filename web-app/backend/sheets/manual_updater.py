@@ -5,15 +5,14 @@
 
 import json
 import logging
-from datetime import datetime, date
-from decimal import Decimal
-from typing import Dict, List, Optional, Any
+from datetime import date, datetime
+from typing import Any
+
+import gspread
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.utils.decorators import method_decorator
-from django.conf import settings
-import gspread
 from google.oauth2.service_account import Credentials
 
 logger = logging.getLogger(__name__)
@@ -29,19 +28,15 @@ def get_gspread_client():
     try:
         # サービスアカウントキーファイルから認証情報を取得
         # 実際の実装では設定ファイルから取得
-        credentials_info = getattr(settings, 'GOOGLE_SHEETS_CREDENTIALS', None)
-        if credentials_info:
-            credentials = Credentials.from_service_account_info(
-                credentials_info, scopes=SCOPES
+        # 設定は settings.GOOGLE_APPLICATION_CREDENTIALS（ファイルパス）に統一
+        credentials_path = getattr(settings, 'GOOGLE_APPLICATION_CREDENTIALS', None)
+        if credentials_path:
+            credentials = Credentials.from_service_account_file(
+                credentials_path, scopes=SCOPES
             )
-        else:
-            # 開発用のダミー設定
-            credentials = None
-            logger.warning("Google Sheets credentials not configured")
-            
-        if credentials:
             return gspread.authorize(credentials)
         else:
+            logger.warning("Google Sheets credentials path not configured (GOOGLE_APPLICATION_CREDENTIALS)")
             return None
     except Exception as e:
         logger.error(f"Google Sheets client initialization error: {e}")
@@ -52,9 +47,10 @@ def get_spreadsheet():
     client = get_gspread_client()
     if not client:
         return None
-        
+
     try:
-        spreadsheet_id = getattr(settings, 'GOOGLE_SHEETS_ID', None)
+        # スプレッドシートIDは settings.SPREADSHEET_ID に統一
+        spreadsheet_id = getattr(settings, 'SPREADSHEET_ID', None)
         if spreadsheet_id:
             return client.open_by_key(spreadsheet_id)
         else:
@@ -83,7 +79,7 @@ def update_stock_price(request):
     """
     try:
         data = json.loads(request.body)
-        
+
         # バリデーション
         required_fields = ['ticker', 'name', 'price', 'date']
         for field in required_fields:
@@ -92,14 +88,14 @@ def update_stock_price(request):
                     'success': False,
                     'error': f'Required field missing: {field}'
                 }, status=400)
-        
+
         ticker = data['ticker']
         name = data['name']
         price = float(data['price'])
         date_str = data['date']
         quantity = data.get('quantity', 0)
         transaction_type = data.get('transaction_type', 'update')
-        
+
         # 日付の検証
         try:
             update_date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -108,7 +104,7 @@ def update_stock_price(request):
                 'success': False,
                 'error': 'Invalid date format. Use YYYY-MM-DD'
             }, status=400)
-        
+
         # スプレッドシート更新
         result = update_spreadsheet_data(
             ticker=ticker,
@@ -118,7 +114,7 @@ def update_stock_price(request):
             quantity=quantity,
             transaction_type=transaction_type
         )
-        
+
         if result['success']:
             return JsonResponse({
                 'success': True,
@@ -136,7 +132,7 @@ def update_stock_price(request):
                 'success': False,
                 'error': result['error']
             }, status=500)
-            
+
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
@@ -173,16 +169,16 @@ def bulk_update_prices(request):
     try:
         data = json.loads(request.body)
         updates = data.get('updates', [])
-        
+
         if not updates:
             return JsonResponse({
                 'success': False,
                 'error': 'No updates provided'
             }, status=400)
-        
+
         results = []
         errors = []
-        
+
         for i, update_data in enumerate(updates):
             try:
                 # 個別の更新処理
@@ -194,7 +190,7 @@ def bulk_update_prices(request):
                     quantity=update_data.get('quantity', 0),
                     transaction_type=update_data.get('transaction_type', 'update')
                 )
-                
+
                 if result['success']:
                     results.append({
                         'index': i,
@@ -207,21 +203,21 @@ def bulk_update_prices(request):
                         'ticker': update_data['ticker'],
                         'error': result['error']
                     })
-                    
+
             except Exception as e:
                 errors.append({
                     'index': i,
                     'ticker': update_data.get('ticker', 'unknown'),
                     'error': str(e)
                 })
-        
+
         return JsonResponse({
             'success': len(errors) == 0,
             'message': f'Processed {len(results)} updates, {len(errors)} errors',
             'results': results,
             'errors': errors
         })
-        
+
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
@@ -254,18 +250,18 @@ def save_monthly_data(request):
     """
     try:
         data = json.loads(request.body)
-        
+
         month = data.get('month')
         portfolio_data = data.get('portfolio_data', [])
         summary = data.get('summary', {})
         commentary = data.get('commentary', '')
-        
+
         if not month:
             return JsonResponse({
                 'success': False,
                 'error': 'Month is required'
             }, status=400)
-        
+
         # 月次データをスプレッドシートに保存
         result = save_monthly_report_data(
             month=month,
@@ -273,7 +269,7 @@ def save_monthly_data(request):
             summary=summary,
             commentary=commentary
         )
-        
+
         if result['success']:
             return JsonResponse({
                 'success': True,
@@ -288,7 +284,7 @@ def save_monthly_data(request):
                 'success': False,
                 'error': result['error']
             }, status=500)
-            
+
     except Exception as e:
         logger.error(f"Monthly data save error: {e}")
         return JsonResponse({
@@ -296,9 +292,9 @@ def save_monthly_data(request):
             'error': 'Internal server error'
         }, status=500)
 
-def update_spreadsheet_data(ticker: str, name: str, price: float, 
-                          update_date: date, quantity: int = 0, 
-                          transaction_type: str = 'update') -> Dict[str, Any]:
+def update_spreadsheet_data(ticker: str, name: str, price: float,
+                          update_date: date, quantity: int = 0,
+                          transaction_type: str = 'update') -> dict[str, Any]:
     """
     スプレッドシートのデータを更新
     """
@@ -309,23 +305,23 @@ def update_spreadsheet_data(ticker: str, name: str, price: float,
                 'success': False,
                 'error': 'Unable to access spreadsheet'
             }
-        
+
         # 価格データシートを取得
         try:
             price_sheet = spreadsheet.worksheet('Price Data')
         except gspread.WorksheetNotFound:
             # シートが存在しない場合は作成
             price_sheet = spreadsheet.add_worksheet(
-                title='Price Data', 
-                rows=1000, 
+                title='Price Data',
+                rows=1000,
                 cols=10
             )
             # ヘッダーを設定
             price_sheet.update('1:1', [[
-                'Date', 'Ticker', 'Name', 'Price', 'Quantity', 
+                'Date', 'Ticker', 'Name', 'Price', 'Quantity',
                 'Transaction Type', 'Updated At'
             ]])
-        
+
         # 新しい行を追加
         new_row = [
             update_date.strftime('%Y-%m-%d'),
@@ -336,20 +332,20 @@ def update_spreadsheet_data(ticker: str, name: str, price: float,
             transaction_type,
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         ]
-        
+
         price_sheet.append_row(new_row)
-        
+
         # トランザクションタイプに応じて追加処理
         if transaction_type in ['buy', 'sell']:
             update_portfolio_holdings(
                 spreadsheet, ticker, name, quantity, price, transaction_type
             )
-        
+
         return {
             'success': True,
             'message': 'Data updated successfully'
         }
-        
+
     except Exception as e:
         logger.error(f"Spreadsheet update error: {e}")
         return {
@@ -357,7 +353,7 @@ def update_spreadsheet_data(ticker: str, name: str, price: float,
             'error': f'Spreadsheet update failed: {str(e)}'
         }
 
-def update_portfolio_holdings(spreadsheet, ticker: str, name: str, 
+def update_portfolio_holdings(spreadsheet, ticker: str, name: str,
                             quantity: int, price: float, transaction_type: str):
     """
     ポートフォリオ保有データを更新
@@ -374,24 +370,24 @@ def update_portfolio_holdings(spreadsheet, ticker: str, name: str,
             )
             # ヘッダーを設定
             portfolio_sheet.update('1:1', [[
-                'Ticker', 'Name', 'Quantity', 'Avg Price', 
+                'Ticker', 'Name', 'Quantity', 'Avg Price',
                 'Current Price', 'Market Value', 'Profit/Loss', 'Updated At'
             ]])
-        
+
         # 既存の保有データを検索
         all_values = portfolio_sheet.get_all_values()
         ticker_row = None
-        
+
         for i, row in enumerate(all_values[1:], start=2):  # ヘッダーをスキップ
             if row[0] == ticker:
                 ticker_row = i
                 break
-        
+
         if ticker_row:
             # 既存データを更新
             current_quantity = int(row[2]) if row[2] else 0
             current_avg_price = float(row[3]) if row[3] else 0
-            
+
             if transaction_type == 'buy':
                 # 平均取得価格を計算
                 total_cost = (current_quantity * current_avg_price) + (quantity * price)
@@ -400,13 +396,13 @@ def update_portfolio_holdings(spreadsheet, ticker: str, name: str,
             elif transaction_type == 'sell':
                 new_quantity = current_quantity - quantity
                 new_avg_price = current_avg_price  # 売却時は平均価格は変更しない
-            
+
             # 行を更新
             portfolio_sheet.update_cell(ticker_row, 3, new_quantity)
             portfolio_sheet.update_cell(ticker_row, 4, new_avg_price)
             portfolio_sheet.update_cell(ticker_row, 5, price)  # 現在価格
             portfolio_sheet.update_cell(ticker_row, 8, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-            
+
         else:
             # 新しい銘柄を追加
             if transaction_type == 'buy':
@@ -421,13 +417,13 @@ def update_portfolio_holdings(spreadsheet, ticker: str, name: str,
                     datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 ]
                 portfolio_sheet.append_row(new_row)
-        
+
     except Exception as e:
         logger.error(f"Portfolio update error: {e}")
         raise
 
-def save_monthly_report_data(month: str, portfolio_data: List[Dict], 
-                           summary: Dict, commentary: str) -> Dict[str, Any]:
+def save_monthly_report_data(month: str, portfolio_data: list[dict],
+                           summary: dict, commentary: str) -> dict[str, Any]:
     """
     月次レポートデータを保存
     """
@@ -438,7 +434,7 @@ def save_monthly_report_data(month: str, portfolio_data: List[Dict],
                 'success': False,
                 'error': 'Unable to access spreadsheet'
             }
-        
+
         # 月次レポートシートを取得または作成
         sheet_name = f'Report_{month}'
         try:
@@ -449,7 +445,7 @@ def save_monthly_report_data(month: str, portfolio_data: List[Dict],
                 rows=1000,
                 cols=10
             )
-        
+
         # サマリーデータを保存
         summary_data = [
             ['Month', month],
@@ -460,10 +456,10 @@ def save_monthly_report_data(month: str, portfolio_data: List[Dict],
             ['Generated At', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
             [''],  # 空行
             ['Portfolio Data:'],
-            ['Ticker', 'Name', 'Quantity', 'Avg Price', 'Current Price', 
+            ['Ticker', 'Name', 'Quantity', 'Avg Price', 'Current Price',
              'Market Value', 'Profit/Loss', 'Profit Rate']
         ]
-        
+
         # ポートフォリオデータを追加
         for stock in portfolio_data:
             summary_data.append([
@@ -476,16 +472,16 @@ def save_monthly_report_data(month: str, portfolio_data: List[Dict],
                 stock.get('profit', 0),
                 stock.get('profitRate', 0)
             ])
-        
+
         # データを一括更新
         report_sheet.clear()
         report_sheet.update('A1', summary_data)
-        
+
         return {
             'success': True,
             'message': f'Monthly report data saved to {sheet_name}'
         }
-        
+
     except Exception as e:
         logger.error(f"Monthly report save error: {e}")
         return {
@@ -503,18 +499,18 @@ def get_update_history(request):
     try:
         limit = int(request.GET.get('limit', 50))
         ticker_filter = request.GET.get('ticker', '')
-        
+
         spreadsheet = get_spreadsheet()
         if not spreadsheet:
             return JsonResponse({
                 'success': False,
                 'error': 'Unable to access spreadsheet'
             }, status=500)
-        
+
         try:
             price_sheet = spreadsheet.worksheet('Price Data')
             all_values = price_sheet.get_all_values()
-            
+
             # ヘッダーをスキップして履歴データを取得
             history_data = []
             for row in all_values[1:]:  # ヘッダーをスキップ
@@ -529,20 +525,20 @@ def get_update_history(request):
                             'transaction_type': row[5],
                             'updated_at': row[6]
                         })
-            
+
             # 日付順（新しい順）にソート
             history_data.sort(key=lambda x: x['updated_at'], reverse=True)
-            
+
             # 制限数を適用
             if limit > 0:
                 history_data = history_data[:limit]
-            
+
             return JsonResponse({
                 'success': True,
                 'data': history_data,
                 'count': len(history_data)
             })
-            
+
         except gspread.WorksheetNotFound:
             return JsonResponse({
                 'success': True,
@@ -550,7 +546,7 @@ def get_update_history(request):
                 'count': 0,
                 'message': 'No price data sheet found'
             })
-        
+
     except Exception as e:
         logger.error(f"Get update history error: {e}")
         return JsonResponse({

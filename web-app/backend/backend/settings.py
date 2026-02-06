@@ -12,8 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,21 +21,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # .envファイルを読み込む（このタイミングで読み込む）
 load_dotenv(BASE_DIR / '.env')
 
-# 以下の設定で環境変数を使用
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# 環境変数から設定を読み込み
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-bu8_mlj(*6qat+m9i1yhxb%9^nt=7%s=)gvz2%bw8p@_vn4juk')
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+# 許可するホスト
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bu8_mlj(*6qat+m9i1yhxb%9^nt=7%s=)gvz2%bw8p@_vn4juk'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+# 本番環境設定
+if not DEBUG:
+    ALLOWED_HOSTS.append('.run.app')  # Cloud Run用
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -67,7 +66,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -97,6 +96,7 @@ DATABASES = {
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -113,8 +113,23 @@ MIDDLEWARE = [
     *MIDDLEWARE,
 ]
 
-# Vue側のURLを許可
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Vue開発サーバー（カスタムポート）
-    "http://localhost:5173",  # VueのデフォルトURL
+# CORS 設定（環境変数で柔軟に制御）
+# 例: CORS_ALLOWED_ORIGINS=https://example.com,https://www.example.com
+_env_allowed = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+_default_dev = [
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
+
+if os.getenv("CORS_ALLOW_ALL_ORIGINS", "").lower() in {"1", "true", "yes"}:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    if _env_allowed:
+        CORS_ALLOWED_ORIGINS = [o.strip() for o in _env_allowed.split(",") if o.strip()]
+    else:
+        # デフォルトは開発向けオリジンを許可
+        CORS_ALLOWED_ORIGINS = _default_dev
+
+    # 本番で特定ドメインを追加したい場合は CORS_ALLOWED_ORIGINS 環境変数で指定

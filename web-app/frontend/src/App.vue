@@ -5,8 +5,23 @@
     </header>
     
     <main>
+      <!-- エラー表示 -->
+      <div v-if="error" class="error-message">
+        <div class="error-content">
+          <div class="error-text">{{ error }}</div>
+          <button @click="retryDataLoad" class="retry-button" :disabled="isLoading">
+            {{ isLoading ? '更新中...' : 'データを再取得' }}
+          </button>
+        </div>
+      </div>
+      
+      <!-- ローディング表示 -->
+      <div v-if="isLoading" class="loading-message">
+        データを読み込み中...
+      </div>
+      
       <!-- サマリーカード -->
-      <section class="summary">
+      <section class="summary" v-if="!isLoading && !error">
         <div class="card">
           <h3>総評価額</h3>
           <p class="big-number">{{ totalValue.toLocaleString() }}円</p>
@@ -20,7 +35,7 @@
       </section>
       
       <!-- 保有銘柄一覧 -->
-      <section class="holdings">
+      <section class="holdings" v-if="!isLoading && !error">
         <h2>保有銘柄</h2>
         <table>
           <thead>
@@ -38,26 +53,27 @@
               <tr class="stock-row" @click="toggleDetails(stock.name)">
                 <td>
                   {{ stock.name }}
-                  <span v-if="stock.transactions.length > 1" class="detail-icon">📊</span>
+                  <span class="expand-icon">{{ expandedStock === stock.name ? '▼' : '▶' }}</span>
                 </td>
                 <td>{{ stock.quantity }}株</td>
                 <td>{{ stock.avgPrice.toLocaleString() }}円</td>
                 <td>{{ stock.currentPrice.toLocaleString() }}円</td>
-                <td>{{ (stock.currentPrice * stock.quantity).toLocaleString() }}円</td>
+                <td>{{ stock.currentValue.toLocaleString() }}円</td>
                 <td :class="stock.profit >= 0 ? 'profit' : 'loss'">
                   {{ stock.profit >= 0 ? '+' : '' }}{{ stock.profit.toLocaleString() }}円
                 </td>
               </tr>
-              <!-- 詳細履歴表示 -->
+              
+              <!-- 詳細表示（展開時） -->
               <tr v-if="expandedStock === stock.name" class="detail-row">
                 <td colspan="6">
                   <div class="transaction-details">
                     <h4>取引履歴</h4>
-                    <div v-for="(transaction, index) in stock.transactions" :key="index" class="transaction">
+                    <div v-for="transaction in stock.transactions" :key="transaction.date" class="transaction">
                       <span class="date">{{ transaction.date }}</span>
                       <span class="amount">{{ transaction.quantity }}株</span>
                       <span class="price">@{{ transaction.price.toLocaleString() }}円</span>
-                      <span class="total">小計: {{ (transaction.quantity * transaction.price).toLocaleString() }}円</span>
+                      <span class="total">{{ (transaction.quantity * transaction.price).toLocaleString() }}円</span>
                     </div>
                   </div>
                 </td>
@@ -67,40 +83,35 @@
         </table>
       </section>
       
-      <!-- グラフ表示 -->
-      <section class="charts">
+      <!-- チャートエリア -->
+      <section class="charts" v-if="!isLoading && !error">
         <div class="chart-container">
-          <h2>ポートフォリオ構成</h2>
-          <canvas ref="pieChart" width="400" height="200"></canvas>
+          <h3>ポートフォリオ構成</h3>
+          <canvas ref="pieChart"></canvas>
         </div>
+        
         <div class="chart-container">
-          <h2>総損益推移</h2>
+          <h3>総損益推移</h3>
           <div class="chart-controls">
-            <label>期間選択：</label>
-            <select v-model="selectedPeriod" @change="updateLineChart">
-              <option value="6months">過去6ヶ月</option>
-              <option value="1year">過去1年</option>
-              <option value="all">全期間</option>
-            </select>
+            <button @click="changePeriod('3months')" :class="{ active: selectedPeriod === '3months' }">3ヶ月</button>
+            <button @click="changePeriod('6months')" :class="{ active: selectedPeriod === '6months' }">6ヶ月</button>
+            <button @click="changePeriod('1year')" :class="{ active: selectedPeriod === '1year' }">1年</button>
+            <button @click="changePeriod('2years')" :class="{ active: selectedPeriod === '2years' }">2年</button>
+            <button @click="changePeriod('3years')" :class="{ active: selectedPeriod === '3years' }">3年</button>
+            <button @click="changePeriod('all')" :class="{ active: selectedPeriod === 'all' }">全期間</button>
           </div>
-          <canvas ref="lineChart" width="400" height="200"></canvas>
+          <canvas ref="lineChart"></canvas>
         </div>
-      </section>
-      
-      <!-- 銘柄別損益グラフ -->
-      <section class="charts">
-        <div class="chart-container full-width">
-          <h2>銘柄別損益推移</h2>
+        
+        <div class="chart-container">
+          <h3>銘柄別損益推移</h3>
           <div class="chart-controls">
-            <label>銘柄選択：</label>
-            <select v-model="selectedStock" @change="updateStockChart">
-              <option value="all">全銘柄</option>
-              <option v-for="stock in stocks" :key="stock.name" :value="stock.name">
-                {{ stock.name }}
-              </option>
-            </select>
+            <button @click="changeStock('all')" :class="{ active: selectedStock === 'all' }">全銘柄</button>
+            <button v-for="stock in stocks" :key="stock.name" @click="changeStock(stock.name)" :class="{ active: selectedStock === stock.name }">
+              {{ stock.name }}
+            </button>
           </div>
-          <canvas ref="stockChart" width="800" height="300"></canvas>
+          <canvas ref="stockChart"></canvas>
         </div>
       </section>
     </main>
@@ -109,17 +120,19 @@
 
 <script setup>
 /**
- * 投資ポートフォリオ管理ダッシュボード
+ * 投資ポートフォリオ管理アプリ
  * 
- * 主要機能：
- * - 保有銘柄一覧と損益表示
- * - ポートフォリオ構成円グラフ（パーセンテージ表示付き）
+ * 機能：
+ * - 保有銘柄の表示と損益計算
+ * - 複数回購入（買い増し）対応
+ * - ポートフォリオ構成円グラフ
  * - 総損益推移グラフ（期間選択可能）
  * - 銘柄別損益推移グラフ（取得時期ベース）
  * - 銘柄クリックで詳細取引履歴表示
  */
 import { ref, computed, onMounted } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { apiService } from './utils/api.js'
 
 // Chart.jsのすべてのコンポーネントを登録
 Chart.register(...registerables)
@@ -127,7 +140,7 @@ Chart.register(...registerables)
 // ===== データ定義セクション =====
 
 /**
- * 保有銘柄データ（ダミーデータ）
+ * 保有銘柄データ（APIから取得）
  * 
  * 各銘柄の構造：
  * - name: 銘柄名
@@ -136,43 +149,10 @@ Chart.register(...registerables)
  *   - date: 購入日（YYYY/MM/DD形式）
  *   - quantity: 購入株数
  *   - price: その時の購入価格
- * 
- * 注意：実際のデータに変更する場合は、この部分を修正してください
  */
-const stocks = ref([
-  {
-    name: 'トヨタ自動車',
-    currentPrice: 2800, // 現在の株価
-    transactions: [
-      { date: '2024/01/15', quantity: 50, price: 2400 }, // 1回目購入
-      { date: '2024/03/10', quantity: 30, price: 2600 }, // 2回目購入（買い増し）
-      { date: '2024/05/20', quantity: 20, price: 2700 }  // 3回目購入（買い増し）
-    ]
-  },
-  {
-    name: 'ソフトバンク', 
-    currentPrice: 1150,
-    transactions: [
-      { date: '2024/02/01', quantity: 100, price: 1200 }, // 1回目購入
-      { date: '2024/04/15', quantity: 100, price: 1200 }  // 2回目購入（同価格）
-    ]
-  },
-  {
-    name: '任天堂',
-    currentPrice: 6200,
-    transactions: [
-      { date: '2024/01/30', quantity: 50, price: 5600 } // 1回のみ購入
-    ]
-  },
-  {
-    name: 'DeNA',
-    currentPrice: 2350,
-    transactions: [
-      { date: '2024/03/01', quantity: 100, price: 2000 }, // 1回目購入
-      { date: '2024/06/01', quantity: 50, price: 2400 }   // 2回目購入（値上がり後）
-    ]
-  }
-])
+const stocks = ref([])
+const isLoading = ref(false)
+const error = ref(null)
 
 // ===== UI制御用の変数 =====
 
@@ -191,46 +171,34 @@ const toggleDetails = (stockName) => {
   expandedStock.value = expandedStock.value === stockName ? null : stockName
 }
 
-// ===== データ計算処理 =====
+/**
+ * 期間選択の変更
+ * @param period - 期間（'6months', '1year', 'all'）
+ */
+const changePeriod = (period) => {
+  selectedPeriod.value = period
+  updateLineChart()
+}
 
 /**
- * 各銘柄の計算処理（平均価格、総数量、損益）
- * 
- * 複数回の買い増しがある場合：
- * - quantity: 全取引の合計株数
- * - avgPrice: 加重平均価格（総投資額 ÷ 総株数）
- * - profit: 現在価値 - 総投資額
+ * 銘柄選択の変更
+ * @param stockName - 銘柄名（'all'または具体的な銘柄名）
  */
-stocks.value.forEach(stock => {
-  // 総数量計算（全ての取引の株数を合計）
-  stock.quantity = stock.transactions.reduce((sum, t) => sum + t.quantity, 0)
-  
-  // 平均価格計算（加重平均）
-  const totalCost = stock.transactions.reduce((sum, t) => sum + (t.quantity * t.price), 0)
-  stock.avgPrice = Math.round(totalCost / stock.quantity)
-  
-  // 損益計算（現在価値 - 投資額）
-  const totalCurrent = stock.currentPrice * stock.quantity
-  stock.profit = totalCurrent - totalCost
-})
-
-// ===== 集計値の計算（リアクティブ） =====
+const changeStock = async (stockName) => {
+  selectedStock.value = stockName
+  await updateStockChart()
+}
 
 /**
- * ポートフォリオ全体の評価額
- * @returns {number} 全銘柄の現在価値の合計
+ * データ再取得機能
+ * エラー時にユーザーがワンクリックでリトライできる
  */
-const totalValue = computed(() => {
-  return stocks.value.reduce((sum, stock) => sum + (stock.currentPrice * stock.quantity), 0)
-})
-
-/**
- * ポートフォリオ全体の損益
- * @returns {number} 全銘柄の損益の合計
- */
-const totalProfit = computed(() => {
-  return stocks.value.reduce((sum, stock) => sum + stock.profit, 0)
-})
+const retryDataLoad = async () => {
+  console.log('データ再取得を開始...')
+  error.value = null  // エラーメッセージをクリア
+  await loadPortfolioData()
+  console.log('データ再取得完了')
+}
 
 // ===== チャート関連の設定 =====
 
@@ -253,117 +221,364 @@ const selectedStock = ref('all')       // 銘柄別グラフの銘柄選択
 let lineChartInstance = null   // 総損益推移グラフのインスタンス
 let stockChartInstance = null  // 銘柄別損益グラフのインスタンス
 
-// 期間別ダミーデータ
-const profitData = {
+// 期間別データ（APIから取得）
+const profitData = ref({
+  '3months': {
+    labels: [],
+    data: []
+  },
   '6months': {
-    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
-    data: [10000, 25000, 15000, 35000, 45000, totalProfit.value]
+    labels: [],
+    data: []
   },
   '1year': {
-    labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
-    data: [-5000, 10000, 25000, 15000, 35000, 45000, 55000, 40000, 60000, 70000, 80000, totalProfit.value]
+    labels: [],
+    data: []
+  },
+  '2years': {
+    labels: [],
+    data: []
+  },
+  '3years': {
+    labels: [],
+    data: []
   },
   'all': {
-    labels: ['2023年1月', '2023年6月', '2023年12月', '2024年6月'],
-    data: [-20000, 30000, 50000, totalProfit.value]
+    labels: [],
+    data: []
   }
-}
+})
 
 const updateLineChart = () => {
   if (lineChartInstance) {
-    const currentData = profitData[selectedPeriod.value]
+    const currentData = profitData.value[selectedPeriod.value]
     lineChartInstance.data.labels = currentData.labels
-    lineChartInstance.data.datasets[0].data = currentData.data
+    lineChartInstance.data.datasets[0].data = currentData.cumulativeInvestments  // 累積投資額推移
+    lineChartInstance.data.datasets[1].data = currentData.values     // 評価額推移
+    lineChartInstance.data.datasets[2].data = currentData.profits    // 損益推移
     lineChartInstance.update()
   }
 }
 
-// 銘柄別損益ダミーデータ（取得時期ベース）
-const stockProfitData = {
-  'トヨタ自動車': {
-    labels: ['2024/01/15', '2024/02/15', '2024/03/15', '2024/04/15', '2024/05/15', '2024/06/15'],
-    data: [-6000, -3000, 12000, 18000, 24000, 28000],
-    acquisitions: ['1回目購入', '', '2回目購入', '', '3回目購入', '']
-  },
-  'ソフトバンク': {
-    labels: ['2024/02/01', '2024/03/01', '2024/04/01', '2024/04/15', '2024/05/01', '2024/06/01'],
-    data: [0, -5000, -8000, -12000, -10000, -10000],
-    acquisitions: ['1回目購入', '', '', '2回目購入', '', '']
-  },
-  '任天堂': {
-    labels: ['2024/01/30', '2024/02/28', '2024/03/31', '2024/04/30', '2024/05/31', '2024/06/30'],
-    data: [10000, 15000, 20000, 25000, 28000, 30000],
-    acquisitions: ['購入', '', '', '', '', '']
-  },
-  'DeNA': {
-    labels: ['2024/03/01', '2024/04/01', '2024/05/01', '2024/06/01', '2024/06/15', '2024/06/30'],
-    data: [5000, 8000, 15000, 25000, 35000, 39500],
-    acquisitions: ['1回目購入', '', '', '2回目購入', '', '']
+// 銘柄別損益データ（APIから取得）
+const stockProfitData = ref({})
+
+const updateStockChart = async () => {
+  if (!stockChartInstance) {
+    console.error('stockChartInstance が初期化されていません')
+    return
+  }
+  
+  if (selectedStock.value === 'all') {
+    // 全銘柄表示（共通の月次軸を使用）
+    console.log('全銘柄表示モードでチャート更新中...')
+    const commonLabels = ['1月', '2月', '3月', '4月', '5月', '6月']
+    const datasets = stocks.value.map((stock, index) => {
+      const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+      return {
+        label: stock.name,
+        data: stockProfitData.value[stock.name]?.data || [],
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length] + '20',
+        fill: false,
+        tension: 0.1,  // キビキビした線形補間
+        pointRadius: 1,  // ポイントを小さく
+        pointHoverRadius: 4,
+        borderWidth: 2
+      }
+    })
+    
+    stockChartInstance.data.labels = commonLabels
+    stockChartInstance.data.datasets = datasets
+    
+    // 軸の設定を更新
+    stockChartInstance.options.scales.x.title.text = '期間'
+  } else {
+    // 個別銘柄表示（取得時期以降の正確な時系列データを使用）
+    console.log(`個別銘柄「${selectedStock.value}」のデータを取得中...`)
+    
+    try {
+      const response = await apiService.getStockHistory(selectedStock.value)
+      console.log('API レスポンス:', response)
+      
+      if (!response.data) {
+        throw new Error('APIレスポンスにdataプロパティがありません')
+      }
+      
+      const stockDetail = response.data
+      const timeSeries = stockDetail.timeSeries
+      
+      console.log('銘柄詳細データ:', stockDetail)
+      console.log('時系列データ:', timeSeries)
+      
+      const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
+      const color = stockInfo?.profit >= 0 ? '#28a745' : '#dc3545'
+      
+      if (timeSeries && timeSeries.labels && timeSeries.labels.length > 0) {
+        console.log(`時系列データあり: ${timeSeries.labels.length}件のデータポイント`)
+        
+        stockChartInstance.data.labels = timeSeries.labels
+        stockChartInstance.data.datasets = [
+          {
+            label: '取得価格推移',
+            data: timeSeries.acquisitionPrices || [],
+            borderColor: '#FF6384',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            fill: false,
+            tension: 0.1,  // キビキビした線形補間
+            pointRadius: 1,  // ポイントを小さく
+            pointHoverRadius: 4,
+            borderWidth: 2
+          },
+          {
+            label: '評価額推移',
+            data: timeSeries.values || [],
+            borderColor: '#36A2EB',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            fill: false,
+            tension: 0.1,  // キビキビした線形補間
+            pointRadius: 1,  // ポイントを小さく
+            pointHoverRadius: 4,
+            borderWidth: 2
+          },
+          {
+            label: '損益推移',
+            data: timeSeries.profits || [],
+            borderColor: color,
+            backgroundColor: color + '20',
+            fill: true,
+            tension: 0.1,  // キビキビした線形補間
+            pointBackgroundColor: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? '#ff6b35' : color
+            ) || [],
+            pointRadius: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? 6 : 0  // 取得マーカー時のみポイント表示
+            ) || [],
+            pointHoverRadius: timeSeries.acquisitionMarkers?.map((marker) => 
+              marker !== '' ? 8 : 3
+            ) || [],
+            borderWidth: 2
+          }
+        ]
+        
+        console.log('チャートデータが設定されました')
+      } else {
+        console.warn('時系列データが空です')
+        // データがない場合は空のグラフを表示
+        stockChartInstance.data.labels = ['データなし']
+        stockChartInstance.data.datasets = [{
+          label: selectedStock.value + ' (データなし)',
+          data: [0],
+          borderColor: color,
+          backgroundColor: color + '20'
+        }]
+      }
+    } catch (err) {
+      console.error('個別銘柄データ取得エラー詳細:', {
+        error: err,
+        message: err.message,
+        stack: err.stack,
+        selectedStock: selectedStock.value
+      })
+      
+      // エラー詳細を画面に表示（個別銘柄エラー）
+      console.warn(`銘柄「${selectedStock.value}」のデータ取得に失敗:`, err.message)
+      
+      // エラー時は明確にエラーを示すチャートを表示
+      stockChartInstance.data.labels = ['データ取得エラー']
+      stockChartInstance.data.datasets = [{
+        label: selectedStock.value + ' (API接続失敗)',
+        data: [0],
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220, 53, 69, 0.2)'
+      }]
+      
+      // 全体エラーとしては設定しない（銘柄切り替えで回復可能）
+    }
+    
+    // 軸の設定を更新
+    stockChartInstance.options.scales.x.title.text = '取得時期からの経過'
+  }
+  
+  // チャート更新
+  try {
+    stockChartInstance.update()
+    console.log('チャート更新完了')
+  } catch (updateErr) {
+    console.error('チャート更新エラー:', updateErr)
   }
 }
 
-const updateStockChart = () => {
-  if (stockChartInstance) {
-    if (selectedStock.value === 'all') {
-      // 全銘柄表示（共通の月次軸を使用）
-      const commonLabels = ['1月', '2月', '3月', '4月', '5月', '6月']
-      const datasets = stocks.value.map((stock, index) => {
-        const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
-        return {
-          label: stock.name,
-          data: stockProfitData[stock.name].data,
-          borderColor: colors[index % colors.length],
-          backgroundColor: colors[index % colors.length] + '20',
-          fill: false,
-          tension: 0.4
+// ===== API関数 =====
+
+/**
+ * ポートフォリオデータをAPIから取得
+ */
+const loadPortfolioData = async () => {
+  try {
+    isLoading.value = true
+    error.value = null
+    
+    console.log('ポートフォリオデータの並列取得を開始...')
+    
+    // メインデータと履歴データを並列取得
+    const [portfolioResponse, historyResponse, spreadsheetResponse] = await Promise.allSettled([
+      apiService.getPortfolioData(),
+      apiService.getProfitHistory(),
+      apiService.getSpreadsheetData()
+    ])
+    
+    // ポートフォリオデータの処理
+    if (portfolioResponse.status === 'fulfilled') {
+      stocks.value = portfolioResponse.value.data.stocks || []
+      console.log(`ポートフォリオデータ取得成功: ${stocks.value.length}銘柄`)
+    } else {
+      console.error('ポートフォリオデータ取得失敗:', portfolioResponse.reason)
+      throw new Error(`ポートフォリオデータ取得エラー: ${portfolioResponse.reason?.message}`)
+    }
+    
+    // 履歴データの処理
+    let historyData = { periods: [], totalProfits: [], totalValues: [], totalCosts: [], avgPurchasePrices: [] }
+    if (historyResponse.status === 'fulfilled') {
+      historyData = historyResponse.value.data
+      console.log(`履歴データ取得成功: ${historyData.periods?.length || 0}期間`)
+    } else {
+      console.error('履歴データ取得失敗:', historyResponse.reason)
+      // 履歴データは必須ではないため、警告のみでエラーにしない
+    }
+    
+    // APIレスポンスを期間別データに変換
+    const allLabels = historyData.periods || []
+    const allProfits = historyData.totalProfits || []
+    const allValues = historyData.totalValues || []
+    const allCosts = historyData.totalCosts || []
+    const allCumulativeInvestments = historyData.cumulativeInvestments || historyData.totalCosts || []  // 累積投資額（後方互換性あり）
+    
+    // 期間別データの設定（証券アプリスタイル：累積投資額＋評価額）
+    profitData.value = {
+      '3months': {
+        labels: allLabels.slice(-3),
+        profits: allProfits.slice(-3),
+        values: allValues.slice(-3),
+        costs: allCosts.slice(-3),
+        cumulativeInvestments: allCumulativeInvestments.slice(-3)  // 累積投資額
+      },
+      '6months': {
+        labels: allLabels.slice(-6),
+        profits: allProfits.slice(-6),
+        values: allValues.slice(-6),
+        costs: allCosts.slice(-6),
+        cumulativeInvestments: allCumulativeInvestments.slice(-6)
+      },
+      '1year': {
+        labels: allLabels.slice(-12),
+        profits: allProfits.slice(-12),
+        values: allValues.slice(-12),
+        costs: allCosts.slice(-12),
+        cumulativeInvestments: allCumulativeInvestments.slice(-12)
+      },
+      '2years': {
+        labels: allLabels.slice(-24),
+        profits: allProfits.slice(-24),
+        values: allValues.slice(-24),
+        costs: allCosts.slice(-24),
+        cumulativeInvestments: allCumulativeInvestments.slice(-24)
+      },
+      '3years': {
+        labels: allLabels.slice(-36),
+        profits: allProfits.slice(-36),
+        values: allValues.slice(-36),
+        costs: allCosts.slice(-36),
+        cumulativeInvestments: allCumulativeInvestments.slice(-36)
+      },
+      'all': {
+        labels: allLabels,
+        profits: allProfits,
+        values: allValues,
+        costs: allCosts,
+        cumulativeInvestments: allCumulativeInvestments
+      }
+    }
+    
+    // 銘柄別データの設定（並列取得結果を使用）
+    if (spreadsheetResponse.status === 'fulfilled') {
+      const spreadsheetData = spreadsheetResponse.value.data.data || []
+      console.log(`スプレッドシートデータ取得成功: ${spreadsheetData.length}レコード`)
+      
+      // 銘柄別にデータを集計
+      const stockDataMap = {}
+      spreadsheetData.forEach(row => {
+        const stockCode = row.stock
+        const date = row.label
+        const profit = row.pl_value
+        
+        if (!stockDataMap[stockCode]) {
+          stockDataMap[stockCode] = { labels: [], data: [] }
+        }
+        
+        // 重複する日付は最新のものを使用
+        const existingIndex = stockDataMap[stockCode].labels.indexOf(date)
+        if (existingIndex !== -1) {
+          stockDataMap[stockCode].data[existingIndex] = profit
+        } else {
+          stockDataMap[stockCode].labels.push(date)
+          stockDataMap[stockCode].data.push(profit)
         }
       })
       
-      stockChartInstance.data.labels = commonLabels
-      stockChartInstance.data.datasets = datasets
+      // ソートして最新6ヶ月分のデータを使用
+      Object.keys(stockDataMap).forEach(stockCode => {
+        const stockData = stockDataMap[stockCode]
+        const sortedIndices = stockData.labels
+          .map((label, index) => ({ label, index }))
+          .sort((a, b) => new Date(a.label) - new Date(b.label))
+        
+        stockData.labels = sortedIndices.slice(-6).map(item => item.label)
+        stockData.data = sortedIndices.slice(-6).map(item => stockData.data[item.index])
+      })
       
-      // 軸の設定を更新
-      stockChartInstance.options.scales.x.title.text = '期間'
+      stockProfitData.value = stockDataMap
     } else {
-      // 個別銘柄表示（実際の取得時期を表示）
-      const stockData = stockProfitData[selectedStock.value]
-      const stockInfo = stocks.value.find(s => s.name === selectedStock.value)
-      const color = stockInfo.profit >= 0 ? '#28a745' : '#dc3545'
-      
-      stockChartInstance.data.labels = stockData.labels
-      stockChartInstance.data.datasets = [{
-        label: selectedStock.value + ' 損益推移',
-        data: stockData.data,
-        borderColor: color,
-        backgroundColor: color + '20',
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? '#ff6b35' : color
-        ),
-        pointRadius: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? 8 : 4
-        ),
-        pointHoverRadius: stockData.acquisitions.map((acq, index) => 
-          acq !== '' ? 10 : 6
-        )
-      }]
-      
-      // 軸の設定を更新
-      stockChartInstance.options.scales.x.title.text = '取得時期からの経過'
+      console.error('銘柄別データ取得失敗:', spreadsheetResponse.reason)
+      // エラー時も最小限のダミーデータを設定
+      stockProfitData.value = stocks.value.reduce((acc, stock) => {
+        acc[stock.name] = {
+          labels: allLabels.slice(-6),
+          data: Array(Math.min(6, allLabels.length)).fill(0)
+        }
+        return acc
+      }, {})
     }
-    stockChartInstance.update()
+    
+  } catch (err) {
+    console.error('ポートフォリオデータの取得に失敗しました:', err)
+    error.value = 'データの取得に失敗しました。バックエンドサーバーが起動していることを確認してください。'
+  } finally {
+    isLoading.value = false
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // データ取得
+  await loadPortfolioData()
+  // エラー時はチャート初期化をスキップ（DOM参照も未定義になるのを防止）
+  if (error.value) {
+    console.warn('データ取得エラーのため、チャート初期化をスキップします')
+    return
+  }
+  // DOM参照の存在チェック
+  if (!pieChart.value || !lineChart.value || !stockChart.value) {
+    console.warn('チャートの描画先が見つかりません（DOM未準備）')
+    return
+  }
+  
   // ポートフォリオ構成（円グラフ）
   new Chart(pieChart.value, {
     type: 'pie',
     data: {
       labels: stocks.value.map(stock => stock.name),
       datasets: [{
-        data: stocks.value.map(stock => stock.currentPrice * stock.quantity),
+        data: stocks.value.map(stock => stock.currentValue || 0),
         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
       }]
     },
@@ -378,8 +593,7 @@ onMounted(() => {
             label: function(context) {
               const total = context.dataset.data.reduce((sum, value) => sum + value, 0)
               const percentage = ((context.parsed / total) * 100).toFixed(1)
-              const value = context.parsed.toLocaleString()
-              return context.label + ': ' + value + '円 (' + percentage + '%)'
+              return context.label + ': ' + context.parsed.toLocaleString() + '円 (' + percentage + '%)'
             }
           }
         },
@@ -400,20 +614,47 @@ onMounted(() => {
     }
   })
 
-  // 損益推移（線グラフ）
-  const initialData = profitData[selectedPeriod.value]
+  // 損益推移（証券アプリスタイル：累積投資額＋評価額＋損益）
+  const initialData = profitData.value[selectedPeriod.value]
   lineChartInstance = new Chart(lineChart.value, {
     type: 'line',
     data: {
       labels: initialData.labels,
-      datasets: [{
-        label: '総損益',
-        data: initialData.data,
-        borderColor: '#36A2EB',
-        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-        fill: true,
-        tension: 0.4
-      }]
+      datasets: [
+        {
+          label: '累積投資額',
+          data: initialData.cumulativeInvestments,
+          borderColor: '#FF6384',
+          backgroundColor: 'rgba(255, 99, 132, 0.1)',
+          fill: false,
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 1,  // ポイントを小さく
+          pointHoverRadius: 4,
+          borderWidth: 2
+        },
+        {
+          label: '評価額推移',
+          data: initialData.values,
+          borderColor: '#36A2EB',
+          backgroundColor: 'rgba(54, 162, 235, 0.1)',
+          fill: false,
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 1,  // ポイントを小さく
+          pointHoverRadius: 4,
+          borderWidth: 2
+        },
+        {
+          label: '損益推移',
+          data: initialData.profits,
+          borderColor: '#4BC0C0',
+          backgroundColor: 'rgba(75, 192, 192, 0.1)',
+          fill: true,
+          tension: 0.1,  // キビキビした線形補間
+          pointRadius: 0,  // ポイントなし
+          pointHoverRadius: 3,
+          borderWidth: 2
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -423,9 +664,19 @@ onMounted(() => {
       },
       scales: {
         y: {
+          beginAtZero: true,
           ticks: {
             callback: function(value) {
               return value.toLocaleString() + '円'
+            }
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '円'
             }
           }
         }
@@ -438,11 +689,14 @@ onMounted(() => {
     const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
     return {
       label: stock.name,
-      data: stockProfitData[stock.name].data,
+      data: stockProfitData.value[stock.name]?.data || [],
       borderColor: colors[index % colors.length],
       backgroundColor: colors[index % colors.length] + '20',
       fill: false,
-      tension: 0.4
+      tension: 0.1,  // キビキビした線形補間
+      pointRadius: 1,  // ポイントを小さく
+      pointHoverRadius: 4,
+      borderWidth: 2
     }
   })
 
@@ -466,10 +720,7 @@ onMounted(() => {
           }
         },
         y: {
-          title: {
-            display: true,
-            text: '損益'
-          },
+          beginAtZero: true,
           ticks: {
             callback: function(value) {
               return value.toLocaleString() + '円'
@@ -478,9 +729,6 @@ onMounted(() => {
         }
       },
       plugins: {
-        legend: {
-          position: 'bottom'
-        },
         tooltip: {
           callbacks: {
             label: function(context) {
@@ -489,8 +737,8 @@ onMounted(() => {
             afterLabel: function(context) {
               // 個別銘柄の場合、取得タイミング情報を表示
               if (selectedStock.value !== 'all') {
-                const stockData = stockProfitData[selectedStock.value]
-                const acquisition = stockData.acquisitions[context.dataIndex]
+                const stockData = stockProfitData.value[selectedStock.value]
+                const acquisition = stockData?.acquisitions?.[context.dataIndex]
                 return acquisition !== '' ? '📍 ' + acquisition : ''
               }
               return ''
@@ -501,6 +749,37 @@ onMounted(() => {
     }
   })
 })
+
+// ===== 計算用のComputed Properties =====
+
+/**
+ * 総評価額の計算
+ */
+const totalValue = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.currentValue, 0)
+})
+
+/**
+ * 総損益の計算
+ */
+const totalProfit = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.profit, 0)
+})
+
+/**
+ * 総コスト（投資元本）の計算
+ */
+const totalCost = computed(() => {
+  return stocks.value.reduce((sum, stock) => sum + stock.cost, 0)
+})
+
+/**
+ * 総損益率の計算
+ */
+const totalProfitRatio = computed(() => {
+  return totalCost.value > 0 ? (totalProfit.value / totalCost.value) * 100 : 0
+})
+
 </script>
 
 <style>
@@ -511,8 +790,9 @@ onMounted(() => {
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
 }
 
 #app {
@@ -526,14 +806,15 @@ header {
   margin-bottom: 30px;
 }
 
-h1 {
-  color: #333;
-  font-size: 2rem;
+header h1 {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 10px;
 }
 
 .summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -573,12 +854,13 @@ h1 {
 
 .holdings h2 {
   margin-bottom: 20px;
-  color: #333;
+  color: #2c3e50;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 10px;
 }
 
 th, td {
@@ -588,13 +870,9 @@ th, td {
 }
 
 th {
-  background: #f8f9fa;
-  font-weight: bold;
-  color: #333;
-}
-
-tbody tr:hover {
-  background: #f8f9fa;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #666;
 }
 
 .stock-row {
@@ -603,11 +881,12 @@ tbody tr:hover {
 }
 
 .stock-row:hover {
-  background: #e3f2fd !important;
+  background-color: #f8f9fa;
 }
 
-.detail-icon {
-  margin-left: 5px;
+.expand-icon {
+  margin-left: 10px;
+  color: #007bff;
   font-size: 0.8rem;
 }
 
@@ -664,7 +943,7 @@ tbody tr:hover {
 
 .charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
   margin-top: 30px;
 }
@@ -676,31 +955,86 @@ tbody tr:hover {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.chart-container.full-width {
-  grid-column: 1 / -1;
-}
-
-.chart-container h2 {
-  margin-bottom: 20px;
-  color: #333;
-  text-align: center;
+.chart-container h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
 }
 
 .chart-controls {
-  margin-bottom: 15px;
-  text-align: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-.chart-controls label {
-  margin-right: 10px;
-  font-weight: 500;
-}
-
-.chart-controls select {
-  padding: 5px 10px;
+.chart-controls button {
+  padding: 8px 16px;
   border: 1px solid #ddd;
-  border-radius: 4px;
   background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-controls button:hover {
+  background: #f8f9fa;
+}
+
+.chart-controls button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #f5c6cb;
+}
+
+.error-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.error-text {
+  flex: 1;
+}
+
+.retry-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.retry-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.retry-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.loading-message {
+  background: #d1ecf1;
+  color: #0c5460;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #bee5eb;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -710,6 +1044,10 @@ tbody tr:hover {
   
   .charts {
     grid-template-columns: 1fr;
+  }
+  
+  .chart-container {
+    min-width: auto;
   }
   
   table {

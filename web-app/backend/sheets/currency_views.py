@@ -1,9 +1,10 @@
 import datetime
-from django.http import JsonResponse
-from googleapiclient.discovery import build
-from google.oauth2.service_account import Credentials
-from django.conf import settings
 from pathlib import Path
+
+from django.conf import settings
+from django.http import JsonResponse
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 
 
 def get_portfolio_data(request):
@@ -12,22 +13,22 @@ def get_portfolio_data(request):
         # 認証情報の設定
         credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS
         spreadsheet_id = settings.SPREADSHEET_ID
-        
+
         if not credentials_path or not Path(credentials_path).exists():
             return JsonResponse(
-                {"error": f"Service account file not found at {credentials_path}"}, 
+                {"error": f"Service account file not found at {credentials_path}"},
                 status=404,
                 json_dumps_params={'ensure_ascii': False}
             )
-        
+
         creds = Credentials.from_service_account_file(
             credentials_path,
             scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
         )
-        
+
         service = build('sheets', 'v4', credentials=creds)
         sheet = service.spreadsheets()
-        
+
         # ポートフォリオシートからデータ取得
         RANGE_NAME = "ポートフォリオ!A1:J"  # 外貨情報含む
         result = sheet.values().get(
@@ -35,16 +36,16 @@ def get_portfolio_data(request):
             range=RANGE_NAME
         ).execute()
         values = result.get('values', [])
-        
+
         if not values:
             return JsonResponse(
                 {"message": "No portfolio data found."},
                 json_dumps_params={'ensure_ascii': False}
             )
-        
+
         headers = values[0]
         data_rows = values[1:]
-        
+
         # ヘッダーのインデックス取得
         try:
             symbol_idx = headers.index('銘柄コード')
@@ -59,19 +60,19 @@ def get_portfolio_data(request):
             notes_idx = headers.index('備考')
         except ValueError as e:
             return JsonResponse(
-                {"error": f"Required column not found: {str(e)}"}, 
+                {"error": f"Required column not found: {str(e)}"},
                 status=400,
                 json_dumps_params={'ensure_ascii': False}
             )
-        
+
         portfolio_data = []
         for row in data_rows:
             if len(row) <= max([symbol_idx, name_idx, purchase_price_idx, shares_idx, currency_idx, foreign_flag_idx]):
                 continue
-                
+
             # 外国株フラグの判定
             is_foreign = row[foreign_flag_idx] == '○' if len(row) > foreign_flag_idx else False
-            
+
             portfolio_data.append({
                 "symbol": row[symbol_idx],
                 "name": row[name_idx],
@@ -84,12 +85,12 @@ def get_portfolio_data(request):
                 "updated": row[updated_idx] if len(row) > updated_idx else "",
                 "notes": row[notes_idx] if len(row) > notes_idx else ""
             })
-        
+
         return JsonResponse(
             {"data": portfolio_data},
             json_dumps_params={'ensure_ascii': False}
         )
-    
+
     except Exception as e:
         return JsonResponse(
             {"error": str(e)},
@@ -105,19 +106,19 @@ def get_currency_rates(request):
         start_date_str = request.GET.get('start_date', None)
         end_date_str = request.GET.get('end_date', None)
         currency_pair = request.GET.get('currency', None)
-        
+
         # 認証情報の設定
         credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS
         spreadsheet_id = settings.SPREADSHEET_ID
-        
+
         creds = Credentials.from_service_account_file(
             credentials_path,
             scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
         )
-        
+
         service = build('sheets', 'v4', credentials=creds)
         sheet = service.spreadsheets()
-        
+
         # 為替レートシートからデータ取得
         RANGE_NAME = "為替レート!A1:H"
         result = sheet.values().get(
@@ -125,16 +126,16 @@ def get_currency_rates(request):
             range=RANGE_NAME
         ).execute()
         values = result.get('values', [])
-        
+
         if not values:
             return JsonResponse(
                 {"message": "No currency data found."},
                 json_dumps_params={'ensure_ascii': False}
             )
-        
+
         headers = values[0]
         data_rows = values[1:]
-        
+
         # ヘッダーのインデックス取得
         try:
             date_idx = headers.index('取得日')
@@ -147,16 +148,16 @@ def get_currency_rates(request):
             updated_idx = headers.index('更新日時')
         except ValueError as e:
             return JsonResponse(
-                {"error": f"Required column not found: {str(e)}"}, 
+                {"error": f"Required column not found: {str(e)}"},
                 status=400,
                 json_dumps_params={'ensure_ascii': False}
             )
-        
+
         currency_data = []
         for row in data_rows:
             if len(row) <= max([date_idx, pair_idx, rate_idx]):
                 continue
-            
+
             # 日付フィルタリング
             try:
                 row_date = datetime.datetime.strptime(row[date_idx], '%Y-%m-%d').date()
@@ -170,11 +171,11 @@ def get_currency_rates(request):
                         continue
             except ValueError:
                 continue
-            
+
             # 通貨ペアフィルタリング
             if currency_pair and row[pair_idx] != currency_pair:
                 continue
-            
+
             currency_data.append({
                 "date": row[date_idx],
                 "currency_pair": row[pair_idx],
@@ -185,12 +186,12 @@ def get_currency_rates(request):
                 "low": float(row[low_idx]) if len(row) > low_idx and row[low_idx] else 0,
                 "updated": row[updated_idx] if len(row) > updated_idx else ""
             })
-        
+
         return JsonResponse(
             {"data": currency_data},
             json_dumps_params={'ensure_ascii': False}
         )
-    
+
     except Exception as e:
         return JsonResponse(
             {"error": str(e)},
@@ -206,22 +207,22 @@ def get_currency_portfolio_summary(request):
         portfolio_response = get_portfolio_data(request)
         if portfolio_response.status_code != 200:
             return portfolio_response
-            
+
         portfolio_data = portfolio_response.content
         import json
         portfolio_json = json.loads(portfolio_data)
-        
+
         if 'error' in portfolio_json:
             return portfolio_response
-        
+
         # 通貨別に集計
         currency_summary = {}
         total_portfolio_value = 0
-        
+
         for stock in portfolio_json['data']:
             currency = stock['currency']
             total_cost = stock['purchase_price'] * stock['shares']
-            
+
             if currency not in currency_summary:
                 currency_summary[currency] = {
                     'currency': currency,
@@ -230,15 +231,15 @@ def get_currency_portfolio_summary(request):
                     'stocks_count': 0,
                     'is_foreign': currency != 'JPY'
                 }
-            
+
             currency_summary[currency]['total_cost'] += total_cost
             currency_summary[currency]['stocks_count'] += 1
             total_portfolio_value += total_cost
-        
+
         # パーセンテージ計算
         for currency_data in currency_summary.values():
             currency_data['percentage'] = (currency_data['total_cost'] / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
-        
+
         return JsonResponse(
             {
                 "data": list(currency_summary.values()),
@@ -246,7 +247,7 @@ def get_currency_portfolio_summary(request):
             },
             json_dumps_params={'ensure_ascii': False}
         )
-    
+
     except Exception as e:
         return JsonResponse(
             {"error": str(e)},

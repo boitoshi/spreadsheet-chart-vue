@@ -15,12 +15,17 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # ルートパス直下にget_data/をもってくる
+
+    # 互換: 既存ルート（レガシー）
     path('', include('sheets.urls')),
-    # ポートフォリオAPI
     path('', include('portfolio.urls')),
+
+    # 標準化: バージョン付きAPIプレフィックス
+    # portfolio を先に含めることで /api/v1/portfolio/ を優先
+    path('api/v1/', include('portfolio.urls')),
+    path('api/v1/', include('sheets.urls')),
 ]

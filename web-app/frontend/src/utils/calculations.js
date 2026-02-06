@@ -13,7 +13,7 @@ export const calculateProfitLoss = (purchasePrice, currentPrice, quantity = 1) =
   const totalPurchase = purchasePrice * quantity
   const totalCurrent = currentPrice * quantity
   const profitLoss = totalCurrent - totalPurchase
-  const profitLossRate = ((profitLoss / totalPurchase) * 100)
+  const profitLossRate = totalPurchase > 0 ? ((profitLoss / totalPurchase) * 100) : 0
   
   return {
     totalPurchase,      // 総取得額
@@ -48,7 +48,9 @@ export const calculatePortfolioSummary = (holdings) => {
     totalProfitLoss: 0
   })
   
-  summary.totalProfitLossRate = (summary.totalProfitLoss / summary.totalPurchase) * 100
+  summary.totalProfitLossRate = summary.totalPurchase > 0
+    ? (summary.totalProfitLoss / summary.totalPurchase) * 100
+    : 0
   
   return summary
 }

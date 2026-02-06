@@ -46,6 +46,7 @@ ENV/
 env.bak/
 venv.bak/
 .venv/
+.lintenv/
 
 # Django
 db.sqlite3
@@ -55,7 +56,10 @@ local_settings.py
 
 # Google Sheets API credentials
 *.json
-\!package*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.node.json
 service-account*.json
 my-service-account.json
 

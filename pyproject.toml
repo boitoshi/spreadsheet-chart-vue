@@ -1,0 +1,42 @@
+[project]
+name = "portfolio-management-workspace"
+version = "0.1.0"
+description = "投資ポートフォリオ管理システム - Workspace Root"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # 共通の基本パッケージのみ
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+]
+
+# ワークスペースルートはビルド不要
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
+
+# uvワークスペース設定
+[tool.uv.workspace]
+members = [
+    "data-collector",
+    "web-app/backend"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP"
+]
+
+[tool.ty]
+# ty設定（Astral社製の超高速型チェッカー）

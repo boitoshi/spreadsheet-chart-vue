@@ -102,6 +102,7 @@ class StockDataCollector:
                 'symbol': symbol,
                 'currency': currency,
                 'exchange_rate': round(exchange_rate, 2) if exchange_rate != 1.0 else None,
+                'month_end_price_local': round(float(month_end_price), 2),
                 'month_end_price': round(month_end_price_jpy, 2),
                 'highest_price': round(highest_price_jpy, 2),
                 'lowest_price': round(lowest_price_jpy, 2),

@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-app/frontend/package-lock.json
+
+      - name: Install deps
+        working-directory: web-app/frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: web-app/frontend
+        run: npm run type-check
+
+      - name: Build
+        working-directory: web-app/frontend
+        run: npm run build
+
+  api-health:
+    name: API Health (optional)
+    runs-on: ubuntu-latest
+    if: ${{ vars.RUN_API_HEALTH == 'true' }}
+    env:
+      DJANGO_SETTINGS_MODULE: backend.settings
+      BASE_URL: http://localhost:8000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install backend deps
+        run: |
+          set -e
+          if [ -f web-app/backend/requirements.txt ]; then
+            pip install -r web-app/backend/requirements.txt
+          else
+            pip install \
+              Django==4.2.* \
+              google-api-python-client \
+              google-auth \
+              gspread \
+              python-dotenv \
+              django-cors-headers
+          fi
+
+      - name: Prepare secrets and env
+        run: |
+          mkdir -p $RUNNER_TEMP
+          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > $RUNNER_TEMP/service_account.json
+          {
+            echo "DEBUG=True";
+            echo "SECRET_KEY=changeme";
+            echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}";
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service_account.json";
+            echo "ALLOWED_HOSTS=localhost,127.0.0.1";
+          } > web-app/backend/.env
+
+      - name: Migrate DB
+        working-directory: web-app/backend
+        run: python manage.py migrate --noinput
+
+      - name: Run server
+        working-directory: web-app/backend
+        run: |
+          nohup python manage.py runserver 0.0.0.0:8000 >/dev/null 2>&1 &
+          echo $! > $RUNNER_TEMP/django.pid
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/ >/dev/null; then
+              echo "Server is up"; exit 0; fi; sleep 1; done; 
+          echo "Server did not start in time"; exit 1
+
+      - name: API health check (Python)
+        run: python scripts/api_health_check.py
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/django.pid" ]; then kill $(cat $RUNNER_TEMP/django.pid) || true; fi
+

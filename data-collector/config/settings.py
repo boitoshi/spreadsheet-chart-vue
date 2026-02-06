@@ -9,46 +9,51 @@ GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'my
 SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
 
 # デフォルト銘柄設定（外貨情報付き）
+# purchase_price: 現地通貨での取得単価（日本株は円、米国株はUSD等）
+# purchase_fx_rate: 取得時の為替レート（JPYの場合は不要）
 DEFAULT_STOCKS = {
     "7974.T": {
-        "name": "任天堂", 
-        "purchase_price": 5500, 
-        "shares": 10, 
+        "name": "任天堂",
+        "purchase_price": 5500,
+        "shares": 10,
         "purchase_date": "2024-01-15",
         "currency": "JPY",
-        "is_foreign": False
+        "is_foreign": False,
     },
     "2432.T": {
-        "name": "DeNA", 
-        "purchase_price": 2100, 
-        "shares": 5, 
+        "name": "DeNA",
+        "purchase_price": 2100,
+        "shares": 5,
         "purchase_date": "2024-02-10",
         "currency": "JPY",
-        "is_foreign": False
+        "is_foreign": False,
     },
     "NVDA": {
-        "name": "エヌビディア", 
-        "purchase_price": 850, 
-        "shares": 2, 
+        "name": "エヌビディア",
+        "purchase_price": 850,
+        "shares": 2,
         "purchase_date": "2024-03-05",
         "currency": "USD",
-        "is_foreign": True
+        "is_foreign": True,
+        "purchase_fx_rate": 149.50,
     },
     "AAPL": {
-        "name": "Apple", 
-        "purchase_price": 180, 
-        "shares": 3, 
+        "name": "Apple",
+        "purchase_price": 180,
+        "shares": 3,
         "purchase_date": "2024-04-01",
         "currency": "USD",
-        "is_foreign": True
+        "is_foreign": True,
+        "purchase_fx_rate": 151.30,
     },
     "0700.HK": {
-        "name": "テンセント", 
-        "purchase_price": 350, 
-        "shares": 5, 
+        "name": "テンセント",
+        "purchase_price": 350,
+        "shares": 5,
         "purchase_date": "2024-05-01",
         "currency": "HKD",
-        "is_foreign": True
+        "is_foreign": True,
+        "purchase_fx_rate": 19.50,
     }
 }
 

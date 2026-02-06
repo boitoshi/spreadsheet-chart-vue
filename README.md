@@ -56,7 +56,7 @@
 
 ```
 spreadsheet-chart-vue/
-├── frontend/                    # Vue.js フロントエンド
+├── web-app/frontend/            # Vue.js フロントエンド
 │   ├── src/
 │   │   ├── components/         # Vueコンポーネント
 │   │   │   ├── BlogExport.vue
@@ -76,8 +76,8 @@ spreadsheet-chart-vue/
 │   │   ├── router/             # ルーティング設定
 │   │   └── utils/              # ユーティリティ関数
 │   └── package.json
-├── backend/                     # Django バックエンド
-│   ├── sheets_api/             # メインアプリケーション
+├── web-app/backend/             # Django バックエンド
+│   ├── sheets/                 # メインアプリケーション
 │   │   ├── views.py           # データ取得API
 │   │   ├── manual_updater.py  # 手動更新API
 │   │   ├── report_generator.py # レポート生成API
@@ -92,37 +92,79 @@ spreadsheet-chart-vue/
 └── README.md
 ```
 
-## 🚀 セットアップ
+## 🚀 ローカル開発環境のセットアップ
 
 ### 前提条件
-- Node.js 16+
-- Python 3.8+
-- Google Sheets API の認証情報
+- **uv**: 0.5以上（Pythonバージョン管理含む）
+- **Node.js**: 22以上（npm 10以上）
+- **Google Sheets API**: 認証情報（service-account.json）
 
-### フロントエンド
+### 1. uv でPythonをインストール
 
 ```bash
-cd frontend
-npm install
+# uv自体のインストール（未インストールの場合）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Python 3.12をインストール
+uv python install 3.12
+
+# インストール確認
+uv python list
+```
+
+### 2. プロジェクトセットアップ
+
+```bash
+# プロジェクトルートに移動
+cd /path/to/spreadsheet-chart-vue
+
+# ルートワークスペースのセットアップ
+uv venv .venv --python 3.12
+uv sync --dev
+
+# data-collector
+cd data-collector && uv sync --dev && cd ..
+
+# backend
+cd web-app/backend && uv sync --dev && cd ../..
+cp web-app/backend/.env.example web-app/backend/.env
+# .envファイルを編集（SPREADSHEET_ID, GOOGLE_APPLICATION_CREDENTIALS等）
+cd web-app/backend && uv run python manage.py migrate && cd ../..
+
+# frontend
+cd web-app/frontend && npm install && cd ../..
+```
+
+### 3. 開発サーバー起動
+
+#### 方法A: VS Codeタスク（推奨）
+1. VS Codeでプロジェクトを開く
+2. `Cmd + Shift + B`（Mac）
+3. "🚀 全開発サーバー起動" を選択
+
+#### 方法B: 手動起動
+```bash
+# ターミナル1: Django Backend
+cd web-app/backend
+uv run python manage.py runserver
+
+# ターミナル2: Vue Frontend
+cd web-app/frontend
 npm run dev
 ```
 
-### バックエンド
-
-```bash
-cd backend
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
+### アクセスURL
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
 
 ### 環境変数設定
 
-```bash
-# backend/.env
-GOOGLE_SHEETS_ID=your_spreadsheet_id
-GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
-```
+フロントエンド/バックエンドの環境変数テンプレート：
+- `web-app/frontend/.env.example`（`VITE_API_BASE_URL` など）
+- `web-app/backend/.env.example`（`SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` など）
+- `data-collector/.env`（`GOOGLE_APPLICATION_CREDENTIALS` のパスをローカル絶対パスに修正）
+
+必要に応じて `.env`/`.env.development`/`.env.production` を上記を参考に作成してください。
 
 ## 📖 使用方法
 
@@ -138,19 +180,42 @@ GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
 - `/report/2024-01` で指定月のレポート表示
 - 複数形式でのエクスポート
 
-## 🔧 API エンドポイント
+## 🔧 API エンドポイント（標準化）
+
+推奨プレフィックス: `/api/v1/`（レガシーエンドポイントも当面は存続）
 
 ### データ取得
-- `GET /api/get_data/` - スプレッドシートデータ取得
+- `GET /api/v1/data/records/` - スプレッドシートデータ取得（クエリ: `start_month`, `end_month`, `stock`）
 
 ### 手動更新
-- `POST /api/update_stock_price/` - 株価更新
-- `POST /api/bulk_update_prices/` - 一括価格更新
-- `POST /api/save_monthly_data/` - 月次データ保存
+- `POST /api/v1/manual/update/` - 株価更新
+- `POST /api/v1/manual/bulk-update/` - 一括価格更新
+- `POST /api/v1/monthly/save/` - 月次データ保存
 
 ### レポート生成
-- `GET /api/generate_report/{month}/` - 月次レポート生成
-- `GET /api/generate_blog_content/{month}/` - ブログ用コンテンツ生成
+- `GET /api/v1/reports/generate/{month}/` - 月次レポート生成
+- `GET /api/v1/reports/blog/{month}/` - ブログ用コンテンツ生成
+- `GET /api/v1/reports/templates/` - テンプレート一覧
+
+### ポートフォリオ
+- `GET /api/v1/portfolio/` - メインデータ（Vue 用）
+- `GET /api/v1/portfolio/history/` - 損益推移
+- `GET /api/v1/portfolio/stock/{name}/` - 個別銘柄
+- `GET /api/v1/portfolio/validate/` - データ検証
+
+## ✅ CI/疎通チェック
+
+スクリプトでAPIの疎通確認ができます（BASE_URLは環境変数で上書き可能）。
+
+- Python:
+  - `python scripts/api_health_check.py`（例: `BASE_URL=http://localhost:8000 python scripts/api_health_check.py`）
+- Bash + curl + jq:
+  - `bash scripts/api_health_check.sh`（例: `BASE_URL=https://your-backend.example.com bash scripts/api_health_check.sh`）
+
+チェック対象:
+- `/api/v1/portfolio/` が `summary`/`stocks` を返す
+- `/api/v1/portfolio/history/` が主要配列を返す
+- `/api/v1/data/records/` が `data` 配列を返す
 
 ## 📊 データ形式
 
@@ -185,10 +250,10 @@ GOOGLE_SHEETS_CREDENTIALS=path_to_service_account.json
 ## 🎨 カスタマイズ
 
 ### テーマカラー
-`frontend/src/style.css` でカラーパレットを変更可能
+`web-app/frontend/src/style.css` でカラーパレットを変更可能
 
 ### レポートテンプレート
-`backend/templates/report_template.html` でHTMLレポートの外観をカスタマイズ
+`web-app/backend/templates/report_template.html` でHTMLレポートの外観をカスタマイズ
 
 ### ブログテンプレート
 `docs/monthly-reports/templates/blog-template.md` でブログ投稿用テンプレートを編集

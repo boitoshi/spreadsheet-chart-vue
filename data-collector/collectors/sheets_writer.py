@@ -65,31 +65,36 @@ class SheetsDataWriter:
                 portfolio_sheet = self.spreadsheet.add_worksheet("ポートフォリオ", 100, 10)
                 print("📋 新しいポートフォリオシートを作成しました")
             
-            # ヘッダー設定（外貨情報を追加）
+            # ヘッダー設定（現地通貨・為替レート情報を追加）
             headers = [
-                "銘柄コード", "銘柄名", "取得日", "取得単価（円）", 
-                "保有株数", "取得額合計", "通貨", "外国株フラグ", "最終更新", "備考"
+                "銘柄コード", "銘柄名", "取得日", "取得単価",
+                "取得通貨", "取得時レート", "取得単価（円）",
+                "保有株数", "外国株フラグ", "最終更新", "備考"
             ]
-            portfolio_sheet.update('A1:J1', [headers])
+            portfolio_sheet.update('A1:K1', [headers])
             
             # スタイル設定（ヘッダー）
-            portfolio_sheet.format('A1:J1', {
+            portfolio_sheet.format('A1:K1', {
                 'backgroundColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8},
                 'textFormat': {'bold': True}
             })
-            
-            # デフォルトデータ投入（外貨情報含む）
+
+            # デフォルトデータ投入（現地通貨・為替レート情報含む）
             row = 2
             for symbol, info in self.default_stocks.items():
-                portfolio_sheet.update(f'A{row}:J{row}', [[
+                currency = info.get('currency', 'JPY')
+                fx_rate = info.get('purchase_fx_rate', '')
+                price_jpy = info['purchase_price'] * fx_rate if fx_rate else info['purchase_price']
+                portfolio_sheet.update(f'A{row}:K{row}', [[
                     symbol,
                     info['name'],
                     info['purchase_date'],
-                    info['purchase_price'],
+                    info['purchase_price'],          # 現地通貨での取得単価
+                    currency,                         # 取得通貨
+                    fx_rate,                          # 取得時レート（JPYは空欄）
+                    round(price_jpy, 2),              # 取得単価（円）
                     info['shares'],
-                    f"=D{row}*E{row}",  # 取得額合計（自動計算）
-                    info.get('currency', 'JPY'),  # 通貨
-                    '○' if info.get('is_foreign', False) else '×',  # 外国株フラグ
+                    '○' if info.get('is_foreign', False) else '×',
                     datetime.now().strftime('%Y-%m-%d'),
                     "デフォルト設定"
                 ]])
@@ -113,15 +118,16 @@ class SheetsDataWriter:
                 data_sheet = self.spreadsheet.add_worksheet("データ記録", 1000, 15)
                 print("📈 新しいデータ記録シートを作成しました")
             
-            # 市場データ専用ヘッダー（保有情報を除外）
+            # 市場データ専用ヘッダー（現地通貨価格・為替レート情報を追加）
             headers = [
-                "月末日付", "銘柄コード", "月末価格（円）", "最高値", "最安値", 
+                "月末日付", "銘柄コード", "現地通貨価格", "通貨", "為替レート",
+                "月末価格（円）", "最高値", "最安値",
                 "平均価格", "月間変動率(%)", "平均出来高", "取得日時"
             ]
-            data_sheet.update('A1:I1', [headers])
+            data_sheet.update('A1:L1', [headers])
             
             # スタイル設定
-            data_sheet.format('A1:I1', {
+            data_sheet.format('A1:L1', {
                 'backgroundColor': {'red': 0.7, 'green': 0.9, 'blue': 0.7},
                 'textFormat': {'bold': True}
             })
@@ -144,15 +150,16 @@ class SheetsDataWriter:
                 perf_sheet = self.spreadsheet.add_worksheet("損益レポート", 1000, 12)
                 print("📊 新しい損益レポートシートを作成しました")
             
-            # ヘッダー設定
+            # ヘッダー設定（為替分離用列を追加）
             headers = [
-                "日付", "銘柄コード", "銘柄名", "取得単価", "月末価格", 
-                "保有株数", "取得額", "評価額", "損益", "損益率(%)", "更新日時"
+                "日付", "銘柄コード", "銘柄名", "取得単価", "月末価格",
+                "保有株数", "取得額", "評価額", "損益", "損益率(%)",
+                "通貨", "現地通貨損益", "為替影響額", "更新日時"
             ]
-            perf_sheet.update('A1:K1', [headers])
+            perf_sheet.update('A1:N1', [headers])
             
             # スタイル設定
-            perf_sheet.format('A1:K1', {
+            perf_sheet.format('A1:N1', {
                 'backgroundColor': {'red': 0.9, 'green': 0.7, 'blue': 0.7},
                 'textFormat': {'bold': True}
             })
@@ -275,7 +282,7 @@ class SheetsDataWriter:
                 if existing_row:
                     # 既存データを更新
                     row_number = existing_row['row_number']
-                    data_sheet.update(f'A{row_number}:I{row_number}', [data])
+                    data_sheet.update(f'A{row_number}:L{row_number}', [data])
                     updated_count += 1
                     print(f"  🔄 更新: {symbol} ({date_str})")
                 else:
@@ -310,7 +317,7 @@ class SheetsDataWriter:
                 if existing_row:
                     # 既存データを更新
                     row_number = existing_row['row_number']
-                    perf_sheet.update(f'A{row_number}:K{row_number}', [data])
+                    perf_sheet.update(f'A{row_number}:N{row_number}', [data])
                     updated_count += 1
                     print(f"  🔄 更新: {data[2]} ({date_str})")  # 銘柄名を表示
                 else:
@@ -330,9 +337,9 @@ class SheetsDataWriter:
             perf_sheet = self.spreadsheet.worksheet("損益レポート")
             records = perf_sheet.get_all_records()
             
-            # 指定月のデータをフィルタリング
-            target_date = f"{year}-{month:02d}-末"
-            current_data = [r for r in records if r['日付'] == target_date]
+            # 指定月のデータをフィルタリング（YYYY-MM-DD形式）
+            target_prefix = f"{year}-{month:02d}-"
+            current_data = [r for r in records if str(r['日付']).startswith(target_prefix)]
             
             if not current_data:
                 print(f"⚠️ {year}年{month}月のデータが見つかりません")

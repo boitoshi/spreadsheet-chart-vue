@@ -42,49 +42,57 @@ spreadsheet-chart-vue/
 ## 開発コマンド
 
 ### ①データ収集フロー（月次実行）
-- **依存関係インストール**: `cd data-collector && uv sync`
+- **依存関係インストール**: `cd data-collector && uv sync --dev`
 - **対話型実行**: `cd data-collector && uv run python main.py`
 - **バッチ実行**: `cd data-collector && uv run python main.py 2024 12`
-- **スケジューラー**: `cd data-collector && uv run monthly-runner`
-- **uvスクリプト**: `cd data-collector && uv run collect-data`
 
 ### ②Webアプリケーションフロー
 
-#### フロントエンド（ポート3000で動作）
-- **開発サーバー**: `cd web-app/frontend && npm run dev` 
-  - アクセス: http://localhost:3000/
-  - 自動的にポート3000・ホスト0.0.0.0で起動
-- **ビルド**: `cd web-app/frontend && npm run build`
-- **プレビュー**: `cd web-app/frontend && npm run preview`
+#### フロントエンド（ポート3000）
+- **開発サーバー**: `cd web-app/frontend && npm run dev`
 - **依存関係インストール**: `cd web-app/frontend && npm install`
 
-#### 注意点
-- フロントエンドは現在ダミーデータで完全動作
-- 実際のデータ連携はバックエンド実装後に対応予定
+#### バックエンド（ポート8000）
+- **開発サーバー**: `cd web-app/backend && uv run python manage.py runserver`
+- **マイグレーション**: `cd web-app/backend && uv run python manage.py migrate`
+- **依存関係インストール**: `cd web-app/backend && uv sync --dev`
 
-#### バックエンド  
-- **開発サーバー**: `cd web-app/backend && python manage.py runserver`
-- **マイグレーション**: `cd web-app/backend && python manage.py migrate`
-- **依存関係インストール**: `cd web-app/backend && pip install -r requirements.txt`
+### Python環境管理（uvベース）
+- **Pythonインストール**: `uv python install 3.12`
+- **仮想環境作成**: `uv venv .venv --python 3.12`
+- **依存関係同期**: `uv sync --dev`
+- **コードチェック**: `uv run ruff check . --fix`
+- **型チェック**: `uvx ty check`
 
 ### 環境設定
 - **環境変数設定**: web-app/backend/.env ファイルで GOOGLE_APPLICATION_CREDENTIALS と SPREADSHEET_ID を設定
+- **data-collector/.env**: GOOGLE_APPLICATION_CREDENTIALSのパスをローカル絶対パスに修正
 - **シート構成**: ポートフォリオ（銘柄管理）、データ記録（Django backend用）、損益レポート
 
 ## 主要コンポーネント（現在の実装状況）
 
-### フロントエンド（完成済み）
-- `App.vue` - 統合ダッシュボード（全機能を1ファイルに集約）
+### フロントエンド（ビルド可能・UI改修予定）
+- `App.vue` - 統合ダッシュボード（全機能を1ファイルに集約、Router未使用）
   - 保有銘柄一覧と損益表示
   - ポートフォリオ構成円グラフ（パーセンテージ表示）
-  - 総損益推移グラフ（期間選択：6ヶ月/1年/全期間）
+  - 総損益推移グラフ（期間選択：3ヶ月/6ヶ月/1年/2年/3年/全期間）
   - 銘柄別損益推移グラフ（取得時期ベース・購入タイミング表示）
   - 詳細取引履歴表示（クリック展開）
   - 買い増し対応（複数回購入の平均価格自動計算）
+- コンポーネント群（Dashboard.vue, MonthlyReport.vue等）は存在するがApp.vueから未使用
+- **ビルド環境**: package.json + tsconfig.json 整備済み、vite build成功確認済み
+- **今後**: 証券アプリ/Yahoo Finance風のUI改修予定（PROJECT_PROCEED.md参照）
 
-### バックエンド（未実装）
-- Django API部分は現在未実装
-- フロントエンドはダミーデータで動作中
+### バックエンド（実装済み・Cloud Runデプロイ済み）
+- `portfolio/services.py` - Google Sheets読み取り＋損益計算（為替分離対応済み）
+- `portfolio/views.py` - ポートフォリオ一覧・履歴・銘柄別API（fxImpacts含む）
+- `sheets/views.py` - 市場データAPI（計算ロジック整理済み）
+- `sheets/report_generator.py` - 月次レポート生成（GoogleSheetsService経由）
+
+### データ収集（完成・為替分離対応済み）
+- `data-collector/main.py` - yfinance→Google Sheets書き込み
+- 現地通貨価格・為替レート・為替影響額の記録に対応
+- 日付形式YYYY-MM-DD統一済み
 
 ## データフロー
 ### ①データ収集フロー（月次実行・独立）
@@ -98,9 +106,12 @@ spreadsheet-chart-vue/
 3. **ユーザー操作**: ダッシュボード操作・月次レポート表示・ブログエクスポート
 
 ## API エンドポイント
-- `GET /api/get_data/` - スプレッドシートデータ取得
-- `POST /api/update_stock_price/` - 株価更新
-- `GET /api/generate_report/{month}/` - 月次レポート生成
+- `GET /api/v1/data/records/` - 市場データ取得
+- `GET /api/v1/portfolio/` - ポートフォリオ一覧（保有銘柄・損益）
+- `GET /api/v1/portfolio/history/` - 損益推移（チャート用、fxImpacts含む）
+- `GET /api/v1/portfolio/stock/{name}/` - 銘柄別詳細履歴
+- `POST /api/v1/manual/update/` - 手動価格更新
+- `GET /api/v1/portfolio/validate/` - データ品質検証
 
 ## 注意事項
 - Google Sheets API認証情報が必要
