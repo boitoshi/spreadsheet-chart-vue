@@ -117,10 +117,31 @@ class PortfolioDataCollector:
 
         # 各銘柄のデータ収集
         for holding in portfolio_data:
-            symbol = holding["銘柄コード"]
-            name = holding["銘柄名"]
-            purchase_price = float(holding["取得単価（円）"])
-            shares = int(holding["保有株数"])
+            symbol = holding.get("銘柄コード", "")
+            name = holding.get("銘柄名", "")
+            raw_shares = holding.get("保有株数", "")
+
+            # 必須フィールドが空の行はスキップ
+            if not symbol or not name or not raw_shares:
+                continue
+            shares = int(raw_shares)
+
+            # 外貨情報の取得
+            raw_foreign = holding.get("取得単価（外貨）", 0)
+            raw_rate = holding.get("取得時為替レート", 0)
+            purchase_price_foreign = float(raw_foreign) if raw_foreign else 0
+            purchase_exchange_rate = float(raw_rate) if raw_rate else 1.0
+
+            # 円建て取得単価: D列の値を使用、空ならK*Lから算出
+            raw_jpy = holding.get("取得単価（円）", "")
+            if raw_jpy:
+                purchase_price_jpy = float(raw_jpy)
+            else:
+                purchase_price_jpy = purchase_price_foreign * purchase_exchange_rate
+
+            # 外貨単価が空なら円建て値をフォールバック
+            if not purchase_price_foreign:
+                purchase_price_foreign = purchase_price_jpy
 
             print(f"  📈 {name} ({symbol}) を処理中...")
 
@@ -129,9 +150,11 @@ class PortfolioDataCollector:
             if stock_data is None:
                 continue
 
-            # メトリクス計算
+            # メトリクス計算（外貨建て取得価格と為替レートを渡す）
             metrics = self.stock_collector.calculate_stock_metrics(
-                stock_data, symbol, purchase_price, shares
+                stock_data, symbol,
+                purchase_price_foreign, purchase_exchange_rate,
+                shares,
             )
             if metrics is None:
                 continue
@@ -151,20 +174,25 @@ class PortfolioDataCollector:
                 ]
             )
 
-            # 損益レポート用データ準備
+            # 損益レポート用データ準備（16カラム: A-P）
             performance_results.append(
                 [
-                    f"{year}-{month:02d}-末",
-                    symbol,
-                    name,
-                    purchase_price,
-                    metrics["month_end_price"],
-                    shares,
-                    metrics["purchase_amount"],
-                    metrics["current_amount"],
-                    metrics["profit_loss"],
-                    metrics["profit_rate"],
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    f"{year}-{month:02d}-末",                       # A: 日付
+                    symbol,                                         # B: 銘柄コード
+                    name,                                           # C: 銘柄名
+                    purchase_price_jpy,                             # D: 取得単価（円）
+                    metrics["month_end_price"],                     # E: 月末価格（円）
+                    shares,                                         # F: 保有株数
+                    metrics["purchase_amount"],                     # G: 取得額
+                    metrics["current_amount"],                      # H: 評価額
+                    metrics["profit_loss"],                         # I: 損益（総額）
+                    metrics["profit_rate"],                         # J: 損益率
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),   # K: 更新日時
+                    metrics.get("currency", "JPY"),          # L: 通貨
+                    metrics["purchase_price_foreign"],       # M: 外貨取得単価
+                    metrics["month_end_price_foreign"],      # N: 外貨月末価格
+                    metrics["purchase_exchange_rate"],       # O: 取得時レート
+                    metrics["current_exchange_rate"],        # P: 現在レート
                 ]
             )
 
@@ -173,6 +201,12 @@ class PortfolioDataCollector:
             if metrics.get("exchange_rate"):
                 currency_info = (
                     f" [{metrics['currency']}: {metrics['exchange_rate']:.2f}円]"
+                )
+                # 為替損益の内訳も表示
+                stock_pl = metrics.get("stock_profit_loss", 0)
+                fx_pl = metrics.get("fx_profit_loss", 0)
+                currency_info += (
+                    f" (株価:{stock_pl:+,.0f}円 / 為替:{fx_pl:+,.0f}円)"
                 )
 
             print(
@@ -654,11 +688,12 @@ def main() -> None:
         try:
             year = int(sys.argv[1])
             month = int(sys.argv[2])
-            print(f"バッチモード: {year}年{month}月のデータを収集します")
-            collector.collect_monthly_data(year, month)
         except ValueError:
             print("❌ 年と月は数値で指定してください")
             print("使用例: python main.py 2024 12")
+            return
+        print(f"バッチモード: {year}年{month}月のデータを収集します")
+        collector.collect_monthly_data(year, month)
     elif len(sys.argv) == 6 and sys.argv[1] == "--range":
         try:
             start_year = int(sys.argv[2])

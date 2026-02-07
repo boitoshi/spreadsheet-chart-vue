@@ -161,6 +161,16 @@ class GoogleSheetsService:
                     if transaction.get("保有株数")
                     else 0
                 )
+                currency = transaction.get("通貨", "JPY") or "JPY"
+
+                # 外貨建て取得単価（後方互換: なければ円建てをそのまま使用）
+                raw_foreign = transaction.get("取得単価（外貨）", 0)
+                purchase_price_foreign = (
+                    float(raw_foreign) if raw_foreign else purchase_price
+                )
+                # 取得時為替レート（後方互換: なければ1.0）
+                raw_rate = transaction.get("取得時為替レート", 0)
+                purchase_exchange_rate = float(raw_rate) if raw_rate else 1.0
 
                 if stock_code and purchase_date and purchase_price > 0 and quantity > 0:
                     try:
@@ -181,6 +191,7 @@ class GoogleSheetsService:
                     if stock_code not in portfolio_transactions:
                         portfolio_transactions[stock_code] = {
                             "stock_name": stock_name,
+                            "currency": currency,
                             "transactions": [],
                         }
 
@@ -189,6 +200,8 @@ class GoogleSheetsService:
                             "purchase_date": purchase_date,
                             "purchase_date_parsed": parsed_purchase_date,
                             "purchase_price": purchase_price,
+                            "purchase_price_foreign": purchase_price_foreign,
+                            "purchase_exchange_rate": purchase_exchange_rate,
                             "quantity": quantity,
                         }
                     )
@@ -231,12 +244,31 @@ class GoogleSheetsService:
                                 total_cost / total_quantity if total_quantity > 0 else 0
                             )
 
+                            # 外貨建て加重平均取得単価と為替レートを計算
+                            total_cost_foreign = sum(
+                                tx["quantity"] * tx["purchase_price_foreign"]
+                                for tx in acquired_transactions
+                            )
+                            avg_purchase_price_foreign = (
+                                total_cost_foreign / total_quantity
+                                if total_quantity > 0
+                                else 0
+                            )
+                            # 加重平均為替レート = 円建て総取得額 / 外貨建て総取得額
+                            weighted_exchange_rate = (
+                                total_cost / total_cost_foreign
+                                if total_cost_foreign > 0
+                                else 1.0
+                            )
+
                             # 評価額と損益を計算
                             current_value = current_price * total_quantity
                             profit = current_value - total_cost
                             profit_rate = (
                                 (profit / total_cost * 100) if total_cost > 0 else 0
                             )
+
+                            currency = stock_info.get("currency", "JPY")
 
                             performance_data.append(
                                 {
@@ -254,6 +286,13 @@ class GoogleSheetsService:
                                         "purchase_date"
                                     ],
                                     "取引回数": len(acquired_transactions),
+                                    "通貨": currency,
+                                    "取得単価（外貨）": round(
+                                        avg_purchase_price_foreign, 2
+                                    ),
+                                    "取得時為替レート": round(
+                                        weighted_exchange_rate, 2
+                                    ),
                                 }
                             )
 
@@ -705,18 +744,27 @@ class PortfolioDataTransformer:
             current_value = current_price * total_quantity
             profit = current_value - total_cost
 
-            stocks.append(
-                {
-                    "name": stock_name,
-                    "currentPrice": current_price,
-                    "transactions": vue_transactions,
-                    "quantity": total_quantity,
-                    "avgPrice": round(avg_price, 0),
-                    "currentValue": round(current_value, 0),
-                    "profit": round(profit, 0),
-                    "totalCost": round(total_cost, 0),
-                }
-            )
+            # 外貨情報をperformance_dataから取得
+            currency = perf_data.get("通貨", "JPY")
+            purchase_price_foreign = perf_data.get("取得単価（外貨）")
+            purchase_exchange_rate = perf_data.get("取得時為替レート")
+
+            stock_entry: dict[str, Any] = {
+                "name": stock_name,
+                "currentPrice": current_price,
+                "transactions": vue_transactions,
+                "quantity": total_quantity,
+                "avgPrice": round(avg_price, 0),
+                "currentValue": round(current_value, 0),
+                "profit": round(profit, 0),
+                "totalCost": round(total_cost, 0),
+            }
+            if currency != "JPY":
+                stock_entry["currency"] = currency
+                stock_entry["purchasePriceForeign"] = purchase_price_foreign
+                stock_entry["purchaseExchangeRate"] = purchase_exchange_rate
+
+            stocks.append(stock_entry)
 
         total_value = float(sum(float(s.get("currentValue", 0) or 0) for s in stocks))
         total_cost = float(sum(float(s.get("totalCost", 0) or 0) for s in stocks))

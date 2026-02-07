@@ -29,8 +29,8 @@ def get_portfolio_data(request):
         service = build('sheets', 'v4', credentials=creds)
         sheet = service.spreadsheets()
 
-        # ポートフォリオシートからデータ取得
-        RANGE_NAME = "ポートフォリオ!A1:J"  # 外貨情報含む
+        # ポートフォリオシートからデータ取得（12カラム）
+        RANGE_NAME = "ポートフォリオ!A1:L"
         result = sheet.values().get(
             spreadsheetId=spreadsheet_id,
             range=RANGE_NAME
@@ -65,6 +65,14 @@ def get_portfolio_data(request):
                 json_dumps_params={'ensure_ascii': False}
             )
 
+        # 新カラムのインデックス（存在しない場合はNone）
+        purchase_price_foreign_idx = (
+            headers.index('取得単価（外貨）') if '取得単価（外貨）' in headers else None
+        )
+        purchase_exchange_rate_idx = (
+            headers.index('取得時為替レート') if '取得時為替レート' in headers else None
+        )
+
         portfolio_data = []
         for row in data_rows:
             if len(row) <= max([symbol_idx, name_idx, purchase_price_idx, shares_idx, currency_idx, foreign_flag_idx]):
@@ -73,17 +81,41 @@ def get_portfolio_data(request):
             # 外国株フラグの判定
             is_foreign = row[foreign_flag_idx] == '○' if len(row) > foreign_flag_idx else False
 
+            purchase_price = float(row[purchase_price_idx]) if row[purchase_price_idx] else 0
+
+            # 外貨建て取得単価（後方互換: なければNone）
+            purchase_price_foreign = None
+            if (
+                purchase_price_foreign_idx is not None
+                and len(row) > purchase_price_foreign_idx
+                and row[purchase_price_foreign_idx]
+            ):
+                purchase_price_foreign = float(
+                    row[purchase_price_foreign_idx]
+                )
+
+            # 取得時為替レート（後方互換: なければNone）
+            purchase_exchange_rate = None
+            if (
+                purchase_exchange_rate_idx is not None
+                and len(row) > purchase_exchange_rate_idx
+                and row[purchase_exchange_rate_idx]
+            ):
+                purchase_exchange_rate = float(row[purchase_exchange_rate_idx])
+
             portfolio_data.append({
                 "symbol": row[symbol_idx],
                 "name": row[name_idx],
                 "purchase_date": row[purchase_date_idx] if len(row) > purchase_date_idx else "",
-                "purchase_price": float(row[purchase_price_idx]) if row[purchase_price_idx] else 0,
+                "purchase_price": purchase_price,
                 "shares": int(row[shares_idx]) if row[shares_idx] else 0,
                 "total_cost": row[total_cost_idx] if len(row) > total_cost_idx else "",
                 "currency": row[currency_idx] if len(row) > currency_idx else "JPY",
                 "is_foreign": is_foreign,
                 "updated": row[updated_idx] if len(row) > updated_idx else "",
-                "notes": row[notes_idx] if len(row) > notes_idx else ""
+                "notes": row[notes_idx] if len(row) > notes_idx else "",
+                "purchase_price_foreign": purchase_price_foreign,
+                "purchase_exchange_rate": purchase_exchange_rate,
             })
 
         return JsonResponse(

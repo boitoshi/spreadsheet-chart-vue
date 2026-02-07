@@ -52,9 +52,10 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.ty]
-# ty設定（Astral社製の超高速型チェッカー）
+python-version = "3.12"
 
 [dependency-groups]
 dev = [
     "ruff>=0.12.4",
+    "ty",
 ]

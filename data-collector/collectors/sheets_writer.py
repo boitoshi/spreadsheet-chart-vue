@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 
 # 共通設定をインポートするためのパス追加
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'shared'))
-from sheets_config import SCOPES
+from sheets_config import COLUMN_RANGES, HEADERS, SCOPES, SHEET_NAMES
 
 
 class SheetsDataWriter:
@@ -58,23 +58,23 @@ class SheetsDataWriter:
         try:
             # 既存シートをチェック
             try:
-                portfolio_sheet = self.spreadsheet.worksheet("ポートフォリオ")
+                portfolio_sheet = self.spreadsheet.worksheet(SHEET_NAMES['PORTFOLIO'])
                 print("✅ ポートフォリオシートは既に存在します")
                 return portfolio_sheet
             except gspread.WorksheetNotFound:
-                # 新しいシート作成
-                portfolio_sheet = self.spreadsheet.add_worksheet("ポートフォリオ", 100, 10)
+                # 新しいシート作成（12カラム）
+                portfolio_sheet = self.spreadsheet.add_worksheet(
+                    SHEET_NAMES['PORTFOLIO'], 100, len(HEADERS['PORTFOLIO'])
+                )
                 print("📋 新しいポートフォリオシートを作成しました")
 
-            # ヘッダー設定（外貨情報を追加）
-            headers = [
-                "銘柄コード", "銘柄名", "取得日", "取得単価（円）",
-                "保有株数", "取得額合計", "通貨", "外国株フラグ", "最終更新", "備考"
-            ]
-            portfolio_sheet.update('A1:J1', [headers])
+            # ヘッダー設定（共通定義から取得）
+            headers = HEADERS['PORTFOLIO']
+            col_range = COLUMN_RANGES['PORTFOLIO']
+            portfolio_sheet.update(f'{col_range}1', [headers])
 
             # スタイル設定（ヘッダー）
-            portfolio_sheet.format('A1:J1', {
+            portfolio_sheet.format(f'{col_range}1', {
                 'backgroundColor': {'red': 0.8, 'green': 0.8, 'blue': 0.8},
                 'textFormat': {'bold': True}
             })
@@ -82,17 +82,19 @@ class SheetsDataWriter:
             # デフォルトデータ投入（外貨情報含む）
             row = 2
             for symbol, info in self.default_stocks.items():
-                portfolio_sheet.update(f'A{row}:J{row}', [[
+                portfolio_sheet.update(f'A{row}:L{row}', [[
                     symbol,
                     info['name'],
                     info['purchase_date'],
-                    info['purchase_price'],
+                    f"=K{row}*L{row}",  # 取得単価（円）= 外貨単価 × 為替レート
                     info['shares'],
                     f"=D{row}*E{row}",  # 取得額合計（自動計算）
-                    info.get('currency', 'JPY'),  # 通貨
-                    '○' if info.get('is_foreign', False) else '×',  # 外国株フラグ
+                    info.get('currency', 'JPY'),
+                    '○' if info.get('is_foreign', False) else '×',
                     datetime.now().strftime('%Y-%m-%d'),
-                    "デフォルト設定"
+                    "デフォルト設定",
+                    info.get('purchase_price_foreign', info['purchase_price']),
+                    info.get('purchase_exchange_rate', 1.0),
                 ]])
                 row += 1
 
@@ -138,22 +140,22 @@ class SheetsDataWriter:
         """パフォーマンス計算シートを初期設定"""
         try:
             try:
-                perf_sheet = self.spreadsheet.worksheet("損益レポート")
+                perf_sheet = self.spreadsheet.worksheet(SHEET_NAMES['PERFORMANCE'])
                 print("✅ 損益レポートシートは既に存在します")
                 return perf_sheet
             except gspread.WorksheetNotFound:
-                perf_sheet = self.spreadsheet.add_worksheet("損益レポート", 1000, 12)
+                perf_sheet = self.spreadsheet.add_worksheet(
+                    SHEET_NAMES['PERFORMANCE'], 1000, len(HEADERS['PERFORMANCE'])
+                )
                 print("📊 新しい損益レポートシートを作成しました")
 
-            # ヘッダー設定
-            headers = [
-                "日付", "銘柄コード", "銘柄名", "取得単価", "月末価格",
-                "保有株数", "取得額", "評価額", "損益", "損益率(%)", "更新日時"
-            ]
-            perf_sheet.update('A1:K1', [headers])
+            # ヘッダー設定（共通定義から取得）
+            headers = HEADERS['PERFORMANCE']
+            col_range = COLUMN_RANGES['PERFORMANCE']
+            perf_sheet.update(f'{col_range}1', [headers])
 
             # スタイル設定
-            perf_sheet.format('A1:K1', {
+            perf_sheet.format(f'{col_range}1', {
                 'backgroundColor': {'red': 0.9, 'green': 0.7, 'blue': 0.7},
                 'textFormat': {'bold': True}
             })
@@ -169,22 +171,22 @@ class SheetsDataWriter:
         """為替レートシートを初期設定"""
         try:
             try:
-                currency_sheet = self.spreadsheet.worksheet("為替レート")
+                currency_sheet = self.spreadsheet.worksheet(SHEET_NAMES['CURRENCY'])
                 print("✅ 為替レートシートは既に存在します")
                 return currency_sheet
             except gspread.WorksheetNotFound:
-                currency_sheet = self.spreadsheet.add_worksheet("為替レート", 500, 8)
+                currency_sheet = self.spreadsheet.add_worksheet(
+                    SHEET_NAMES['CURRENCY'], 500, len(HEADERS['CURRENCY'])
+                )
                 print("💱 新しい為替レートシートを作成しました")
 
-            # ヘッダー設定
-            headers = [
-                "取得日", "通貨ペア", "レート", "前回レート", "変動率(%)",
-                "最高値", "最安値", "更新日時"
-            ]
-            currency_sheet.update('A1:H1', [headers])
+            # ヘッダー設定（共通定義から取得）
+            headers = HEADERS['CURRENCY']
+            col_range = COLUMN_RANGES['CURRENCY']
+            currency_sheet.update(f'{col_range}1', [headers])
 
             # スタイル設定
-            currency_sheet.format('A1:H1', {
+            currency_sheet.format(f'{col_range}1', {
                 'backgroundColor': {'red': 0.7, 'green': 0.7, 'blue': 0.9},
                 'textFormat': {'bold': True}
             })
@@ -311,7 +313,7 @@ class SheetsDataWriter:
                 if existing_row:
                     # 既存データを更新
                     row_number = existing_row['row_number']
-                    perf_sheet.update(f'A{row_number}:K{row_number}', [data])
+                    perf_sheet.update(f'A{row_number}:P{row_number}', [data])
                     updated_count += 1
                     print(f"  🔄 更新: {data[2]} ({date_str})")  # 銘柄名を表示
                 else:

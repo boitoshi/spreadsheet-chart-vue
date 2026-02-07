@@ -155,6 +155,20 @@ class BlogReportGenerator:
                     "change_rate": market_data_entry.get("月間変動率(%)", 0),
                 }
 
+                # 外貨建て情報を損益レポートまたはポートフォリオから取得
+                purchase_price_foreign = perf.get("取得単価（外貨）", 0) or 0
+                month_end_price_foreign = perf.get("月末価格（外貨）", 0) or 0
+                purchase_exchange_rate = perf.get("取得時為替レート", 0) or 0
+                current_exchange_rate_val = perf.get("現在為替レート", 0) or 0
+
+                # ポートフォリオシートからのフォールバック
+                if not purchase_price_foreign:
+                    raw_foreign = portfolio_entry.get("取得単価（外貨）", 0)
+                    purchase_price_foreign = float(raw_foreign) if raw_foreign else 0
+                if not purchase_exchange_rate:
+                    raw_rate = portfolio_entry.get("取得時為替レート", 0)
+                    purchase_exchange_rate = float(raw_rate) if raw_rate else 0
+
                 holding_info = {
                     "name": perf.get("銘柄名", ""),
                     "symbol": symbol,
@@ -170,9 +184,54 @@ class BlogReportGenerator:
                     "market_data": market_data,
                 }
 
+                # 外貨建て情報を追加
+                if purchase_price_foreign:
+                    holding_info["purchase_price_foreign"] = float(
+                        purchase_price_foreign
+                    )
+                if purchase_exchange_rate:
+                    holding_info["purchase_exchange_rate"] = float(
+                        purchase_exchange_rate
+                    )
+                if month_end_price_foreign:
+                    holding_info["month_end_price_foreign"] = float(
+                        month_end_price_foreign
+                    )
+                if current_exchange_rate_val:
+                    holding_info["current_exchange_rate"] = float(
+                        current_exchange_rate_val
+                    )
+
                 # 為替レート情報を追加
                 if currency != "JPY" and currency in exchange_rates:
                     holding_info["exchange_rate"] = exchange_rates[currency]
+
+                    # 為替損益分離計算（外貨情報が揃っている場合）
+                    shares_val = perf.get("保有株数", 0) or 0
+                    has_fx_data = (
+                        purchase_price_foreign
+                        and purchase_exchange_rate
+                        and month_end_price_foreign
+                    )
+                    if has_fx_data:
+                        stock_pl = (
+                            (
+                                float(month_end_price_foreign)
+                                - float(purchase_price_foreign)
+                            )
+                            * float(purchase_exchange_rate)
+                            * float(shares_val)
+                        )
+                        fx_rate = float(
+                            current_exchange_rate_val or exchange_rates[currency]
+                        )
+                        fx_pl = (
+                            (fx_rate - float(purchase_exchange_rate))
+                            * float(month_end_price_foreign)
+                            * float(shares_val)
+                        )
+                        holding_info["stock_profit_loss"] = round(stock_pl, 0)
+                        holding_info["fx_profit_loss"] = round(fx_pl, 0)
 
                 holdings.append(holding_info)
 

@@ -257,3 +257,60 @@ mv .env.example config/
 - [ ] 本番Dockerfileの定期的なメンテナンス
 - [ ] チーム開発時の.vscode設定共有方法検討
 - [ ] tyの言語サーバー統合（VS Code拡張機能が利用可能になった場合）
+
+---
+
+## 2026-02-07: 外国株の外貨建て取得単価・取得時為替レート記録機能
+
+### 実施内容
+- ポートフォリオシートに「取得単価（外貨）」「取得時為替レート」カラムを追加（10→12カラム）
+- 損益レポートシートに「通貨」「取得単価（外貨）」「月末価格（外貨）」「取得時為替レート」「現在為替レート」カラムを追加（11→16カラム）
+- `shared/sheets_config.py` のヘッダー定義を統一（sheets_writer.pyとの矛盾を解消）
+- 為替損益と株価損益の分離計算ロジックを実装
+- `pyproject.toml` に ty（Astral社製型チェッカー）を依存関係として追加
+
+### 変更ファイル
+- `shared/sheets_config.py` - HEADERS/COLUMN_RANGES/SHEET_NAMES統一
+- `data-collector/config/settings.py` - DEFAULT_STOCKSに外貨情報追加
+- `data-collector/collectors/stock_collector.py` - 損益分離計算（株価損益/為替損益）
+- `data-collector/collectors/sheets_writer.py` - sheets_configからヘッダー参照、12/16カラム対応
+- `data-collector/main.py` - 外貨カラム読み取り・書き込み拡張
+- `data-collector/collectors/report_generator.py` - ブログレポートに外貨・為替損益情報追加
+- `web-app/backend/sheets/currency_views.py` - A1:L範囲拡張、外貨情報レスポンス追加
+- `web-app/backend/portfolio/services.py` - 外貨建て加重平均計算、Vue.js形式に通貨情報追加
+- `data-collector/pyproject.toml` - ty依存追加
+- `web-app/backend/pyproject.toml` - ty依存追加
+
+### 損益分離計算式
+- 株価損益 = (月末外貨価格 - 取得外貨価格) × 取得時為替レート × 株数
+- 為替損益 = (現在為替レート - 取得時為替レート) × 月末外貨価格 × 株数
+- 総損益 = 株価損益 + 為替損益（= 評価額 - 取得額）
+
+### ポートフォリオシート設計変更
+- D列（取得単価（円））を数式 `=K*L` に変更（外貨単価×為替レートから自動算出）
+- K列（取得単価（外貨））とL列（取得時為替レート）が入力元
+- 日本株: K=円建て価格, L=1.0 → D=K*L
+- 外国株: K=外貨価格, L=取得時レート → D=K*L（円換算）
+- 通貨コードはISO形式（JPY, USD, HKD）
+
+### スプレッドシートマイグレーション（完了）
+- [x] K-L列のヘッダー追加（取得単価（外貨）、取得時為替レート）
+- [x] 外国株のK/L列にデータ入力（楽天証券の保有数量明細から取得）
+- [x] D列を `=K*L` 数式に変更
+- [x] 通貨コード入力（JPY/USD/HKD）
+- [x] 外国株フラグ（○）設定
+- [x] `uv sync --dev` で ty インストール確認
+- [x] `uv run python main.py 2025 1` で動作確認（NVDA為替損益分離が正常動作）
+
+### 後方互換性
+- D列が空の場合、K*Lから自動算出（main.pyのフォールバック）
+- K/L列が空の場合、D列の値をそのまま使用（為替レート=1.0）
+- 必須フィールド（銘柄コード、銘柄名、保有株数）が空の行は自動スキップ
+
+### main.py バグ修正
+- `except ValueError` が引数パースだけでなく `collect_monthly_data` 内部エラーも隠蔽していた問題を修正
+- 必須フィールド（銘柄コード、銘柄名、保有株数）が空の行をスキップするバリデーション追加
+
+### 今後の課題
+- [ ] フロントエンドでの為替損益表示対応（App.vue）
+- [ ] フロントエンドのapi.jsに為替API呼び出し関数を追加
