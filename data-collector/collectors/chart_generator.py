@@ -1,12 +1,17 @@
 """ブログ用グラフデータ生成モジュール"""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .sheets_writer import SheetsDataWriter
 
 
 class ChartDataGenerator:
     """ブログ用グラフデータ生成クラス"""
 
-    def __init__(self, sheets_writer: Any) -> None:
+    def __init__(self, sheets_writer: SheetsDataWriter) -> None:
         """初期化
 
         Args:

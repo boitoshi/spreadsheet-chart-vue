@@ -127,10 +127,14 @@ class PortfolioDataCollector:
             name = holding.get("銘柄名", "")
             raw_shares = holding.get("保有株数", "")
 
-            # 必須フィールドが空の行はスキップ
-            if not symbol or not name or not raw_shares:
+            # 必須フィールドが空の行はスキップ（isinstance で str 型にナロウイング）
+            if not isinstance(symbol, str) or not symbol:
                 continue
-            shares = int(raw_shares)
+            if not name:
+                continue
+            if not raw_shares:
+                continue
+            shares = int(str(raw_shares))
 
             # 取得日を解析して、対象月に保有していたか判定
             purchase_date_str = holding.get("取得日", "")
@@ -152,13 +156,13 @@ class PortfolioDataCollector:
             # 外貨情報の取得
             raw_foreign = holding.get("取得単価（外貨）", 0)
             raw_rate = holding.get("取得時為替レート", 0)
-            purchase_price_foreign = float(raw_foreign) if raw_foreign else 0
-            purchase_exchange_rate = float(raw_rate) if raw_rate else 1.0
+            purchase_price_foreign = float(str(raw_foreign)) if raw_foreign else 0
+            purchase_exchange_rate = float(str(raw_rate)) if raw_rate else 1.0
 
             # 円建て取得単価: D列の値を使用、空ならK*Lから算出
             raw_jpy = holding.get("取得単価（円）", "")
             if raw_jpy:
-                purchase_price_jpy = float(raw_jpy)
+                purchase_price_jpy = float(str(raw_jpy))
             else:
                 purchase_price_jpy = purchase_price_foreign * purchase_exchange_rate
 

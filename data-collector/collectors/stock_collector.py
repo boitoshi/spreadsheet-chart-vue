@@ -1,17 +1,20 @@
 from datetime import datetime, timedelta
 
 import yfinance as yf
+
 from .currency_converter import CurrencyConverter
 
 
 class StockDataCollector:
     """株価データ収集クラス"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初期化"""
         self.currency_converter = CurrencyConverter()
 
-    def get_stock_data(self, symbol, year, month):
+    def get_stock_data(
+        self, symbol: str, year: int, month: int
+    ) -> dict[str, object] | None:
         """株価データを取得
 
         Args:
@@ -45,10 +48,10 @@ class StockDataCollector:
             return None
 
     def calculate_stock_metrics(
-        self, stock_data, symbol,
-        purchase_price_foreign, purchase_exchange_rate,
-        shares, convert_to_jpy=True
-    ):
+        self, stock_data: dict[str, object], symbol: str,
+        purchase_price_foreign: float, purchase_exchange_rate: float,
+        shares: int, convert_to_jpy: bool = True
+    ) -> dict[str, object] | None:
         """株価メトリクスを計算（為替損益分離対応）
 
         Args:

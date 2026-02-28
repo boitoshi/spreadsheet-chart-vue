@@ -1,15 +1,20 @@
 """ブログ記事用レポート生成モジュール"""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING
 
 from .stock_utils import get_currency_from_symbol, is_foreign_stock
+
+if TYPE_CHECKING:
+    from .sheets_writer import SheetsDataWriter
 
 
 class BlogReportGenerator:
     """ブログ記事用レポート生成クラス"""
 
-    def __init__(self, sheets_writer: Any) -> None:
+    def __init__(self, sheets_writer: SheetsDataWriter) -> None:
         """初期化
 
         Args:
@@ -270,7 +275,10 @@ class BlogReportGenerator:
                 "total_pl_rate": total_pl_rate,
                 "holdings": holdings,
                 "jp_stocks": {"value": jp_total_value, "ratio": jp_ratio},
-                "foreign_stocks": {"value": foreign_total_value, "ratio": foreign_ratio},
+                "foreign_stocks": {
+                    "value": foreign_total_value,
+                    "ratio": foreign_ratio,
+                },
                 "exchange_rates": exchange_rates,
             }
 

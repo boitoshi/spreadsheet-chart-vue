@@ -6,16 +6,21 @@ WordPressの「カスタムHTML」ブロックに貼り付け可能。
 - 銘柄別チャート（期間切替・外貨/円切替対応）
 """
 
+from __future__ import annotations
+
 import json
 import os
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .sheets_writer import SheetsDataWriter
 
 
 class InteractiveChartGenerator:
     """インタラクティブHTMLチャート生成クラス"""
 
-    def __init__(self, sheets_writer: Any) -> None:
+    def __init__(self, sheets_writer: SheetsDataWriter) -> None:
         self.sheets_writer = sheets_writer
 
     def generate(
@@ -194,7 +199,7 @@ class InteractiveChartGenerator:
             portfolio_records = portfolio_sheet.get_all_records()
 
             # 為替レート履歴キャッシュ
-            fx_cache: dict[str, Any] = {}
+            fx_cache: dict[str, object] = {}
 
             for holding in report_data.get("holdings", []):
                 symbol = holding.get("symbol", "")
@@ -332,7 +337,7 @@ class InteractiveChartGenerator:
 
         return daily_data
 
-    def _get_fx_rate(self, fx_hist: Any, date: Any) -> float:
+    def _get_fx_rate(self, fx_hist: object, date: object) -> float:
         """指定日の為替レートを取得（直近値にフォールバック）"""
 
         if date in fx_hist.index:

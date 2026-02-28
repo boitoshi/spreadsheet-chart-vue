@@ -13,9 +13,9 @@ from sheets_config import COLUMN_RANGES, HEADERS, SCOPES, SHEET_NAMES
 class SheetsDataWriter:
     """Google Sheetsへのデータ書き込みクラス"""
 
-    def __init__(self, credentials_file, spreadsheet_id):
+    def __init__(self, credentials_file: str, spreadsheet_id: str) -> None:
         """初期化
-        
+
         Args:
             credentials_file (str): サービスアカウントのJSONファイルパス
             spreadsheet_id (str): スプレッドシートのID
@@ -29,7 +29,7 @@ class SheetsDataWriter:
         from settings import DEFAULT_STOCKS
         self.default_stocks = DEFAULT_STOCKS
 
-    def setup_google_sheets(self):
+    def setup_google_sheets(self) -> bool:
         """Google Sheetsの認証設定"""
         try:
             if not self.credentials_file:
@@ -53,7 +53,7 @@ class SheetsDataWriter:
             print(f"Google Sheets設定エラー: {e}")
             return False
 
-    def setup_portfolio_sheet(self):
+    def setup_portfolio_sheet(self) -> gspread.Worksheet | None:
         """ポートフォリオマスタシートを初期設定"""
         try:
             # 既存シートをチェック
@@ -105,7 +105,7 @@ class SheetsDataWriter:
             print(f"ポートフォリオシート設定エラー: {e}")
             return None
 
-    def setup_data_record_sheet(self):
+    def setup_data_record_sheet(self) -> gspread.Worksheet | None:
         """データ記録シートを初期設定（Django backend仕様に合わせる）"""
         try:
             try:
@@ -136,7 +136,7 @@ class SheetsDataWriter:
             print(f"データ記録シート設定エラー: {e}")
             return None
 
-    def setup_performance_sheet(self):
+    def setup_performance_sheet(self) -> gspread.Worksheet | None:
         """パフォーマンス計算シートを初期設定"""
         try:
             try:
@@ -167,7 +167,7 @@ class SheetsDataWriter:
             print(f"損益レポートシート設定エラー: {e}")
             return None
 
-    def setup_currency_sheet(self):
+    def setup_currency_sheet(self) -> gspread.Worksheet | None:
         """為替レートシートを初期設定"""
         try:
             try:
@@ -198,7 +198,9 @@ class SheetsDataWriter:
             print(f"為替レートシート設定エラー: {e}")
             return None
 
-    def save_currency_rates(self, exchange_rates, date):
+    def save_currency_rates(
+        self, exchange_rates: dict[str, float], date: datetime | None
+    ) -> None:
         """為替レートをスプレッドシートに保存"""
         try:
             currency_sheet = self.spreadsheet.worksheet("為替レート")
@@ -228,12 +230,16 @@ class SheetsDataWriter:
                 ]
 
                 # 既存データから同じ日付・通貨ペアを検索
-                existing_row = self._find_existing_currency_row(existing_records, date_str, currency_pair)
+                existing_row = self._find_existing_currency_row(
+                    existing_records, date_str, currency_pair
+                )
 
                 if existing_row:
                     # 既存データを更新
                     row_number = existing_row['row_number']
-                    currency_sheet.update(f'A{row_number}:H{row_number}', [currency_data])
+                    currency_sheet.update(
+                        f'A{row_number}:H{row_number}', [currency_data]
+                    )
                     updated_count += 1
                     print(f"  🔄 更新: {currency_pair} ({date_str})")
                 else:
@@ -247,7 +253,7 @@ class SheetsDataWriter:
         except Exception as e:
             print(f"為替レート保存エラー: {e}")
 
-    def get_portfolio_data(self):
+    def get_portfolio_data(self) -> list[dict[str, object]]:
         """ポートフォリオデータを取得"""
         try:
             portfolio_sheet = self.spreadsheet.worksheet("ポートフォリオ")
@@ -257,7 +263,9 @@ class SheetsDataWriter:
             print(f"ポートフォリオデータ取得エラー: {e}")
             return []
 
-    def save_data_record(self, data_record_results):
+    def save_data_record(
+        self, data_record_results: list[dict[str, object]]
+    ) -> None:
         """データ記録をスプレッドシートに保存（市場データ専用）"""
         try:
             data_sheet = self.spreadsheet.worksheet("データ記録")
@@ -273,7 +281,9 @@ class SheetsDataWriter:
                 symbol = data[1]    # 銘柄コード
 
                 # 既存データから同じ日付・銘柄を検索
-                existing_row = self._find_existing_row(existing_records, date_str, symbol, 'データ記録')
+                existing_row = self._find_existing_row(
+                    existing_records, date_str, symbol, 'データ記録'
+                )
 
                 if existing_row:
                     # 既存データを更新
@@ -292,7 +302,9 @@ class SheetsDataWriter:
         except Exception as e:
             print(f"データ記録保存エラー: {e}")
 
-    def save_performance_data(self, performance_results):
+    def save_performance_data(
+        self, performance_results: list[dict[str, object]]
+    ) -> None:
         """損益データをスプレッドシートに保存"""
         try:
             perf_sheet = self.spreadsheet.worksheet("損益レポート")
@@ -308,7 +320,9 @@ class SheetsDataWriter:
                 symbol = data[1]    # 銘柄コード
 
                 # 既存データから同じ日付・銘柄を検索
-                existing_row = self._find_existing_row(existing_records, date_str, symbol, '損益レポート')
+                existing_row = self._find_existing_row(
+                    existing_records, date_str, symbol, '損益レポート'
+                )
 
                 if existing_row:
                     # 既存データを更新
@@ -327,7 +341,7 @@ class SheetsDataWriter:
         except Exception as e:
             print(f"損益レポート保存エラー: {e}")
 
-    def display_portfolio_summary(self, year, month):
+    def display_portfolio_summary(self, year: int, month: int) -> None:
         """ポートフォリオサマリーを表示（重複除去）"""
         try:
             perf_sheet = self.spreadsheet.worksheet("損益レポート")
@@ -353,17 +367,25 @@ class SheetsDataWriter:
 
             print(f"💰 合計取得額: {total_cost:,.0f}円")
             print(f"📈 合計評価額: {total_value:,.0f}円")
-            print(f"{'🎉' if total_pl >= 0 else '😢'} 総合損益: {total_pl:+,.0f}円 ({total_pl_rate:+.1f}%)")
+            pl_mark = '🎉' if total_pl >= 0 else '😢'
+            print(
+                f"{pl_mark} 総合損益: {total_pl:+,.0f}円 ({total_pl_rate:+.1f}%)"
+            )
 
             print("\n📊 銘柄別詳細:")
             for data in unique_data:
                 pl_emoji = "🎉" if data['損益'] >= 0 else "😢"
-                print(f"  {pl_emoji} {data['銘柄名']}: {data['損益']:+,.0f}円 ({data['損益率(%)']:+.1f}%)")
+                print(
+                    f"  {pl_emoji} {data['銘柄名']}: "
+                    f"{data['損益']:+,.0f}円 ({data['損益率(%)']:+.1f}%)"
+                )
 
         except Exception as e:
             print(f"サマリー表示エラー: {e}")
 
-    def _remove_duplicate_summary_records(self, records):
+    def _remove_duplicate_summary_records(
+        self, records: list[dict[str, object]]
+    ) -> list[dict[str, object]]:
         """サマリー表示用の重複除去"""
         stock_records = {}
 
@@ -382,15 +404,21 @@ class SheetsDataWriter:
 
         return list(stock_records.values())
 
-    def _find_existing_row(self, existing_records, date_str, symbol, sheet_type):
+    def _find_existing_row(
+        self,
+        existing_records: list[dict[str, object]],
+        date_str: str,
+        symbol: str,
+        sheet_type: str,
+    ) -> dict[str, object] | None:
         """既存データから同じ日付・銘柄の行を検索
-        
+
         Args:
             existing_records (list): 既存データレコード
             date_str (str): 検索する日付文字列
             symbol (str): 検索する銘柄コード
             sheet_type (str): シート種別（'データ記録' or '損益レポート'）
-            
+
         Returns:
             dict: 見つかった行情報（row_number含む）またはNone
         """
@@ -399,30 +427,38 @@ class SheetsDataWriter:
             if sheet_type == 'データ記録':
                 if (record.get('月末日付') == date_str and
                     record.get('銘柄コード') == symbol):
-                    return {'row_number': i + 2, 'record': record}  # +2はヘッダー行を考慮
+                    # +2はヘッダー行を考慮
+                    return {'row_number': i + 2, 'record': record}
 
             # 損益レポートシートの場合
             elif sheet_type == '損益レポート':
                 if (record.get('日付') == date_str and
                     record.get('銘柄コード') == symbol):
-                    return {'row_number': i + 2, 'record': record}  # +2はヘッダー行を考慮
+                    # +2はヘッダー行を考慮
+                    return {'row_number': i + 2, 'record': record}
 
         return None
 
-    def _find_existing_currency_row(self, existing_records, date_str, currency_pair):
+    def _find_existing_currency_row(
+        self,
+        existing_records: list[dict[str, object]],
+        date_str: str,
+        currency_pair: str,
+    ) -> dict[str, object] | None:
         """既存為替データから同じ日付・通貨ペアの行を検索
-        
+
         Args:
             existing_records (list): 既存データレコード
             date_str (str): 検索する日付文字列
             currency_pair (str): 検索する通貨ペア
-            
+
         Returns:
             dict: 見つかった行情報（row_number含む）またはNone
         """
         for i, record in enumerate(existing_records):
             if (record.get('取得日') == date_str and
                 record.get('通貨ペア') == currency_pair):
-                return {'row_number': i + 2, 'record': record}  # +2はヘッダー行を考慮
+                # +2はヘッダー行を考慮
+                return {'row_number': i + 2, 'record': record}
 
         return None

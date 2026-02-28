@@ -6,7 +6,7 @@ import yfinance as yf
 class CurrencyConverter:
     """為替レート取得・通貨換算クラス"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初期化"""
         # 対応通貨ペア
         self.supported_pairs = {
@@ -19,13 +19,15 @@ class CurrencyConverter:
             'SGD': 'SGDJPY=X'
         }
 
-    def get_exchange_rate(self, currency, date=None):
+    def get_exchange_rate(
+        self, currency: str, date: datetime | None = None
+    ) -> float | None:
         """指定通貨の対円レートを取得
-        
+
         Args:
             currency (str): 通貨コード（USD, EUR等）
             date (datetime, optional): 取得日付（デフォルトは最新）
-            
+
         Returns:
             float: 為替レート（None if エラー）
         """
@@ -60,14 +62,16 @@ class CurrencyConverter:
             print(f"為替レート取得エラー ({currency}): {e}")
             return None
 
-    def convert_to_jpy(self, amount, currency, date=None):
+    def convert_to_jpy(
+        self, amount: float, currency: str, date: datetime | None = None
+    ) -> float | None:
         """外貨を円に換算
-        
+
         Args:
             amount (float): 外貨金額
             currency (str): 通貨コード
             date (datetime, optional): 換算日付
-            
+
         Returns:
             float: 円換算金額（None if エラー）
         """
@@ -80,12 +84,12 @@ class CurrencyConverter:
 
         return amount * rate
 
-    def get_currency_from_symbol(self, symbol):
+    def get_currency_from_symbol(self, symbol: str) -> str:
         """銘柄コードから通貨を推定
-        
+
         Args:
             symbol (str): 銘柄コード
-            
+
         Returns:
             str: 通貨コード
         """
@@ -116,22 +120,22 @@ class CurrencyConverter:
         # デフォルトは米ドル（NASDAQ, NYSE等）
         return 'USD'
 
-    def get_all_current_rates(self):
+    def get_all_current_rates(self) -> dict[str, float]:
         """全ての対応通貨の現在レートを取得
-        
+
         Returns:
             dict: 通貨コード -> レートの辞書
         """
         rates = {'JPY': 1.0}
 
-        for currency, pair in self.supported_pairs.items():
+        for currency, _pair in self.supported_pairs.items():
             rate = self.get_exchange_rate(currency)
             if rate is not None:
                 rates[currency] = rate
 
         return rates
 
-    def display_current_rates(self):
+    def display_current_rates(self) -> dict[str, float]:
         """現在の為替レートを表示"""
         print("\n💱 現在の為替レート（対円）:")
         rates = self.get_all_current_rates()

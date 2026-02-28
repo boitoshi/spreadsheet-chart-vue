@@ -1,8 +1,13 @@
 """ブログ用グラフ画像生成モジュール"""
 
+from __future__ import annotations
+
 import os
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .sheets_writer import SheetsDataWriter
 
 try:
     import matplotlib
@@ -37,7 +42,7 @@ except ImportError:
 class ChartImageGenerator:
     """ブログ用グラフ画像生成クラス"""
 
-    def __init__(self, sheets_writer: Any) -> None:
+    def __init__(self, sheets_writer: SheetsDataWriter) -> None:
         """初期化
 
         Args:

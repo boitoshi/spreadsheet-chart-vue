@@ -13,7 +13,7 @@ from settings import GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
 from sheets_writer import SheetsDataWriter
 
 
-def test_google_sheets_permissions():
+def test_google_sheets_permissions() -> bool | None:
     """Google Sheets権限テスト"""
     print("=== Google Sheets API権限テスト ===")
     print(f"📋 スプレッドシートID: {SPREADSHEET_ID}")
@@ -72,7 +72,7 @@ def test_google_sheets_permissions():
         try:
             test_sheet = spreadsheet_info.worksheet(test_sheet_name)
             print(f"✅ テストシート「{test_sheet_name}」は既に存在します")
-        except:
+        except Exception:
             test_sheet = spreadsheet_info.add_worksheet(test_sheet_name, 5, 5)
             print(f"✅ テストシート「{test_sheet_name}」を作成しました")
 
@@ -88,7 +88,10 @@ def test_google_sheets_permissions():
 
     except Exception as e:
         print(f"❌ 書き込み権限エラー: {e}")
-        print("   → サービスアカウントを「編集者」権限でスプレッドシートに追加してください")
+        print(
+            "   → サービスアカウントを「編集者」権限で"
+            "スプレッドシートに追加してください"
+        )
         return False
 
     print("\n🎉 すべての権限テストが成功しました！")

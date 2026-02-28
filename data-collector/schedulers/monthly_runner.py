@@ -16,7 +16,7 @@ from config.settings import LOG_FILE, LOG_LEVEL
 from main import PortfolioDataCollector
 
 
-def setup_logging():
+def setup_logging() -> None:
     """ログ設定"""
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
@@ -30,7 +30,7 @@ def setup_logging():
     )
 
 
-def run_monthly_collection():
+def run_monthly_collection() -> bool:
     """月次データ収集実行"""
     logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def run_monthly_collection():
         return False
 
 
-def main():
+def main() -> None:
     """メイン関数"""
     setup_logging()
     logger = logging.getLogger(__name__)

@@ -3,11 +3,15 @@ import os
 from dotenv import load_dotenv
 
 # .envファイルを読み込み（data-collectorディレクトリの.envファイル）
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+load_dotenv(
+    dotenv_path=os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+)
 
 # Google Sheets API設定
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'my-service-account.json')
-SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv(
+    "GOOGLE_APPLICATION_CREDENTIALS", "my-service-account.json"
+)
+SPREADSHEET_ID = os.getenv('SPREADSHEET_ID', '')
 
 # デフォルト銘柄設定（外貨情報付き）
 # purchase_price: 円建て取得単価（= purchase_price_foreign × purchase_exchange_rate）
