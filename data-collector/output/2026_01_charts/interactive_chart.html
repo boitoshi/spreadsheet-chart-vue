@@ -1,0 +1,272 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+.ic-container {
+    max-width: 900px; margin: 0 auto; padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Roboto, sans-serif;
+}
+.ic-title {
+    font-size: 20px; font-weight: 700;
+    margin-bottom: 16px; color: #1a1a1a;
+}
+.ic-date-label {
+    font-size: 13px; font-weight: 400;
+    color: #94a3b8; margin-left: 8px;
+}
+.ic-view-tabs {
+    display: flex; gap: 4px; margin-bottom: 16px;
+    background: #f1f5f9; border-radius: 8px;
+    padding: 4px;
+}
+.ic-view-tab {
+    flex: 1; padding: 10px 16px; background: none;
+    border: none; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 500; color: #64748b;
+    transition: all 0.2s;
+}
+.ic-view-tab:hover { color: #334155; }
+.ic-view-tab.active {
+    background: white; color: #2563eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.ic-stock-tabs, .ic-period-tabs {
+    display: flex; gap: 8px; margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.ic-stock-tab {
+    padding: 8px 18px; background: #f8fafc;
+    border: 1px solid #e2e8f0; border-radius: 20px;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    color: #475569; transition: all 0.2s;
+}
+.ic-stock-tab:hover {
+    border-color: #2563eb; color: #2563eb;
+}
+.ic-stock-tab.active {
+    background: #2563eb; border-color: #2563eb;
+    color: white;
+}
+.ic-chart-wrapper {
+    position: relative; height: 400px;
+    background: white; padding: 16px;
+    border-radius: 12px; border: 1px solid #e2e8f0;
+}
+.ic-info {
+    margin-top: 16px; padding: 16px;
+    background: #f8fafc; border-radius: 10px;
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+.ic-info-item {
+    display: flex; flex-direction: column;
+}
+.ic-info-label {
+    font-size: 11px; color: #94a3b8;
+    margin-bottom: 4px; text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.ic-info-value {
+    font-size: 18px; font-weight: 600;
+    color: #1e293b;
+}
+.ic-info-value.positive { color: #16a34a; }
+.ic-info-value.negative { color: #dc2626; }
+@media (max-width: 600px) {
+    .ic-container { padding: 12px; }
+    .ic-title { font-size: 16px; margin-bottom: 12px; }
+    .ic-chart-wrapper { height: 280px; padding: 10px; }
+    .ic-stock-tab {
+        padding: 6px 12px; font-size: 12px;
+    }
+    .ic-view-tab {
+        padding: 8px 10px; font-size: 13px;
+    }
+    .ic-info {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px; padding: 12px;
+    }
+    .ic-info-value { font-size: 15px; }
+    .ic-info-label { font-size: 10px; }
+}
+@media (max-width: 380px) {
+    .ic-info {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+<div class="ic-container">
+    <div class="ic-title">
+        2026年1月 投資パフォーマンス
+        <span class="ic-date-label">
+            2026年1月末時点</span>
+    </div>
+    <div class="ic-stock-tabs" id="icStockTabs"></div>
+    <div class="ic-chart-wrapper">
+        <canvas id="icChart"></canvas>
+    </div>
+    <div class="ic-info" id="icInfo"></div>
+</div>
+<script>
+(function() {
+const D = {"labels": ["2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01"], "total": {"values": [101896.23, 107516.89, 50092.4, 101353.67, 105929.65, 105015.38], "costs": [75806.3, 75806.3, 31682.08, 76643.3, 75806.3, 76643.3]}, "stocks": {"任天堂": {"name": "任天堂", "symbol": "7974.T", "values": [13267, 12805, 13045, 13280, 10595, 10055], "costs": [6433, 6433, 6433, 8875, 6433, 8875], "currency": "JPY", "is_foreign": false}, "DeNA": {"name": "DeNA", "symbol": "2432.T", "values": [6712.5, 6958.5, 5418, 4826, 7614, 5062], "costs": [5259, 5259, 4880, 3654, 5259, 3654], "currency": "JPY", "is_foreign": false}, "エヌビディア": {"name": "エヌビディア", "symbol": "NVDA", "values": [81916.73, 87753.39, 31629.4, 83247.67, 87720.65, 89898.38], "costs": [64114.3, 64114.3, 20369.08, 64114.3, 64114.3, 64114.3], "currency": "USD", "is_foreign": true}}};
+let chart = null;
+let cur = '_total';
+const ctn = document.getElementById('icStockTabs');
+
+function fmt(v) {
+    return new Intl.NumberFormat('ja-JP', {
+        style:'currency',currency:'JPY',
+        maximumFractionDigits:0
+    }).format(v);
+}
+
+function buildTabs() {
+    ctn.innerHTML = '';
+    const add = (k, l) => {
+        const b = document.createElement('button');
+        b.className = 'ic-stock-tab'
+            + (k === cur ? ' active' : '');
+        b.textContent = l;
+        b.onclick = () => { cur = k; buildTabs(); draw(); };
+        ctn.appendChild(b);
+    };
+    add('_total', '全体');
+    Object.keys(D.stocks).forEach(n => add(n, n));
+}
+
+function draw() {
+    if (chart) chart.destroy();
+    let labels, vals, costs;
+    if (cur === '_total') {
+        labels = D.labels; vals = D.total.values;
+        costs = D.total.costs;
+    } else {
+        const s = D.stocks[cur];
+        if (!s) return;
+        labels = D.labels; vals = s.values;
+        costs = s.costs;
+    }
+    const ds = [{
+        label:'評価額', data:vals,
+        borderColor:'#2563eb',
+        backgroundColor:'rgba(37,99,235,0.08)',
+        borderWidth:2.5, tension:0, fill:false,
+        spanGaps:true,
+        pointRadius:5, pointHoverRadius:7,
+        pointBackgroundColor:'#2563eb'
+    }];
+    if (costs && costs.some(v => v > 0)) {
+        ds.push({
+            label:'取得額', data:costs,
+            borderColor:'#94a3b8',
+            backgroundColor:'rgba(148,163,184,0.08)',
+            borderWidth:2, borderDash:[6,4],
+            tension:0, fill:false, spanGaps:true,
+            pointRadius:4, pointHoverRadius:6,
+            pointBackgroundColor:'#94a3b8'
+        });
+    }
+    const ctx = document.getElementById('icChart')
+        .getContext('2d');
+    chart = new Chart(ctx, {
+        type:'line',
+        data:{ labels:labels, datasets:ds },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{
+                    display:true, position:'top',
+                    align:'end'
+                },
+                tooltip:{
+                    mode:'index', intersect:false,
+                    callbacks:{
+                        label: c => {
+                            if (c.parsed.y == null)
+                                return c.dataset.label
+                                    + ': データなし';
+                            return c.dataset.label
+                                + ': ' + fmt(c.parsed.y);
+                        },
+                        afterBody: items => {
+                            const i = items[0].dataIndex;
+                            const v = vals[i];
+                            const c = costs ? costs[i] : null;
+                            if (v != null && c != null) {
+                                const pl = v - c;
+                                const r = ((pl/c)*100)
+                                    .toFixed(1);
+                                const s = pl>=0?'+':'';
+                                return ['','損益: '
+                                    + s + fmt(pl)
+                                    + ' (' + s + r + '%)'];
+                            }
+                            return [];
+                        }
+                    }
+                }
+            },
+            scales:{
+                x:{
+                    ticks:{
+                        callback: function(val, idx) {
+                            const d = labels[idx];
+                            if (!d) return '';
+                            const p = d.split('-');
+                            const y = p[0];
+                            const m = parseInt(p[1],10);
+                            if (idx === 0)
+                                return y + '/' + m;
+                            const prev = labels[idx-1];
+                            if (!prev) return m;
+                            const py = prev.split('-')[0];
+                            if (y !== py)
+                                return y + '/' + m;
+                            return m + '月';
+                        }
+                    }
+                },
+                y:{
+                    beginAtZero:false,
+                    ticks:{ callback: v => fmt(v) }
+                }
+            },
+            interaction:{
+                mode:'nearest', axis:'x',
+                intersect:false
+            }
+        }
+    });
+    // 情報パネル
+    const lv = vals[vals.length-1] || 0;
+    const lc = costs && costs.length
+        ? (costs[costs.length-1] || 0) : 0;
+    const pl = lv - lc;
+    const rt = lc > 0
+        ? ((pl/lc)*100).toFixed(2) : '0.00';
+    const cl = pl >= 0 ? 'positive' : 'negative';
+    const sg = pl >= 0 ? '+' : '';
+    document.getElementById('icInfo').innerHTML = `
+        <div class="ic-info-item">
+            <span class="ic-info-label">取得額</span>
+            <span class="ic-info-value">
+                ${fmt(lc)}</span></div>
+        <div class="ic-info-item">
+            <span class="ic-info-label">評価額</span>
+            <span class="ic-info-value">
+                ${fmt(lv)}</span></div>
+        <div class="ic-info-item">
+            <span class="ic-info-label">評価損益</span>
+            <span class="ic-info-value ${cl}">
+                ${sg}${fmt(pl)}</span></div>
+        <div class="ic-info-item">
+            <span class="ic-info-label">損益率</span>
+            <span class="ic-info-value ${cl}">
+                ${sg}${rt}%</span></div>`;
+}
+buildTabs(); draw();
+})();
+</script>

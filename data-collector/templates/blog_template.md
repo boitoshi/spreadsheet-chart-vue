@@ -18,11 +18,15 @@
 | 📈 合計評価額 | {{ total_value | format_currency }}円 | 現在価値 |
 | {% if total_pl >= 0 %}🎉{% else %}😢{% endif %} 総合損益 | {{ total_pl | format_currency }}円 | {{ total_pl_rate | format_percent }} |
 
-{% if chart_images and chart_images.portfolio %}
+{% if interactive_chart %}
 ## ポートフォリオ推移グラフ
 
 過去6ヶ月間の評価額と取得額の推移です。
 
+📊 **[インタラクティブチャート]({{ interactive_chart }})** をブラウザで開くと、マウスオーバーで各月の詳細データを確認できます。
+
+{% endif %}
+{% if chart_images and chart_images.portfolio %}
 ![ポートフォリオ推移]({{ chart_images.portfolio }})
 
 {% endif %}
@@ -47,9 +51,11 @@
 - 🔻 最安値: {{ stock.market_data.low | format_currency }}円
 - 📊 月間変動率: {{ stock.market_data.change_rate | format_percent }}
 
-{% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
-**📉 株価推移チャート**:
+{% if interactive_stock_charts and interactive_stock_charts[stock.name] %}
+📊 **[インタラクティブチャート]({{ interactive_stock_charts[stock.name] }})** （期間切替・マウスオーバーで詳細表示）
 
+{% endif %}
+{% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
 ![{{ stock.name }}の株価推移]({{ chart_images.stocks[stock.symbol] }})
 
 {% endif %}
@@ -86,9 +92,11 @@
 - 🔻 最安値: {{ stock.market_data.low | format_number(2) }}{{ stock.currency }}
 - 📊 月間変動率: {{ stock.market_data.change_rate | format_percent }}
 
-{% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
-**📉 株価推移チャート**:
+{% if interactive_stock_charts and interactive_stock_charts[stock.name] %}
+📊 **[インタラクティブチャート]({{ interactive_stock_charts[stock.name] }})** （期間切替・外貨/円切替・マウスオーバーで詳細表示）
 
+{% endif %}
+{% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
 ![{{ stock.name }}の株価推移]({{ chart_images.stocks[stock.symbol] }})
 
 {% endif %}

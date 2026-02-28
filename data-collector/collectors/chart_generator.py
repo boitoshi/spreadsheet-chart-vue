@@ -61,30 +61,39 @@ class ChartDataGenerator:
                 # 重複除去
                 month_data = self._remove_duplicates(month_data)
 
-                # 合計値計算
-                month_total_cost = sum(r.get("取得額", 0) for r in month_data)
-                month_total_value = sum(r.get("評価額", 0) for r in month_data)
+                # 合計値計算（データなしの月はNone）
+                if month_data:
+                    month_total_cost = sum(
+                        r.get("取得額", 0) for r in month_data
+                    )
+                    month_total_value = sum(
+                        r.get("評価額", 0) for r in month_data
+                    )
+                else:
+                    month_total_cost = None
+                    month_total_value = None
 
                 total_costs.append(month_total_cost)
                 total_values.append(month_total_value)
 
                 # 各銘柄のデータを記録
+                month_index = len(labels) - 1
+                found_names = set()
                 for record in month_data:
                     name = record.get("銘柄名", "")
                     value = record.get("評価額", 0)
 
                     if name not in holdings_data:
-                        holdings_data[name] = []
+                        # 新規銘柄: 過去月分をNoneで埋める
+                        holdings_data[name] = [None] * month_index
 
                     holdings_data[name].append(value)
+                    found_names.add(name)
 
-            # データの整合性チェック（全銘柄が全期間のデータを持つようにする）
-            for name in holdings_data:
-                if len(holdings_data[name]) < len(labels):
-                    # 不足分をNoneで埋める
-                    holdings_data[name].extend(
-                        [None] * (len(labels) - len(holdings_data[name]))
-                    )
+                # データがなかった既知銘柄にNoneを追加
+                for name in holdings_data:
+                    if name not in found_names:
+                        holdings_data[name].append(None)
 
             return {
                 "labels": labels,

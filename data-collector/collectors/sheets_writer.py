@@ -86,15 +86,15 @@ class SheetsDataWriter:
                     symbol,
                     info['name'],
                     info['purchase_date'],
-                    f"=K{row}*L{row}",  # 取得単価（円）= 外貨単価 × 為替レート
+                    f"=E{row}*F{row}",  # 取得単価（円）= 外貨単価 × 為替レート
+                    info.get('purchase_price_foreign', info['purchase_price']),
+                    info.get('purchase_exchange_rate', 1.0),
                     info['shares'],
-                    f"=D{row}*E{row}",  # 取得額合計（自動計算）
+                    f"=D{row}*G{row}",  # 取得額合計 = 取得単価（円）× 保有株数
                     info.get('currency', 'JPY'),
                     '○' if info.get('is_foreign', False) else '×',
                     datetime.now().strftime('%Y-%m-%d'),
                     "デフォルト設定",
-                    info.get('purchase_price_foreign', info['purchase_price']),
-                    info.get('purchase_exchange_rate', 1.0),
                 ]])
                 row += 1
 
