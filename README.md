@@ -1,281 +1,117 @@
-# 📊 Vue.js Portfolio Tracker
+# Portfolio Tracker
 
-ポケモン世代のための投資ポートフォリオ管理アプリケーション
+個人投資ポートフォリオ管理アプリケーション。Google Sheets をデータストアとして、資産管理・月次レポート生成・チャート表示を行う。
 
-## 🎯 概要
+## 技術スタック
 
-このアプリケーションは、個人投資家向けのポートフォリオ管理と月次レポート生成を行うWebアプリケーションです。Vue.js（フロントエンド）とDjango（バックエンド）で構築されており、Google Sheetsとの連携による柔軟なデータ管理が特徴です。
+| 役割 | 技術 |
+|------|------|
+| フロントエンド | Next.js 16, Tailwind CSS v4, Recharts, TypeScript |
+| バックエンド | FastAPI, gspread, uvicorn（uv 管理）|
+| データ収集 | Python（yfinance → Google Sheets）|
+| データストア | Google Sheets |
 
-## ✨ 主な機能
-
-### 📈 ポートフォリオ管理
-- 保有銘柄の管理と損益計算
-- リアルタイムでの資産評価額表示
-- 詳細な取引履歴の記録
-
-### 📊 ビジュアルレポート
-- 資産推移のチャート表示
-- 損益分析グラフ
-- セクター別構成の可視化
-
-### 📝 月次レポート生成
-- 自動的な月次投資成績レポート作成
-- 複数形式での出力（HTML、Markdown、PDF）
-- ブログ投稿用コンテンツの生成
-
-### 🔧 手動データ管理
-- 株価データの手動入力・更新
-- CSVファイルからの一括インポート
-- 取引履歴の編集・削除
-
-### 📤 エクスポート機能
-- 画像形式でのチャート出力
-- WordPress用JSON形式での出力
-- SNSシェア機能
-
-## 🏗️ 技術スタック
-
-### フロントエンド
-- **Vue.js 3** - メインフレームワーク
-- **Vue Router** - ルーティング管理
-- **Chart.js** - データ可視化
-- **Axios** - HTTP通信
-- **Vite** - ビルドツール
-
-### バックエンド
-- **Django** - Webフレームワーク
-- **Google Sheets API** - データストレージ
-- **Python pandas** - データ処理
-
-### その他
-- **html2canvas** - 画像エクスポート
-- **marked** - Markdown処理
-- **file-saver** - ファイル保存
-
-## 📁 プロジェクト構成
+## ディレクトリ構成
 
 ```
 spreadsheet-chart-vue/
-├── web-app/frontend/            # Vue.js フロントエンド
-│   ├── src/
-│   │   ├── components/         # Vueコンポーネント
-│   │   │   ├── BlogExport.vue
-│   │   │   ├── LineChart.vue
-│   │   │   ├── PortfolioDashboard.vue
-│   │   │   ├── ProfitChart.vue
-│   │   │   ├── Spreadsheet.vue
-│   │   │   └── StockTable.vue
-│   │   ├── views/              # ページコンポーネント
-│   │   │   ├── Dashboard.vue
-│   │   │   ├── ManualInput.vue
-│   │   │   └── MonthlyReport.vue
-│   │   ├── composables/        # Vue Composition API
-│   │   │   ├── useChartExport.js
-│   │   │   ├── usePortfolioData.js
-│   │   │   └── useSpreadsheetData.js
-│   │   ├── router/             # ルーティング設定
-│   │   └── utils/              # ユーティリティ関数
-│   └── package.json
-├── web-app/backend/             # Django バックエンド
-│   ├── sheets/                 # メインアプリケーション
-│   │   ├── views.py           # データ取得API
-│   │   ├── manual_updater.py  # 手動更新API
-│   │   ├── report_generator.py # レポート生成API
-│   │   └── urls.py
-│   ├── templates/              # HTMLテンプレート
-│   │   └── report_template.html
-│   └── requirements.txt
-├── docs/                        # ドキュメント
-│   └── monthly-reports/        # 月次レポートアーカイブ
-│       ├── README.md
-│       └── templates/
-└── README.md
+├── data-collector/         # 月次データ収集バッチ
+├── shared/
+│   └── sheets_config.py   # シートヘッダー定義（一元管理）
+├── web-app/
+│   ├── backend/            # FastAPI REST API（ポート8000）
+│   └── frontend/           # Next.js アプリ（ポート3000）
+└── docs/                   # ドキュメント
 ```
 
-## 🚀 ローカル開発環境のセットアップ
+## セットアップ
 
 ### 前提条件
-- **uv**: 0.5以上（Pythonバージョン管理含む）
-- **Node.js**: 22以上（npm 10以上）
-- **Google Sheets API**: 認証情報（service-account.json）
 
-### 1. uv でPythonをインストール
+- Python 3.12 以上
+- uv（Astral）
+- Node.js 22 以上
+- Google Sheets API サービスアカウント認証情報
+
+### 1. バックエンド
 
 ```bash
-# uv自体のインストール（未インストールの場合）
-curl -LsSf https://astral.sh/uv/install.sh | sh
+cd web-app/backend
+uv sync
 
-# Python 3.12をインストール
-uv python install 3.12
-
-# インストール確認
-uv python list
+# .env を作成
+cat > .env << 'EOF'
+SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+EOF
 ```
 
-### 2. プロジェクトセットアップ
+### 2. フロントエンド
 
 ```bash
-# プロジェクトルートに移動
-cd /path/to/spreadsheet-chart-vue
+cd web-app/frontend
+npm install
+```
 
-# ルートワークスペースのセットアップ
-uv venv .venv --python 3.12
+### 3. データ収集
+
+```bash
+cd data-collector
 uv sync --dev
 
-# data-collector
-cd data-collector && uv sync --dev && cd ..
-
-# backend
-cd web-app/backend && uv sync --dev && cd ../..
-cp web-app/backend/.env.example web-app/backend/.env
-# .envファイルを編集（SPREADSHEET_ID, GOOGLE_APPLICATION_CREDENTIALS等）
-cd web-app/backend && uv run python manage.py migrate && cd ../..
-
-# frontend
-cd web-app/frontend && npm install && cd ../..
+# .env を作成
+cat > .env << 'EOF'
+SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+EOF
 ```
 
-### 3. 開発サーバー起動
+## 起動方法
 
-#### 方法A: VS Codeタスク（推奨）
-1. VS Codeでプロジェクトを開く
-2. `Cmd + Shift + B`（Mac）
-3. "🚀 全開発サーバー起動" を選択
-
-#### 方法B: 手動起動
 ```bash
-# ターミナル1: Django Backend
-cd web-app/backend
-uv run python manage.py runserver
+# バックエンド（ポート8000）
+cd web-app/backend && uv run uvicorn main:app --reload
 
-# ターミナル2: Vue Frontend
-cd web-app/frontend
-npm run dev
+# フロントエンド（ポート3000）
+cd web-app/frontend && npm run dev
+
+# データ収集（月次バッチ）
+cd data-collector && uv run python main.py
 ```
 
-### アクセスURL
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
+## API エンドポイント
 
-### 環境変数設定
+| パス | 説明 |
+|------|------|
+| GET `/health` | ヘルスチェック |
+| GET `/api/dashboard` | KPI・構成比・最新月損益 |
+| GET `/api/portfolio` | 保有銘柄一覧 |
+| GET `/api/history` | 月次損益推移（`?stock=コード`）|
+| GET `/api/currency` | 為替レート推移（`?start=YYYY-MM`）|
 
-フロントエンド/バックエンドの環境変数テンプレート：
-- `web-app/frontend/.env.example`（`VITE_API_BASE_URL` など）
-- `web-app/backend/.env.example`（`SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` など）
-- `data-collector/.env`（`GOOGLE_APPLICATION_CREDENTIALS` のパスをローカル絶対パスに修正）
+詳細は [`docs/api-reference.md`](docs/api-reference.md) を参照。
 
-必要に応じて `.env`/`.env.development`/`.env.production` を上記を参考に作成してください。
+## 品質チェック
 
-## 📖 使用方法
+```bash
+# Python lint
+cd web-app/backend && uv run ruff check . --fix
+cd data-collector && uv run ruff check . --fix
 
-### 1. ダッシュボード
-- `http://localhost:3000/` でアクセス
-- ポートフォリオ全体の概要を確認
-
-### 2. 手動データ入力
-- `/input` で株価データの手動入力
-- CSVファイルからの一括インポート
-
-### 3. 月次レポート
-- `/report/2024-01` で指定月のレポート表示
-- 複数形式でのエクスポート
-
-## 🔧 API エンドポイント（標準化）
-
-推奨プレフィックス: `/api/v1/`（レガシーエンドポイントも当面は存続）
-
-### データ取得
-- `GET /api/v1/data/records/` - スプレッドシートデータ取得（クエリ: `start_month`, `end_month`, `stock`）
-
-### 手動更新
-- `POST /api/v1/manual/update/` - 株価更新
-- `POST /api/v1/manual/bulk-update/` - 一括価格更新
-- `POST /api/v1/monthly/save/` - 月次データ保存
-
-### レポート生成
-- `GET /api/v1/reports/generate/{month}/` - 月次レポート生成
-- `GET /api/v1/reports/blog/{month}/` - ブログ用コンテンツ生成
-- `GET /api/v1/reports/templates/` - テンプレート一覧
-
-### ポートフォリオ
-- `GET /api/v1/portfolio/` - メインデータ（Vue 用）
-- `GET /api/v1/portfolio/history/` - 損益推移
-- `GET /api/v1/portfolio/stock/{name}/` - 個別銘柄
-- `GET /api/v1/portfolio/validate/` - データ検証
-
-## ✅ CI/疎通チェック
-
-スクリプトでAPIの疎通確認ができます（BASE_URLは環境変数で上書き可能）。
-
-- Python:
-  - `python scripts/api_health_check.py`（例: `BASE_URL=http://localhost:8000 python scripts/api_health_check.py`）
-- Bash + curl + jq:
-  - `bash scripts/api_health_check.sh`（例: `BASE_URL=https://your-backend.example.com bash scripts/api_health_check.sh`）
-
-チェック対象:
-- `/api/v1/portfolio/` が `summary`/`stocks` を返す
-- `/api/v1/portfolio/history/` が主要配列を返す
-- `/api/v1/data/records/` が `data` 配列を返す
-
-## 📊 データ形式
-
-### ポートフォリオデータ
-```json
-{
-  "ticker": "7974",
-  "name": "任天堂",
-  "quantity": 100,
-  "avg_price": 5600,
-  "current_price": 6500,
-  "market_value": 650000,
-  "profit": 90000,
-  "profit_rate": 16.1
-}
+# TypeScript / ビルド確認
+cd web-app/frontend && npm run build
 ```
 
-### 月次レポートデータ
-```json
-{
-  "month": "2024-01",
-  "summary": {
-    "total_value": 1456789,
-    "total_profit": 234567,
-    "monthly_profit": 45320
-  },
-  "portfolio": [...],
-  "commentary": "今月の所感..."
-}
-```
+## ドキュメント
 
-## 🎨 カスタマイズ
+- [`docs/project-structure.md`](docs/project-structure.md) — ディレクトリ構成・データフロー
+- [`docs/sheets-schema.md`](docs/sheets-schema.md) — スプレッドシートのカラム定義
+- [`docs/api-reference.md`](docs/api-reference.md) — API エンドポイント詳細
+- [`docs/data-collection-guide.md`](docs/data-collection-guide.md) — データ収集の操作ガイド
+- [`data-collector/README.md`](data-collector/README.md) — データ収集システム詳細
 
-### テーマカラー
-`web-app/frontend/src/style.css` でカラーパレットを変更可能
+## 注意事項
 
-### レポートテンプレート
-`web-app/backend/templates/report_template.html` でHTMLレポートの外観をカスタマイズ
-
-### ブログテンプレート
-`docs/monthly-reports/templates/blog-template.md` でブログ投稿用テンプレートを編集
-
-## 🔒 セキュリティ
-
-- Google Sheets API認証情報は環境変数で管理
-- センシティブなデータは `.gitignore` で除外
-- 個人の投資情報保護のため、公開リポジトリでの管理は非推奨
-
-## 📝 ライセンス
-
-このプロジェクトは個人用途での使用を想定しています。
-
-## 🤝 コントリビューション
-
-プルリクエストや Issue の投稿を歓迎します。
-
-## 📞 サポート
-
-質問や不具合報告は GitHub Issues でお願いします。
-
----
-
-**重要**: このツールは個人的な投資記録を目的としており、投資アドバイスを提供するものではありません。投資は自己責任で行ってください。
+- このツールは個人的な投資記録を目的としており、投資アドバイスを提供するものではありません
+- サービスアカウント JSON は `.gitignore` で除外し、VCS にコミットしないこと
+- 個人の投資情報が含まれるため、公開リポジトリでの管理は非推奨

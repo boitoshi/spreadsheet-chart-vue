@@ -79,14 +79,14 @@ npm run test      # テスト
 
 ## 概要
 
-Vue.js + Django による投資ポートフォリオ管理アプリケーション。Google Sheetsと連携し、資産管理・月次レポート生成・チャート表示を行う。
+Next.js + FastAPI による投資ポートフォリオ管理アプリケーション。Google Sheets をデータストアとして、資産管理・月次レポート生成・チャート表示を行う。
 
 ## 技術スタック
 
-- **フロントエンド**: Vue.js 3, Vue Router, Chart.js, Vite
-- **バックエンド**: Django, Google Sheets API, uv（パッケージ管理）
+- **フロントエンド**: Next.js 16, Recharts, Tailwind CSS v4, TypeScript
+- **バックエンド**: FastAPI, gspread, uvicorn（uv 管理）
 - **Pythonツールチェーン**: uv, ruff, ty（すべてAstral社製）
-- **言語**: TypeScript/Vue.js（フロント）, Python 3.12（バック）
+- **言語**: TypeScript/Next.js（フロント）, Python 3.12（バック）
 
 ## 開発コマンド
 
@@ -100,8 +100,7 @@ cd data-collector && uv run python main.py 2024 12  # バッチ
 cd web-app/frontend && npm run dev
 
 # バックエンド（ポート8000）
-cd web-app/backend && uv run python manage.py runserver
-cd web-app/backend && uv run python manage.py migrate
+cd web-app/backend && uv run uvicorn main:app --reload
 
 # Python品質チェック（各プロジェクトディレクトリで実行）
 uv run ruff check . --fix
@@ -111,23 +110,22 @@ uvx ty check
 ## 環境設定
 
 - `data-collector/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
-- `web-app/backend/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, `DEBUG=False`, `SECRET_KEY`
+- `web-app/backend/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
 
 ## 実装状況
 
 | 層 | 状態 |
 |---|---|
 | data-collector | 完成（yfinance→Sheets書き込み・ブログ生成） |
-| Django sheets/ | 実装済み（portfolio/currency/manual-update） |
-| Django portfolio/, reports/ | views.py 未実装 |
-| フロントエンド | API連携コード有り（`/api/v1/portfolio/` が未実装） |
+| FastAPI backend | 完成（dashboard/portfolio/history/currency API）|
+| Next.js frontend | 完成（ダッシュボード・ポートフォリオ・損益推移・為替レート）|
 
 ## 開発ガイドライン
 
 - コードコメント・コミットメッセージ・会話はすべて日本語
 - CLAUDE.md・README.md は開発状況に合わせて随時更新する
 - 開発の問題点・実装計画は `PROJECT_PROCEED.md` で管理する
-- コンポーネントは単一責任の原則・Composition API を活用
+- コンポーネントは単一責任の原則に従い、Server / Client Components を適切に分離する
 
 ---
 

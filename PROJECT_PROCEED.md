@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-02-28 web-app 全面再構築完了
+
+### 変更内容
+- Django + Vue.js → FastAPI + Next.js 16 に全面移行
+- `web-app/backend/`: FastAPI + gspread（4エンドポイント実装済み）
+- `web-app/frontend/`: Next.js 16 + Tailwind v4 + Recharts（4ページ実装済み）
+- Tremor は React 19 + Tailwind v4 に非対応のため Recharts に変更
+
+### 既知の課題
+- `/api/portfolio` の `totalCost` が 0 になる場合がある（スプレッドシートの数式セルが未評価の可能性）
+- `/api/portfolio` の `isForeign` が常に false になる場合がある（シートの外国株フラグ列の値要確認）
+
+---
+
 ## 2026-02-28: ドキュメント整備・静的解析修正
 
 ### 実施内容

@@ -37,9 +37,13 @@ monthly-reports/
 ## 使用方法
 
 ### 新しいレポートの生成
-1. Vue.jsアプリケーションの月次レポート画面でデータを確認
-2. 「エクスポート」ボタンから希望の形式を選択
-3. 生成されたファイルを適切なディレクトリに保存
+1. `data-collector` でブログ下書きを生成する
+   ```bash
+   cd data-collector && uv run python main.py --blog 2024 12
+   # 出力: data-collector/output/blog_draft_2024_12.md
+   ```
+2. 生成された Markdown ファイルを編集・確認
+3. 必要に応じてこのディレクトリにアーカイブとして保存
 
 ### 過去のレポートの閲覧
 - HTMLファイルをブラウザで直接開く

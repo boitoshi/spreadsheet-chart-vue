@@ -13,19 +13,45 @@ spreadsheet-chart-vue/
 │   ├── pyproject.toml
 │   └── main.py             # メイン実行スクリプト
 ├── web-app/
-│   ├── backend/            # Django REST API
-│   │   ├── sheets/         # Google Sheets連携API（実装済み）
-│   │   ├── portfolio/      # ポートフォリオアプリ（views.py 未実装）
-│   │   ├── reports/        # レポートアプリ（views.py 未実装）
-│   │   ├── backend/        # Django設定・urls.py
-│   │   └── pyproject.toml
-│   └── frontend/           # Vue.js アプリケーション
+│   ├── backend/            # FastAPI REST API
+│   │   ├── main.py         # エントリー・CORS・ルーター登録
+│   │   ├── pyproject.toml
+│   │   ├── .env            # SPREADSHEET_ID, GOOGLE_APPLICATION_CREDENTIALS
+│   │   └── app/
+│   │       ├── config.py          # pydantic-settings 環境変数管理
+│   │       ├── sheets/            # Google Sheets 読み取りモジュール
+│   │       │   ├── client.py      # gspread 認証シングルトン
+│   │       │   ├── portfolio.py   # ポートフォリオシート
+│   │       │   ├── performance.py # 損益レポートシート
+│   │       │   └── currency.py    # 為替レートシート
+│   │       ├── routers/           # FastAPI ルーター
+│   │       │   ├── dashboard.py
+│   │       │   ├── portfolio.py
+│   │       │   ├── history.py
+│   │       │   └── currency.py
+│   │       └── schemas/           # Pydantic スキーマ
+│   │           ├── dashboard.py
+│   │           ├── portfolio.py
+│   │           ├── history.py
+│   │           └── currency.py
+│   └── frontend/           # Next.js 16 アプリケーション
+│       ├── next.config.ts  # API リライト（/api/* → localhost:8000）
 │       └── src/
-│           ├── App.vue         # 統合ダッシュボード（783行）
-│           ├── components/     # Vue コンポーネント
-│           ├── composables/    # Composition API（一部 JS）
-│           ├── utils/api.js    # APIサービス層
-│           └── types/          # TypeScript型定義
+│           ├── app/
+│           │   ├── layout.tsx      # ナビゲーション共通レイアウト
+│           │   ├── page.tsx        # / ダッシュボード
+│           │   ├── portfolio/page.tsx
+│           │   ├── history/page.tsx
+│           │   └── currency/page.tsx
+│           ├── components/
+│           │   ├── dashboard/      # KpiCards, AllocationChart, LatestBarChart
+│           │   ├── history/        # ProfitAreaChart, StockFilter
+│           │   ├── portfolio/      # HoldingsTable
+│           │   └── currency/       # CurrencyLineChart
+│           ├── lib/
+│           │   ├── api.ts          # fetch ラッパー
+│           │   └── formatters.ts   # 通貨・パーセント表示
+│           └── types/              # TypeScript 型定義
 ├── shared/
 │   └── sheets_config.py    # スプレッドシートのヘッダー定義（一元管理）
 ├── docs/                   # ドキュメント
@@ -54,10 +80,10 @@ output/YYYY_MM_charts/        # チャート画像・HTML
 ```
 Google Sheets
     ↓ gspread
-Django API（web-app/backend/sheets/）
+FastAPI API（web-app/backend/app/）
     ↓ JSON
-Vue.js（web-app/frontend/src/App.vue）
-    ↓ Chart.js
+Next.js（web-app/frontend/src/app/）
+    ↓ Recharts
 ブラウザ（ポートフォリオダッシュボード）
 ```
 

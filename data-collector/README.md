@@ -86,8 +86,8 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ### データフロー
 1. **ポートフォリオシート** - 手動で保有株式情報を管理
 2. **data-collector** - yfinance APIで株価取得、各シートに保存
-3. **Django backend** - Google Sheetsからデータ読み取り、Vue.js用に変換
-4. **Vue.js frontend** - ダッシュボード表示
+3. **FastAPI backend** - Google Sheetsからデータ読み取り、JSON API として提供
+4. **Next.js frontend** - ダッシュボード表示
 
 ## 機能
 
