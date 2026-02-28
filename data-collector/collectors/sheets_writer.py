@@ -26,7 +26,7 @@ class SheetsDataWriter:
         self.spreadsheet = None
 
         # デフォルト銘柄テンプレート（外貨情報含む）
-        from settings import DEFAULT_STOCKS
+        from config.settings import DEFAULT_STOCKS
         self.default_stocks = DEFAULT_STOCKS
 
     def setup_google_sheets(self) -> bool:
