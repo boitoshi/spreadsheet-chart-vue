@@ -51,8 +51,9 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.ty]
+[tool.ty.environment]
 python-version = "3.12"
+extra-paths = ["collectors", "config", "../shared"]
 
 [dependency-groups]
 dev = [

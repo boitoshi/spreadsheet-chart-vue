@@ -1,158 +1,138 @@
-# Claude Code プロジェクト設定
+# 開発ワークフロー
 
-## プロジェクト概要
+## 全体の流れ
+
+```
+[先輩（あなた）] プランを立てる・設計を決める
+    ↓ ゴール・完了条件・参照ファイルを渡す
+[後輩ちゃん] 実装・テスト作成をこなす
+    ↓ 変更ファイル・判断理由・懸念点を報告
+[先輩（あなた）] 報告をレビュー・設計意図とのズレを確認
+    ↓
+[CLI] lint / check / test（トークン消費ゼロ）
+```
+
+## 1. 計画フェーズ（プランモード）
+
+**以下のどちらかに当てはまったら必ずプランモードに入る：**
+
+- ステップが 3 つ以上ある
+- 設計判断が必要（どの構造にするか、どのファイルを変えるか）
+
+**プランを立てるときにやること：**
+
+- 変更するファイル・方針・完了条件を明文化して曖昧さをゼロにする
+- 実装ステップだけでなく、**検証ステップ**（lint / check / test の何を走らせるか）も一緒に計画する
+- 途中で想定外の問題が出たら **即作業を止めて再計画**。無理に進めない。
+
+## 2. 後輩ちゃん（サブエージェント）戦略
+
+**積極的に後輩ちゃんを使う理由：**
+先輩（あなた）のコンテキストウィンドウをきれいに保つため。
+長い処理・大きなログ・並列作業は後輩ちゃんの中に閉じ込める。
+
+**後輩ちゃんに任せること：**
+
+- ファイルの新規作成・編集・リファクタリング
+- テストの作成・実行
+- リサーチ・コード探索・ドキュメント調査
+- 並列で進められる独立したタスク（複数の後輩ちゃんを同時投入してOK）
+
+**後輩ちゃんの使い方のコツ：**
+
+- **1 後輩ちゃん = 1 タスク** で集中させる。複数タスクを混ぜない。
+- 複雑な問題には複数の後輩ちゃんを投入して、より多くの計算リソースをかける。
+- 後輩ちゃんに返してもらうのは「変更ファイル・判断理由・懸念点」の 3 点セット。
+
+## 3. チェックリスト（毎タスク確認）
+
+1. [ ] プランを先に立てた？（ファイル・方針・完了条件・検証方法）
+2. [ ] 後輩ちゃんに委譲した？（1 後輩ちゃん = 1 タスク）
+3. [ ] 後輩ちゃんの報告をレビューした？
+4. [ ] `npm run lint` を実行した？
+5. [ ] `npm run check` を実行した？
+
+## 4. CLI で直接やること（後輩ちゃん不要）
+
+```bash
+npm run lint      # Lint
+npm run lint:fix  # Lint 自動修正
+npm run format    # Prettier
+npm run check     # 型チェック
+npm run test      # テスト
+```
+
+---
+
+# モデル設定
+
+| 用途                           | モデル               |
+| ------------------------------ | -------------------- |
+| プラン作成・レビュー・設計判断 | Sonnet 4.6（あなた） |
+| 1M コンテキストが必要なとき    | Opus 4.6             |
+| 実装タスク（後輩ちゃん）       | `model: sonnet`      |
+| 単純作業（後輩ちゃん）         | `model: haiku`       |
+
+---
+
+# プロジェクト設定
+
+## 概要
+
 Vue.js + Django による投資ポートフォリオ管理アプリケーション。Google Sheetsと連携し、資産管理・月次レポート生成・チャート表示を行う。
 
 ## 技術スタック
-- **フロントエンド**: Vue.js 3, Vue Router, Chart.js, Vite
-- **バックエンド**: Django, Google Sheets API, Python pandas, uv（パッケージ管理）
-- **Pythonツールチェーン**: uv（パッケージ/バージョン管理）, ruff（リンター/フォーマッター）, ty（型チェッカー） ※すべてAstral社製
-- **言語**: TypeScript/Vue.js (フロント), Python 3.12 (バック)
 
-## ディレクトリ構成
-```
-spreadsheet-chart-vue/
-├── data-collector/     # ①データ収集フロー（独立実行）
-│   ├── collectors/     # 株価データ収集・Sheets書き込み
-│   ├── config/         # 設定ファイル
-│   ├── schedulers/     # 月次実行スケジューラー
-│   ├── logs/           # 実行ログ
-│   ├── pyproject.toml  # uvプロジェクト設定
-│   ├── uv.lock         # 依存関係ロックファイル
-│   ├── README.md       # データ収集システム説明
-│   └── main.py         # メイン実行スクリプト
-├── web-app/            # ②Webアプリケーションフロー
-│   ├── backend/        # Django API
-│   │   ├── sheets/     # Google Sheets読み取り専用
-│   │   ├── portfolio/  # ポートフォリオ管理
-│   │   └── requirements.txt
-│   └── frontend/       # Vue.js アプリケーション
-│       ├── src/
-│       │   ├── components/ # Vue コンポーネント
-│       │   ├── views/      # ページコンポーネント
-│       │   ├── composables/# Composition API
-│       │   ├── router/     # ルーティング
-│       │   └── utils/      # ユーティリティ
-│       └── package.json
-├── shared/             # 共通モジュール
-│   ├── sheets_config.py # Google Sheets設定
-│   └── __init__.py
-└── docs/               # ドキュメント
-```
+- **フロントエンド**: Vue.js 3, Vue Router, Chart.js, Vite
+- **バックエンド**: Django, Google Sheets API, uv（パッケージ管理）
+- **Pythonツールチェーン**: uv, ruff, ty（すべてAstral社製）
+- **言語**: TypeScript/Vue.js（フロント）, Python 3.12（バック）
 
 ## 開発コマンド
 
-### ①データ収集フロー（月次実行）
-- **依存関係インストール**: `cd data-collector && uv sync --dev`
-- **対話型実行**: `cd data-collector && uv run python main.py`
-- **バッチ実行**: `cd data-collector && uv run python main.py 2024 12`
+```bash
+# データ収集（月次実行）
+cd data-collector && uv sync --dev
+cd data-collector && uv run python main.py          # 対話型
+cd data-collector && uv run python main.py 2024 12  # バッチ
 
-### ②Webアプリケーションフロー
+# フロントエンド（ポート3000）
+cd web-app/frontend && npm run dev
 
-#### フロントエンド（ポート3000）
-- **開発サーバー**: `cd web-app/frontend && npm run dev`
-- **依存関係インストール**: `cd web-app/frontend && npm install`
+# バックエンド（ポート8000）
+cd web-app/backend && uv run python manage.py runserver
+cd web-app/backend && uv run python manage.py migrate
 
-#### バックエンド（ポート8000）
-- **開発サーバー**: `cd web-app/backend && uv run python manage.py runserver`
-- **マイグレーション**: `cd web-app/backend && uv run python manage.py migrate`
-- **依存関係インストール**: `cd web-app/backend && uv sync --dev`
+# Python品質チェック（各プロジェクトディレクトリで実行）
+uv run ruff check . --fix
+uvx ty check
+```
 
-### Python環境管理（uvベース）
-- **Pythonインストール**: `uv python install 3.12`
-- **仮想環境作成**: `uv venv .venv --python 3.12`
-- **依存関係同期**: `uv sync --dev`
-- **コードチェック**: `uv run ruff check . --fix`
-- **型チェック**: `uvx ty check`
+## 環境設定
 
-### 環境設定
-- **環境変数設定**: web-app/backend/.env ファイルで GOOGLE_APPLICATION_CREDENTIALS と SPREADSHEET_ID を設定
-- **data-collector/.env**: GOOGLE_APPLICATION_CREDENTIALSのパスをローカル絶対パスに修正
-- **シート構成**: ポートフォリオ（12カラム）、データ記録（9カラム）、損益レポート（16カラム）、為替レート（8カラム）
+- `data-collector/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
+- `web-app/backend/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, `DEBUG=False`, `SECRET_KEY`
 
-## 主要コンポーネント（現在の実装状況）
+## 実装状況
 
-### フロントエンド（完成済み）
-- `App.vue` - 統合ダッシュボード（全機能を1ファイルに集約）
-  - 保有銘柄一覧と損益表示
-  - ポートフォリオ構成円グラフ（パーセンテージ表示）
-  - 総損益推移グラフ（期間選択：6ヶ月/1年/全期間）
-  - 銘柄別損益推移グラフ（取得時期ベース・購入タイミング表示）
-  - 詳細取引履歴表示（クリック展開）
-  - 買い増し対応（複数回購入の平均価格自動計算）
-
-### バックエンド（未実装）
-- Django API部分は現在未実装
-- フロントエンドはダミーデータで動作中
-
-## スプレッドシート構成
-
-ヘッダー定義は `shared/sheets_config.py` に一元管理。
-
-### ポートフォリオ (12カラム A-L)
-| 列 | カラム名 | 備考 |
-|----|---------|------|
-| A | 銘柄コード | 例: 7974.T, NVDA |
-| B | 銘柄名 | |
-| C | 取得日 | |
-| D | 取得単価（円） | **数式 `=K*L`**（外貨単価×為替レートから自動計算） |
-| E | 保有株数 | |
-| F | 取得額合計 | 数式 `=D*E` |
-| G | 通貨 | JPY / USD / HKD（ISOコード） |
-| H | 外国株フラグ | ○ / × |
-| I | 最終更新 | |
-| J | 備考 | |
-| K | 取得単価（外貨） | 入力元。日本株は円建て価格、外国株は外貨建て価格 |
-| L | 取得時為替レート | 入力元。日本株は1.0 |
-
-### データ記録 (9カラム A-I)
-月末日付, 銘柄コード, 月末価格（円）, 最高値, 最安値, 平均価格, 月間変動率(%), 平均出来高, 取得日時
-
-### 損益レポート (16カラム A-P)
-日付, 銘柄コード, 銘柄名, 取得単価, 月末価格, 保有株数, 取得額, 評価額, 損益, 損益率(%), 更新日時, 通貨, 取得単価（外貨）, 月末価格（外貨）, 取得時為替レート, 現在為替レート
-
-### 為替レート (8カラム A-H)
-取得日, 通貨ペア, レート, 前回レート, 変動率(%), 最高値, 最安値, 更新日時
-
-### 損益分離計算
-- 株価損益 = (月末外貨価格 - 取得外貨価格) × 取得時為替レート × 株数
-- 為替損益 = (現在為替レート - 取得時為替レート) × 月末外貨価格 × 株数
-- 不変条件: D列 = K列 × L列
-
-## データフロー
-### ①データ収集フロー（月次実行・独立）
-1. **株価データ収集**: data-collector/main.py → yfinance API → 株価データ取得
-2. **データ転記**: Google Sheets API → ポートフォリオ・データ記録・損益レポートシート更新
-3. **為替レート**: 外国株の場合、自動で為替レートを取得し円換算。為替損益と株価損益を分離計算
-4. **実行方法**: 手動実行またはcron等のスケジューラーで月次自動実行
-
-### ②Webアプリケーションフロー（リアルタイム表示）
-1. **データ読み取り**: Google Sheets → Django API → データ取得・加工
-2. **フロントエンド表示**: Vue.js → Chart.js → 損益推移・ポートフォリオ可視化
-3. **ユーザー操作**: ダッシュボード操作・月次レポート表示・ブログエクスポート
-
-## API エンドポイント
-- `GET /api/get_data/` - スプレッドシートデータ取得
-- `POST /api/update_stock_price/` - 株価更新
-- `GET /api/generate_report/{month}/` - 月次レポート生成
-
-## 注意事項
-- Google Sheets API認証情報が必要
-- 個人投資データを扱うため、セキュリティに注意
-- 日本語でのコミュニケーション対応
-
-## Claude Code使用時の設定
-- 質問・回答は日本語で対応
-- コードコメントは日本語で記述
-- エラーメッセージも日本語で説明
-- Vue.js/Django のベストプラクティス遵守
+| 層 | 状態 |
+|---|---|
+| data-collector | 完成（yfinance→Sheets書き込み・ブログ生成） |
+| Django sheets/ | 実装済み（portfolio/currency/manual-update） |
+| Django portfolio/, reports/ | views.py 未実装 |
+| フロントエンド | API連携コード有り（`/api/v1/portfolio/` が未実装） |
 
 ## 開発ガイドライン
-- コンポーネントは単一責任の原則
-- Composition API を活用
-- レスポンシブデザイン対応
-- エラーハンドリングの実装
-- テストコード作成推奨
-- ClAUDE.mdとREADEME.mdは開発の状況によって定期的に更新をしていくこと
-- 開発の問題点や今後の実装目標・計画はPROJECT_PROCEED.mdに加筆・修正して管理しておくこと
-- コミットメッセージは日本語で簡潔に書くこと
+
+- コードコメント・コミットメッセージ・会話はすべて日本語
+- CLAUDE.md・README.md は開発状況に合わせて随時更新する
+- 開発の問題点・実装計画は `PROJECT_PROCEED.md` で管理する
+- コンポーネントは単一責任の原則・Composition API を活用
+
+---
+
+# 詳細ドキュメント
+
+@docs/project-structure.md
+@docs/sheets-schema.md
+@docs/api-reference.md

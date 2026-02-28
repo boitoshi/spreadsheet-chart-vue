@@ -1,6 +1,59 @@
-# 📁 プロジェクト進行状況と今後の計画
+# プロジェクト進行状況と今後の計画
 
-## 🎯 2025年7月20日完了済み項目
+---
+
+## 2026-02-28: ドキュメント整備・静的解析修正
+
+### 実施内容
+
+- **CLAUDE.md 分割**: 268行の単一ファイルを `@import` 形式で4ファイルに分割（138行に削減）
+  - `docs/project-structure.md` — ディレクトリ構成・データフロー
+  - `docs/sheets-schema.md` — スプレッドシートカラム定義・損益計算式
+  - `docs/api-reference.md` — 実装済み/未実装エンドポイント一覧
+- **`data-collector/pyproject.toml` 修正**: `[tool.ty]` の `python-version` を `[tool.ty.environment]` 以下に移動。`extra-paths` で `collectors/`・`config/`・`../shared/` を追加
+- **`data-collector/main.py` インポート修正**: `sys.path.append` + フラットインポートを、パッケージ形式（`from collectors.xxx import yyy`、`from config.settings import yyy`）に変更。ruff・ty・IDE 警告がすべてゼロに
+- **ルート `pyproject.toml` 修正**: VS Code が参照するルートの `[tool.ty.environment]` に `python-version` と `extra-paths = ["shared"]` を追加
+- **`web-app/backend/README.md`**: ほぼ空だったファイルに起動手順・エンドポイント一覧・ディレクトリ構成を記述
+
+---
+
+## 2026-02-28: コードベース評価サマリー
+
+### 実装状況
+
+| 層 | 状態 | 詳細 |
+|---|---|---|
+| data-collector | 完成 | yfinance→Sheets書き込み・ブログ生成まで動作 |
+| バックエンド（Django） | 部分実装 | sheets/ 実装済み、portfolio/reports 未実装 |
+| フロントエンド（Vue.js） | 実装中 | API連携コード有り、ダミーデータ残存あり |
+
+### 発見した問題（優先度順）
+
+#### 高優先度（本番化前に必須）
+- [ ] `web-app/backend/backend/settings.py` L26: `DEBUG` デフォルトが `True` → `False` に変更
+- [ ] `web-app/backend/backend/settings.py` L124: `CORS_ALLOW_ALL_ORIGINS` のデフォルト値見直し
+- [ ] `web-app/backend/sheets/views.py` L14: 裸の `except` による例外隠蔽を修正
+- [ ] フロントエンド `api.js` L94 が呼ぶ `/api/v1/portfolio/` エンドポイントを実装
+
+#### 中優先度
+- [ ] `get_gspread_client()` が `manual_updater.py` と `report_generator.py` で重複 → `shared/` に移動
+- [ ] `sheets/views.py` の全関数に型ヒント追加
+- [ ] `report_generator.py` L324, L342 のダミーデータ（前月比・月次トピックス）実装
+
+#### 低優先度
+- [ ] `App.vue`（783行）のコンポーネント分割（Pinia 導入も検討）
+- [ ] `api.js`, `composables/` を TypeScript に移行
+- [ ] yfinance API 呼び出しにリトライ・レート制限実装
+
+### 次のアクション
+
+1. `portfolio/` アプリに `views.py` を実装（`/api/v1/portfolio/` エンドポイント）
+2. フロントエンドの為替損益表示対応（App.vue）
+3. `DEBUG=False` / `CORS_ALLOW_ALL_ORIGINS=False` を本番デフォルトに
+
+---
+
+## 2025年7月20日完了済み項目
 
 ### ✅ 時系列精度向上（重要）
 - **時系列を正確に考慮した損益計算ロジック完成**: 取得時期以前の期間での損益計算を排除し、webサイト公開レベルの正確性を実現
@@ -310,6 +363,12 @@ mv .env.example config/
 ### main.py バグ修正
 - `except ValueError` が引数パースだけでなく `collect_monthly_data` 内部エラーも隠蔽していた問題を修正
 - 必須フィールド（銘柄コード、銘柄名、保有株数）が空の行をスキップするバリデーション追加
+
+### 損益レポートの保有期間フィルタリング（2026-02-07追加）
+- ポートフォリオの「取得日」を参照し、取得月以降のみ損益レポートに記録
+- 取得前の期間はデータ記録（市場データ）のみ記録し、損益計算は行わない
+- `--range`で過去データを一括取得した際、保有していない期間の不正な損益レコードが作成されなくなった
+- 取得日が空の場合はデフォルトで保有扱い（後方互換性）
 
 ### 今後の課題
 - [ ] フロントエンドでの為替損益表示対応（App.vue）

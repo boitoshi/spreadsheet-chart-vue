@@ -38,5 +38,6 @@ select = [
     "E", "W", "F", "I", "B", "C4", "UP"
 ]
 
-[tool.ty]
-# ty設定（Astral社製の超高速型チェッカー）
+[tool.ty.environment]
+python-version = "3.12"
+extra-paths = ["shared"]

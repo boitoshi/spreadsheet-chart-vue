@@ -8,18 +8,21 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-# パス設定
-sys.path.append(os.path.join(os.path.dirname(__file__), "collectors"))
-sys.path.append(os.path.join(os.path.dirname(__file__), "config"))
+# shared モジュールのパス設定（プロジェクトルート外のため sys.path が必要）
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "shared"))
 
-from chart_generator import ChartDataGenerator
-from chart_image_generator import ChartImageGenerator
-from report_generator import BlogReportGenerator
-from settings import CURRENCY_SETTINGS, GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID
-from sheets_writer import SheetsDataWriter
-from stock_collector import StockDataCollector
-from template_engine import MarkdownTemplateEngine
+from collectors.chart_generator import ChartDataGenerator
+from collectors.chart_image_generator import ChartImageGenerator
+from collectors.interactive_chart_generator import InteractiveChartGenerator
+from collectors.report_generator import BlogReportGenerator
+from collectors.sheets_writer import SheetsDataWriter
+from collectors.stock_collector import StockDataCollector
+from collectors.template_engine import MarkdownTemplateEngine
+from config.settings import (
+    CURRENCY_SETTINGS,
+    GOOGLE_APPLICATION_CREDENTIALS,
+    SPREADSHEET_ID,
+)
 
 
 class PortfolioDataCollector:
@@ -66,10 +69,13 @@ class PortfolioDataCollector:
         # 為替レート取得・保存
         self._update_currency_rates(last_day)
 
-        if performance_results:
+        if data_record_results or performance_results:
             print(f"\n🎉 {year}年{month}月のデータ取得・分析が完了しました！")
-            print("   Django backendからWebアプリで確認できます")
-            self.sheets_writer.display_portfolio_summary(year, month)
+            if performance_results:
+                print("   Django backendからWebアプリで確認できます")
+                self.sheets_writer.display_portfolio_summary(year, month)
+            else:
+                print("   市場データのみ記録（保有銘柄なし）")
             return True
         else:
             print("❌ データの取得に失敗しました")
@@ -126,6 +132,23 @@ class PortfolioDataCollector:
                 continue
             shares = int(raw_shares)
 
+            # 取得日を解析して、対象月に保有していたか判定
+            purchase_date_str = holding.get("取得日", "")
+            is_owned_in_month = True  # デフォルトは保有扱い（取得日が空の場合）
+            if purchase_date_str:
+                try:
+                    purchase_date = datetime.strptime(
+                        str(purchase_date_str), "%Y-%m-%d"
+                    )
+                    # 取得月以降のみ損益レポートに含める
+                    is_owned_in_month = (year, month) >= (
+                        purchase_date.year,
+                        purchase_date.month,
+                    )
+                except ValueError:
+                    # 日付パース失敗時は保有扱い
+                    pass
+
             # 外貨情報の取得
             raw_foreign = holding.get("取得単価（外貨）", 0)
             raw_rate = holding.get("取得時為替レート", 0)
@@ -174,45 +197,52 @@ class PortfolioDataCollector:
                 ]
             )
 
-            # 損益レポート用データ準備（16カラム: A-P）
-            performance_results.append(
-                [
-                    f"{year}-{month:02d}-末",                       # A: 日付
-                    symbol,                                         # B: 銘柄コード
-                    name,                                           # C: 銘柄名
-                    purchase_price_jpy,                             # D: 取得単価（円）
-                    metrics["month_end_price"],                     # E: 月末価格（円）
-                    shares,                                         # F: 保有株数
-                    metrics["purchase_amount"],                     # G: 取得額
-                    metrics["current_amount"],                      # H: 評価額
-                    metrics["profit_loss"],                         # I: 損益（総額）
-                    metrics["profit_rate"],                         # J: 損益率
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),   # K: 更新日時
-                    metrics.get("currency", "JPY"),          # L: 通貨
-                    metrics["purchase_price_foreign"],       # M: 外貨取得単価
-                    metrics["month_end_price_foreign"],      # N: 外貨月末価格
-                    metrics["purchase_exchange_rate"],       # O: 取得時レート
-                    metrics["current_exchange_rate"],        # P: 現在レート
-                ]
-            )
-
-            # 外貨情報の表示
-            currency_info = ""
-            if metrics.get("exchange_rate"):
-                currency_info = (
-                    f" [{metrics['currency']}: {metrics['exchange_rate']:.2f}円]"
-                )
-                # 為替損益の内訳も表示
-                stock_pl = metrics.get("stock_profit_loss", 0)
-                fx_pl = metrics.get("fx_profit_loss", 0)
-                currency_info += (
-                    f" (株価:{stock_pl:+,.0f}円 / 為替:{fx_pl:+,.0f}円)"
+            # 損益レポート: 保有期間のみ記録（取得月以降）
+            if is_owned_in_month:
+                performance_results.append(
+                    [
+                        f"{year}-{month:02d}-末",             # A: 日付
+                        symbol,                               # B: 銘柄コード
+                        name,                                 # C: 銘柄名
+                        purchase_price_jpy,                   # D: 取得単価(円)
+                        metrics["month_end_price"],           # E: 月末価格(円)
+                        shares,                               # F: 保有株数
+                        metrics["purchase_amount"],           # G: 取得額
+                        metrics["current_amount"],            # H: 評価額
+                        metrics["profit_loss"],               # I: 損益
+                        metrics["profit_rate"],               # J: 損益率
+                        datetime.now().strftime(              # K: 更新日時
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        metrics.get("currency", "JPY"),       # L: 通貨
+                        metrics["purchase_price_foreign"],    # M: 外貨取得単価
+                        metrics["month_end_price_foreign"],   # N: 外貨月末価格
+                        metrics["purchase_exchange_rate"],    # O: 取得時レート
+                        metrics["current_exchange_rate"],     # P: 現在レート
+                    ]
                 )
 
-            print(
-                f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 "
-                f"({metrics['profit_rate']:+.1f}%){currency_info}"
-            )
+                # 外貨情報の表示
+                currency_info = ""
+                if metrics.get("exchange_rate"):
+                    currency_info = (
+                        f" [{metrics['currency']}: {metrics['exchange_rate']:.2f}円]"
+                    )
+                    # 為替損益の内訳も表示
+                    stock_pl = metrics.get("stock_profit_loss", 0)
+                    fx_pl = metrics.get("fx_profit_loss", 0)
+                    currency_info += (
+                        f" (株価:{stock_pl:+,.0f}円 / 為替:{fx_pl:+,.0f}円)"
+                    )
+
+                print(
+                    f"    ✅ {name}: {metrics['profit_loss']:+,.0f}円 "
+                    f"({metrics['profit_rate']:+.1f}%){currency_info}"
+                )
+            else:
+                print(
+                    f"    📋 {name}: 市場データのみ記録（取得日: {purchase_date_str}）"
+                )
 
         return data_record_results, performance_results, last_day
 
@@ -476,6 +506,15 @@ class PortfolioDataCollector:
         )
         report_data["chart_images"] = chart_paths
 
+        # インタラクティブHTMLチャート生成
+        print("\n📊 インタラクティブチャートを生成中...")
+        interactive_gen = InteractiveChartGenerator(self.sheets_writer)
+        interactive_result = interactive_gen.generate(
+            year, month, report_data, chart_data
+        )
+        report_data["interactive_chart"] = interactive_result.get("portfolio")
+        report_data["interactive_stock_charts"] = interactive_result.get("stocks", {})
+
         # Markdown生成
         template_engine = MarkdownTemplateEngine()
         markdown = template_engine.render("blog_template.md", report_data)
@@ -491,12 +530,17 @@ class PortfolioDataCollector:
         print(f"\n✅ ブログ記事下書きを生成しました: {output_path}")
         print("   WordPressにコピー&ペーストしてご利用ください")
 
-        # 生成されたチャート画像のパス表示
+        # 生成されたチャートのパス表示
         if chart_paths.get("portfolio"):
             print("\n📈 生成されたチャート画像:")
             print(f"  - ポートフォリオ全体: {chart_paths['portfolio']}")
             for symbol, path in chart_paths.get("stocks", {}).items():
                 print(f"  - {symbol}: {path}")
+        if interactive_result.get("portfolio"):
+            print(f"\n🌐 ポートフォリオチャート: {interactive_result['portfolio']}")
+            for name, path in interactive_result.get("stocks", {}).items():
+                print(f"  📊 {name}: {path}")
+            print("   ブラウザで開いて動作確認できます")
 
         # プレビュー表示
         preview_lines = markdown.split("\n")[:20]
