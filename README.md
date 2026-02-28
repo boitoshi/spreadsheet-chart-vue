@@ -107,6 +107,7 @@ cd web-app/frontend && npm run build
 - [`docs/project-structure.md`](docs/project-structure.md) — ディレクトリ構成・データフロー
 - [`docs/sheets-schema.md`](docs/sheets-schema.md) — スプレッドシートのカラム定義
 - [`docs/api-reference.md`](docs/api-reference.md) — API エンドポイント詳細
+- [`docs/deployment-plan.md`](docs/deployment-plan.md) — デプロイ方針（Cloud Run + CONOHA）
 - [`docs/data-collection-guide.md`](docs/data-collection-guide.md) — データ収集の操作ガイド
 - [`data-collector/README.md`](data-collector/README.md) — データ収集システム詳細
 
