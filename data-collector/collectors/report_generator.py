@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from stock_utils import get_currency_from_symbol, is_foreign_stock
+from .stock_utils import get_currency_from_symbol, is_foreign_stock
 
 
 class BlogReportGenerator:

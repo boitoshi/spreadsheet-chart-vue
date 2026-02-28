@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 import yfinance as yf
-from currency_converter import CurrencyConverter
+from .currency_converter import CurrencyConverter
 
 
 class StockDataCollector:
