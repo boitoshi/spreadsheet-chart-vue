@@ -56,7 +56,8 @@ local_settings.py
 
 # Google Sheets API credentials
 *.json
-\!package*.json
+!package*.json
+!tsconfig*.json
 service-account*.json
 my-service-account.json
 
