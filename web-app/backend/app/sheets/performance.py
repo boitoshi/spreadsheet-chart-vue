@@ -70,3 +70,12 @@ def fetch_performance(stock: str | None = None) -> list[dict]:
             "fxProfit": fx_profit,
         })
     return result
+
+
+def fetch_latest_values() -> dict[str, float]:
+    """銘柄コード → 最新月末評価額 の辞書を返す"""
+    records = fetch_performance()
+    if not records:
+        return {}
+    latest_date = max(r["date"] for r in records)
+    return {r["code"]: r["value"] for r in records if r["date"] == latest_date}

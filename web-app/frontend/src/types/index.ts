@@ -4,6 +4,7 @@ export interface KpiSummary {
   totalProfit: number; // 損益合計（円）
   profitRate: number; // 損益率（%）
   baseDate: string; // 基準日（YYYY-MM-DD）
+  portfolioCagr: number | null; // ポートフォリオ全体 CAGR（%）
 }
 
 // ダッシュボード: 構成比（DonutChart 用）
@@ -39,6 +40,8 @@ export interface PortfolioItem {
   totalCost: number; // 取得額合計
   currency: string; // 通貨コード（JPY/USD/HKD）
   isForeign: boolean; // 外国株フラグ
+  currentValue: number; // 最新評価額（円）
+  cagr: number | null; // 年率換算リターン（小数、1年未満は null）
 }
 
 // ポートフォリオ レスポンス

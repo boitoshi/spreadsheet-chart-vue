@@ -31,7 +31,8 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
     "totalValue": 5000000.0,
     "totalProfit": 300000.0,
     "profitRate": 6.38,
-    "baseDate": "2025-01-末"
+    "baseDate": "2025-01-末",
+    "portfolioCagr": 9.54
   },
   "allocation": [
     {"name": "任天堂", "value": 3000000.0, "percentage": 60.0}
@@ -40,6 +41,9 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
     {"name": "任天堂", "profit": 200000.0, "profitRate": 7.14}
   ]
 }
+```
+
+> `portfolioCagr`: 全銘柄の評価額加重平均 CAGR（%）。保有期間1年未満の銘柄のみの場合は `null`。
 ```
 
 ### GET /api/portfolio
@@ -57,10 +61,16 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
       "shares": 100.0,
       "totalCost": 643300.0,
       "currency": "JPY",
-      "isForeign": false
+      "isForeign": false,
+      "currentValue": 720000.0,
+      "cagr": 0.0954
     }
   ]
 }
+```
+
+> `currentValue`: 最新月末評価額（円）。損益レポートシートの最新月から取得。
+> `cagr`: 年率換算リターン（小数）。保有期間1年未満は `null`。表示時は100倍して `%` 換算。
 ```
 
 ### GET /api/history[?stock=コード]

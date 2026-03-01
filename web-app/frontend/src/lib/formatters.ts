@@ -24,3 +24,8 @@ export function formatYearMonth(dateStr: string): string {
 export function profitColor(value: number): string {
   return value >= 0 ? "text-green-600" : "text-red-600";
 }
+
+/** CAGR 表示（例: +9.54%）*/
+export function formatCagr(v: number): string {
+  return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+}
