@@ -1,5 +1,6 @@
 import { fetchApi } from "@/lib/api";
-import { HistoryResponse } from "@/types";
+import { BenchmarkResponse, HistoryResponse } from "@/types";
+import { BenchmarkChart } from "@/components/history/BenchmarkChart";
 import { ProfitAreaChart } from "@/components/history/ProfitAreaChart";
 import { StockFilter } from "@/components/history/StockFilter";
 import { StockCompareChart } from "@/components/history/StockCompareChart";
@@ -15,7 +16,10 @@ export default async function HistoryPage({ searchParams }: Props) {
   const historyPath = stock
     ? `/api/history?stock=${encodeURIComponent(stock)}`
     : "/api/history";
-  const data = await fetchApi<HistoryResponse>(historyPath);
+  const [data, benchmark] = await Promise.all([
+    fetchApi<HistoryResponse>(historyPath),
+    fetchApi<BenchmarkResponse>("/api/benchmark"),
+  ]);
   const filteredData = data.data;
   return (
     <div>
@@ -28,6 +32,10 @@ export default async function HistoryPage({ searchParams }: Props) {
       <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-sm font-medium text-gray-500 mb-4">銘柄別損益率比較</h2>
         <StockCompareChart data={filteredData} />
+      </div>
+      <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
+        <h2 className="text-sm font-medium text-gray-500 mb-4">ベンチマーク比較（累積リターン）</h2>
+        <BenchmarkChart data={benchmark.data} />
       </div>
     </div>
   );

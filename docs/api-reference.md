@@ -14,6 +14,8 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
 | GET | `/api/dividend` | 配当・分配金一覧 |
 | GET | `/api/reports` | 月次レポート一覧 |
 | GET | `/api/reports/{year}/{month}` | 指定月のレポート内容（Markdown テキスト）|
+| GET | `/api/benchmark` | ポートフォリオ vs 日経225 / S&P500 累積リターン比較 |
+| GET | `/api/exposure` | 通貨別エクスポージャーサマリー（最新月、JPY/USD）|
 
 ## レスポンス型
 
@@ -148,6 +150,29 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
 }
 ```
 
+### GET /api/benchmark
+
+```json
+{
+  "data": [
+    { "date": "2024-01-末", "portfolio": 6.5, "nikkei225": 3.2, "sp500": 2.1 }
+  ]
+}
+```
+
+### GET /api/exposure
+
+```json
+{
+  "items": [
+    { "currency": "JPY", "value": 3000000, "cost": 2700000,
+      "profit": 300000, "profitRate": 11.11, "percentage": 60.0 },
+    { "currency": "USD", "value": 2000000, "cost": 1800000,
+      "profit": 200000, "profitRate": 11.11, "percentage": 40.0 }
+  ]
+}
+```
+
 ## 実装ファイル対応表
 
 | エンドポイント | ルーター | シートモジュール | スキーマ |
@@ -158,3 +183,5 @@ FastAPI バックエンド（ポート8000）のエンドポイント一覧。
 | /api/currency | app/routers/currency.py | app/sheets/currency.py | app/schemas/currency.py |
 | /api/dividend | app/routers/dividend.py | app/sheets/dividend.py | app/schemas/dividend.py |
 | /api/reports | app/routers/reports.py | app/reports.py | app/schemas/reports.py |
+| /api/benchmark | app/routers/benchmark.py | app/sheets/performance.py + yfinance | app/schemas/benchmark.py |
+| /api/exposure | app/routers/exposure.py | app/sheets/performance.py | app/schemas/exposure.py |

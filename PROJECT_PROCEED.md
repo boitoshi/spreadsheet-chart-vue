@@ -15,11 +15,55 @@
   - ⚠️ スプレッドシートに「配当・分配金」シートの手動作成が必要
 - [x] 月次レポート Web プレビュー（`/api/reports` + `/reports` ページ新規作成）
 - [x] コードリファクタリング: `_to_float` を `utils.py` に集約、`buildPivotData` を `chartUtils.ts` に集約
+- [x] ベンチマーク比較（`/api/benchmark` + `BenchmarkChart` — history ページに追加）
+  - yfinance で日経225 / S&P500 を月次取得し、ポートフォリオ累積リターンと比較
+- [x] 通貨エクスポージャーサマリー（`/api/exposure` + `CurrencyExposureTable` — ダッシュボードに追加）
+  - 最新月の JPY/USD 別 評価額・損益率・構成比をテーブル表示
 
 ### 📋 中優先度
 2. **CAGR（年率換算リターン）** — 取得日からの保有期間を考慮した年率リターン表示
-3. **ベンチマーク比較** — 日経225 / S&P500 と自ポートフォリオのリターンを並べて表示
-4. **通貨エクスポージャーサマリー** — JPY/USD/HKD ごとの評価額・損益率を一覧表示
+
+---
+
+## 2026-03-01: ベンチマーク比較・通貨エクスポージャーサマリー実装
+
+### Feature 1: ベンチマーク比較（history ページ）
+
+- `GET /api/benchmark`: ポートフォリオ累積リターン vs 日経225 / S&P500 を返す
+  - yfinance（`^N225` `^GSPC`）で月次終値を取得し、初月基準の累積リターン率（%）に変換
+  - performance シートを月ごとに集計してポートフォリオ率を算出
+  - yfinance 疎通失敗時は `except Exception` でフォールバックし nikkei225/sp500 を `null` に
+- `BenchmarkChart.tsx`: Recharts `LineChart` で 3 本折れ線（青/赤/緑）・ゼロライン・Legend 付き
+- history ページ下部に追加（Promise.all で並列フェッチ）
+
+### Feature 2: 通貨エクスポージャーサマリー（ダッシュボード）
+
+- `GET /api/exposure`: 最新月の JPY/USD 別に 評価額・取得額・損益・損益率・構成比 を集計（HKD 除外）
+- `CurrencyExposureTable.tsx`: テーブル表示、損益は正負で色分け
+- ダッシュボード（AllocationTrendChart の下）に追加
+
+### 変更ファイル（13 ファイル）
+
+**バックエンド:**
+- `web-app/backend/pyproject.toml` — `yfinance>=0.2`, `httpx>=0.27.0` 追加
+- `web-app/backend/app/schemas/benchmark.py` — 新規
+- `web-app/backend/app/schemas/exposure.py` — 新規
+- `web-app/backend/app/routers/benchmark.py` — 新規
+- `web-app/backend/app/routers/exposure.py` — 新規
+- `web-app/backend/main.py` — 2 ルーター登録
+- `web-app/backend/tests/test_benchmark.py` — 新規（9 ケース、全 33 テスト パス）
+
+**フロントエンド:**
+- `web-app/frontend/src/types/index.ts` — 4 型追加
+- `web-app/frontend/src/components/history/BenchmarkChart.tsx` — 新規
+- `web-app/frontend/src/components/dashboard/CurrencyExposureTable.tsx` — 新規
+- `web-app/frontend/src/app/history/page.tsx` — BenchmarkChart セクション追加
+- `web-app/frontend/src/app/page.tsx` — CurrencyExposureTable セクション追加
+
+### 検証済み
+- `uv run ruff check .` — All checks passed
+- `npm run check` — TypeScript エラーなし
+- `uv run pytest tests/ -v` — 33 passed
 
 ---
 

@@ -119,3 +119,31 @@ export interface ReportContentResponse {
   month: number;
   content: string; // Markdown テキスト
 }
+
+// ベンチマーク比較データポイント
+export interface BenchmarkPoint {
+  date: string;
+  portfolio: number;
+  nikkei225: number | null;
+  sp500: number | null;
+}
+
+// ベンチマーク比較 レスポンス
+export interface BenchmarkResponse {
+  data: BenchmarkPoint[];
+}
+
+// 通貨エクスポージャーアイテム
+export interface ExposureItem {
+  currency: string;
+  value: number;
+  cost: number;
+  profit: number;
+  profitRate: number;
+  percentage: number;
+}
+
+// 通貨エクスポージャー レスポンス
+export interface ExposureResponse {
+  items: ExposureItem[];
+}
