@@ -8,6 +8,9 @@ class MonthlyProfitPoint(BaseModel):
     profit: float
     value: float
     profitRate: float
+    currency: str
+    stockProfit: float
+    fxProfit: float
 
 
 class HistoryResponse(BaseModel):

@@ -54,6 +54,9 @@ export interface MonthlyProfitPoint {
   profit: number; // 損益（円）
   value: number; // 評価額（円）
   profitRate: number; // 損益率（%）
+  currency: string; // 通貨コード（JPY/USD/HKD）
+  stockProfit: number; // 株価損益（円）
+  fxProfit: number; // 為替損益（円）
 }
 
 // 損益推移 レスポンス

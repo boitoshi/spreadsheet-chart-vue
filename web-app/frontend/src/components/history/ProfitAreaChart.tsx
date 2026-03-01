@@ -1,12 +1,13 @@
 "use client";
 import { MonthlyProfitPoint } from "@/types";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 
@@ -14,28 +15,26 @@ interface Props {
   data: MonthlyProfitPoint[];
 }
 
-// 日付ごとに損益合計を集計（複数銘柄の場合）
+// 日付ごとに株価損益・為替損益を集計（複数銘柄の場合）
 function aggregate(data: MonthlyProfitPoint[]) {
-  const map = new Map<string, number>();
+  const map = new Map<string, { stockProfit: number; fxProfit: number }>();
   for (const d of data) {
-    map.set(d.date, (map.get(d.date) ?? 0) + d.profit);
+    const prev = map.get(d.date) ?? { stockProfit: 0, fxProfit: 0 };
+    map.set(d.date, {
+      stockProfit: prev.stockProfit + d.stockProfit,
+      fxProfit: prev.fxProfit + d.fxProfit,
+    });
   }
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, profit]) => ({ date, profit }));
+    .map(([date, { stockProfit, fxProfit }]) => ({ date, stockProfit, fxProfit }));
 }
 
 export function ProfitAreaChart({ data }: Props) {
   const chartData = aggregate(data);
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-          </linearGradient>
-        </defs>
+      <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} />
         <YAxis
@@ -44,19 +43,17 @@ export function ProfitAreaChart({ data }: Props) {
           tickFormatter={(v: number) => `${(v / 10000).toFixed(0)}万`}
         />
         <Tooltip
-          formatter={(v) => [
+          formatter={(v, name) => [
             typeof v === "number" ? `${v.toLocaleString()}円` : String(v),
-            "損益合計",
+            name === "stockProfit" ? "株価損益" : "為替損益",
           ]}
         />
-        <Area
-          type="monotone"
-          dataKey="profit"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          fill="url(#profitGrad)"
+        <Legend
+          formatter={(value) => (value === "stockProfit" ? "株価損益" : "為替損益")}
         />
-      </AreaChart>
+        <Bar dataKey="stockProfit" stackId="profit" fill="#3b82f6" />
+        <Bar dataKey="fxProfit" stackId="profit" fill="#f97316" />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
