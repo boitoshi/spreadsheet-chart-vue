@@ -1,4 +1,5 @@
 from app.sheets.client import get_sheet
+from app.sheets.utils import to_float, to_float_or_none
 
 
 def fetch_currency(start: str | None = None) -> list[dict]:
@@ -16,25 +17,9 @@ def fetch_currency(start: str | None = None) -> list[dict]:
         result.append({
             "date": date_str,
             "pair": str(r["通貨ペア"]),
-            "rate": _to_float(r.get("レート", 0)),
-            "changeRate": _to_float_or_none(r.get("変動率(%)")),
-            "high": _to_float_or_none(r.get("最高値")),
-            "low": _to_float_or_none(r.get("最安値")),
+            "rate": to_float(r.get("レート", 0)),
+            "changeRate": to_float_or_none(r.get("変動率(%)")),
+            "high": to_float_or_none(r.get("最高値")),
+            "low": to_float_or_none(r.get("最安値")),
         })
     return result
-
-
-def _to_float(value) -> float:
-    try:
-        return float(str(value).replace(",", ""))
-    except (ValueError, TypeError):
-        return 0.0
-
-
-def _to_float_or_none(value) -> float | None:
-    if value is None or value == "":
-        return None
-    try:
-        return float(str(value).replace(",", ""))
-    except (ValueError, TypeError):
-        return None

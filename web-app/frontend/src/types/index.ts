@@ -54,6 +54,9 @@ export interface MonthlyProfitPoint {
   profit: number; // 損益（円）
   value: number; // 評価額（円）
   profitRate: number; // 損益率（%）
+  currency: string; // 通貨コード（JPY/USD/HKD）
+  stockProfit: number; // 株価損益（円）
+  fxProfit: number; // 為替損益（円）
 }
 
 // 損益推移 レスポンス
@@ -76,4 +79,43 @@ export interface CurrencyRatePoint {
 export interface CurrencyResponse {
   data: CurrencyRatePoint[];
   latestRate: number; // 最新レート
+}
+
+// 配当・分配金データポイント
+export interface DividendItem {
+  date: string;        // 受取日
+  code: string;        // 銘柄コード
+  name: string;        // 銘柄名
+  dividendForeign: number;  // 1株配当（外貨）
+  shares: number;      // 保有株数
+  totalForeign: number; // 配当合計（外貨）
+  currency: string;    // 通貨コード（JPY/USD/HKD）
+  exchangeRate: number; // 為替レート
+  totalJpy: number;    // 配当合計（円）
+}
+
+// 配当・分配金 レスポンス
+export interface DividendResponse {
+  data: DividendItem[];
+  totalJpy: number;    // 受取配当合計（円）
+}
+
+// 月次レポート一覧アイテム
+export interface ReportItem {
+  year: number;
+  month: number;
+  label: string;   // 例: "2026年1月"
+  filename: string;
+}
+
+// 月次レポート一覧 レスポンス
+export interface ReportListResponse {
+  reports: ReportItem[];
+}
+
+// 月次レポート内容 レスポンス
+export interface ReportContentResponse {
+  year: number;
+  month: number;
+  content: string; // Markdown テキスト
 }

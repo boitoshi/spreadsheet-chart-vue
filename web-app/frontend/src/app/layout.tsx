@@ -18,6 +18,8 @@ const navItems = [
   { href: "/portfolio", label: "ポートフォリオ" },
   { href: "/history", label: "損益推移" },
   { href: "/currency", label: "為替レート" },
+  { href: "/dividend", label: "配当・分配金" },
+  { href: "/reports", label: "月次レポート" },
 ];
 
 export default function RootLayout({
