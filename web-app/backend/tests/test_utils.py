@@ -1,6 +1,7 @@
 """app/sheets/utils.py のユニットテスト"""
 
 import pytest
+
 from app.sheets.utils import to_float, to_float_or_none
 
 

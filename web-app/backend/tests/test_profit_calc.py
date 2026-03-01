@@ -1,39 +1,12 @@
 """
 損益分離計算ロジックのユニットテスト。
 
-fetch_performance() はGoogle Sheetsへの接続を持つため、
-計算ロジック部分のみをインライン関数として抽出してテストする。
+performance.py から calc_profit を直接インポートして検証する。
 """
 
 import pytest
 
-
-def _calc_profit(
-    profit: float,
-    shares: float,
-    currency: str,
-    acquired_price_foreign: float | None,
-    current_price_foreign: float | None,
-    acquired_exchange_rate: float | None,
-    current_exchange_rate: float | None,
-) -> tuple[float, float]:
-    """
-    performance.py の損益分離計算と同一ロジック。
-    Returns: (stock_profit, fx_profit)
-    """
-    if (
-        currency == "JPY"
-        or acquired_price_foreign is None
-        or current_price_foreign is None
-        or acquired_exchange_rate is None
-        or current_exchange_rate is None
-    ):
-        return profit, 0.0
-    price_diff = current_price_foreign - acquired_price_foreign
-    stock_profit = price_diff * acquired_exchange_rate * shares
-    rate_diff = current_exchange_rate - acquired_exchange_rate
-    fx_profit = rate_diff * current_price_foreign * shares
-    return stock_profit, fx_profit
+from app.sheets.performance import calc_profit as _calc_profit
 
 
 class TestJpyStockProfitCalc:

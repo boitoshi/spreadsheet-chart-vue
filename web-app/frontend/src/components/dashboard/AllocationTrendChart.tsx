@@ -38,6 +38,7 @@ export function AllocationTrendChart({ data }: Props) {
         <Tooltip
           formatter={(v) => [
             typeof v === "number" ? `${v.toLocaleString()}円` : String(v),
+            "評価額",
           ]}
         />
         <Legend />

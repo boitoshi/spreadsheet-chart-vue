@@ -12,10 +12,11 @@ interface Props {
 
 export default async function HistoryPage({ searchParams }: Props) {
   const { stock } = await searchParams;
-  const data = await fetchApi<HistoryResponse>("/api/history");
-  const filteredData = stock
-    ? data.data.filter((d) => d.code === stock)
-    : data.data;
+  const historyPath = stock
+    ? `/api/history?stock=${encodeURIComponent(stock)}`
+    : "/api/history";
+  const data = await fetchApi<HistoryResponse>(historyPath);
+  const filteredData = data.data;
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">損益推移</h1>
@@ -26,7 +27,7 @@ export default async function HistoryPage({ searchParams }: Props) {
       </div>
       <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-sm font-medium text-gray-500 mb-4">銘柄別損益率比較</h2>
-        <StockCompareChart data={data.data} />
+        <StockCompareChart data={filteredData} />
       </div>
     </div>
   );

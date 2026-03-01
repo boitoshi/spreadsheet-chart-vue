@@ -2,6 +2,31 @@ from app.sheets.client import get_sheet
 from app.sheets.utils import to_float, to_float_or_none
 
 
+def calc_profit(
+    profit: float,
+    shares: float,
+    currency: str,
+    acquired_price_foreign: float | None,
+    current_price_foreign: float | None,
+    acquired_exchange_rate: float | None,
+    current_exchange_rate: float | None,
+) -> tuple[float, float]:
+    """損益分離計算。(株価損益, 為替損益) を返す"""
+    if (
+        currency == "JPY"
+        or acquired_price_foreign is None
+        or current_price_foreign is None
+        or acquired_exchange_rate is None
+        or current_exchange_rate is None
+    ):
+        return profit, 0.0
+    price_diff = current_price_foreign - acquired_price_foreign
+    stock_profit = price_diff * acquired_exchange_rate * shares
+    rate_diff = current_exchange_rate - acquired_exchange_rate
+    fx_profit = rate_diff * current_price_foreign * shares
+    return stock_profit, fx_profit
+
+
 def fetch_performance(stock: str | None = None) -> list[dict]:
     """損益レポートシートから月次損益データを取得"""
     sheet = get_sheet("PERFORMANCE")
@@ -22,20 +47,15 @@ def fetch_performance(stock: str | None = None) -> list[dict]:
         acquired_exchange_rate = to_float_or_none(r.get("取得時為替レート"))
         current_exchange_rate = to_float_or_none(r.get("現在為替レート"))
 
-        if (
-            currency == "JPY"
-            or acquired_price_foreign is None
-            or current_price_foreign is None
-            or acquired_exchange_rate is None
-            or current_exchange_rate is None
-        ):
-            stock_profit = profit
-            fx_profit = 0.0
-        else:
-            price_diff = current_price_foreign - acquired_price_foreign
-            stock_profit = price_diff * acquired_exchange_rate * shares
-            rate_diff = current_exchange_rate - acquired_exchange_rate
-            fx_profit = rate_diff * current_price_foreign * shares
+        stock_profit, fx_profit = calc_profit(
+            profit,
+            shares,
+            currency,
+            acquired_price_foreign,
+            current_price_foreign,
+            acquired_exchange_rate,
+            current_exchange_rate,
+        )
 
         result.append({
             "date": str(r["日付"]),

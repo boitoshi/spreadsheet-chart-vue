@@ -26,8 +26,8 @@ export function DividendTable({ data }: Props) {
           </tr>
         </thead>
         <tbody>
-          {data.map((item, i) => (
-            <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+          {data.map((item) => (
+            <tr key={`${item.date}-${item.code}`} className="border-b border-gray-100 hover:bg-gray-50">
               <td className="px-4 py-3 text-gray-700">{item.date}</td>
               <td className="px-4 py-3">
                 <div className="font-medium text-gray-900">{item.name}</div>

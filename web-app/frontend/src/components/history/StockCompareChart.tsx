@@ -38,6 +38,7 @@ export function StockCompareChart({ data }: Props) {
         <Tooltip
           formatter={(v) => [
             typeof v === "number" ? `${v.toFixed(2)}%` : String(v),
+            "損益率",
           ]}
         />
         <Legend />

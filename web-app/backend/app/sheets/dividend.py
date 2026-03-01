@@ -1,3 +1,7 @@
+import logging
+
+import gspread
+
 from app.sheets.client import get_sheet
 from app.sheets.utils import to_float
 
@@ -7,8 +11,11 @@ def fetch_dividend() -> list[dict]:
     try:
         sheet = get_sheet("DIVIDEND")
         records = sheet.get_all_records()
-    except Exception:
+    except gspread.exceptions.WorksheetNotFound:
         return []
+    except Exception:
+        logging.exception("配当シート('DIVIDEND')の取得に失敗しました")
+        raise
     result = []
     for r in records:
         if not r.get("銘柄コード") or not r.get("受取日"):
