@@ -1,5 +1,5 @@
 import { PortfolioItem } from "@/types";
-import { formatJpy } from "@/lib/formatters";
+import { formatCagr, formatJpy } from "@/lib/formatters";
 
 interface Props {
   items: PortfolioItem[];
@@ -11,7 +11,7 @@ export function HoldingsTable({ items }: Props) {
       <table className="min-w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            {["銘柄コード", "銘柄名", "通貨", "取得日", "取得単価（円）", "保有株数"].map((h) => (
+            {["銘柄コード", "銘柄名", "通貨", "取得日", "取得単価（円）", "保有株数", "CAGR（年率）"].map((h) => (
               <th key={h} className="px-4 py-3 text-left font-medium text-gray-600">
                 {h}
               </th>
@@ -30,6 +30,17 @@ export function HoldingsTable({ items }: Props) {
               </td>
               <td className="px-4 py-3 text-right text-gray-900">
                 {item.shares.toLocaleString()}
+              </td>
+              <td
+                className={`px-4 py-3 text-right font-medium ${
+                  item.cagr == null
+                    ? "text-gray-400"
+                    : item.cagr >= 0
+                      ? "text-green-600"
+                      : "text-red-600"
+                }`}
+              >
+                {item.cagr == null ? "-" : formatCagr(item.cagr * 100)}
               </td>
             </tr>
           ))}

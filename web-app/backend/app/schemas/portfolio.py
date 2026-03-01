@@ -12,6 +12,8 @@ class PortfolioItem(BaseModel):
     totalCost: float
     currency: str
     isForeign: bool
+    currentValue: float
+    cagr: float | None
 
 
 class PortfolioResponse(BaseModel):

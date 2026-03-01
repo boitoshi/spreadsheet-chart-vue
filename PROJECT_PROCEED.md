@@ -16,9 +16,19 @@
 - [x] 月次レポート Web プレビュー（`/api/reports` + `/reports` ページ新規作成）
 - [x] コードリファクタリング: `_to_float` を `utils.py` に集約、`buildPivotData` を `chartUtils.ts` に集約
 
+### ✅ 完了（2026-03-01）
+- [x] **CAGR（年率換算リターン）** — 保有期間を考慮した年率リターン表示
+  - `app/sheets/utils.py`: `calc_cagr()` 純粋関数を追加
+  - `app/sheets/performance.py`: `fetch_latest_values()` を追加（銘柄コード→最新評価額辞書）
+  - `app/schemas/portfolio.py`: `currentValue`, `cagr` フィールドを追加
+  - `app/schemas/dashboard.py`: `KpiSummary.portfolioCagr` を追加（評価額加重平均）
+  - `app/routers/portfolio.py`, `dashboard.py`: CAGR 計算を組み込み
+  - `src/components/portfolio/HoldingsTable.tsx`: CAGR 列を追加（1年未満は `-`）
+  - `src/components/dashboard/KpiCards.tsx`: CAGR KPI カードを追加（4列グリッドに変更）
+  - `tests/test_cagr.py`: 8ケースのユニットテスト追加
+
 ### 📋 中優先度
-2. **CAGR（年率換算リターン）** — 取得日からの保有期間を考慮した年率リターン表示
-3. **ベンチマーク比較** — 日経225 / S&P500 と自ポートフォリオのリターンを並べて表示
+2. **ベンチマーク比較** — 日経225 / S&P500 と自ポートフォリオのリターンを並べて表示
 4. **通貨エクスポージャーサマリー** — JPY/USD/HKD ごとの評価額・損益率を一覧表示
 
 ---

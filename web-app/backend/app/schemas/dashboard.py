@@ -6,6 +6,7 @@ class KpiSummary(BaseModel):
     totalProfit: float      # 損益合計（円）
     profitRate: float       # 損益率（%）
     baseDate: str           # 基準日
+    portfolioCagr: float | None  # ポートフォリオ全体 CAGR（%）
 
 
 class AllocationItem(BaseModel):
