@@ -99,3 +99,23 @@ export interface DividendResponse {
   data: DividendItem[];
   totalJpy: number;    // 受取配当合計（円）
 }
+
+// 月次レポート一覧アイテム
+export interface ReportItem {
+  year: number;
+  month: number;
+  label: string;   // 例: "2026年1月"
+  filename: string;
+}
+
+// 月次レポート一覧 レスポンス
+export interface ReportListResponse {
+  reports: ReportItem[];
+}
+
+// 月次レポート内容 レスポンス
+export interface ReportContentResponse {
+  year: number;
+  month: number;
+  content: string; // Markdown テキスト
+}
