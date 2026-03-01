@@ -1,14 +1,18 @@
 import { fetchApi } from "@/lib/api";
-import { DashboardResponse } from "@/types";
+import { DashboardResponse, HistoryResponse } from "@/types";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { LatestBarChart } from "@/components/dashboard/LatestBarChart";
+import { AllocationTrendChart } from "@/components/dashboard/AllocationTrendChart";
 
 // ビルド時の静的プリレンダリングを無効化（実行時に API フェッチ）
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const data = await fetchApi<DashboardResponse>("/api/dashboard");
+  const [data, history] = await Promise.all([
+    fetchApi<DashboardResponse>("/api/dashboard"),
+    fetchApi<HistoryResponse>("/api/history"),
+  ]);
   return (
     <div className="space-y-8">
       <div>
@@ -25,6 +29,10 @@ export default async function DashboardPage() {
           <h2 className="text-base font-semibold text-gray-900 mb-4">最新月 損益</h2>
           <LatestBarChart data={data.latestProfits} />
         </div>
+      </div>
+      <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
+        <h2 className="text-sm font-medium text-gray-500 mb-4">評価額推移（銘柄別）</h2>
+        <AllocationTrendChart data={history.data} />
       </div>
     </div>
   );

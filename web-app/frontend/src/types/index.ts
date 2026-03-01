@@ -80,3 +80,22 @@ export interface CurrencyResponse {
   data: CurrencyRatePoint[];
   latestRate: number; // 最新レート
 }
+
+// 配当・分配金データポイント
+export interface DividendItem {
+  date: string;        // 受取日
+  code: string;        // 銘柄コード
+  name: string;        // 銘柄名
+  dividendForeign: number;  // 1株配当（外貨）
+  shares: number;      // 保有株数
+  totalForeign: number; // 配当合計（外貨）
+  currency: string;    // 通貨コード（JPY/USD/HKD）
+  exchangeRate: number; // 為替レート
+  totalJpy: number;    // 配当合計（円）
+}
+
+// 配当・分配金 レスポンス
+export interface DividendResponse {
+  data: DividendItem[];
+  totalJpy: number;    // 受取配当合計（円）
+}
