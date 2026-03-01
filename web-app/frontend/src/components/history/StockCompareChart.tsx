@@ -1,5 +1,6 @@
 "use client";
 import { MonthlyProfitPoint } from "@/types";
+import { COLORS, buildPivotData } from "@/lib/chartUtils";
 import {
   LineChart,
   Line,
@@ -11,38 +12,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b",
-  "#ef4444", "#8b5cf6", "#06b6d4",
-];
-
 interface Props {
   data: MonthlyProfitPoint[];
 }
 
 function buildChartData(data: MonthlyProfitPoint[]) {
-  const dateSet = new Set<string>();
-  const nameMap = new Map<string, string>(); // code -> name
-  for (const d of data) {
-    dateSet.add(d.date);
-    nameMap.set(d.code, d.name);
-  }
-  const dates = Array.from(dateSet).sort((a, b) => a.localeCompare(b));
-  const names = Array.from(nameMap.values());
-
-  const dateRateMap = new Map<string, Record<string, number>>();
-  for (const d of data) {
-    if (!dateRateMap.has(d.date)) dateRateMap.set(d.date, {});
-    dateRateMap.get(d.date)![d.name] = d.profitRate;
-  }
-
-  return {
-    chartData: dates.map((date) => ({
-      date,
-      ...dateRateMap.get(date),
-    })),
-    names,
-  };
+  return buildPivotData(data, (d) => d.profitRate);
 }
 
 export function StockCompareChart({ data }: Props) {

@@ -1,4 +1,5 @@
 from app.sheets.client import get_sheet
+from app.sheets.utils import to_float
 
 
 def fetch_dividend() -> list[dict]:
@@ -16,18 +17,11 @@ def fetch_dividend() -> list[dict]:
             "date": str(r["受取日"]),
             "code": str(r["銘柄コード"]),
             "name": str(r.get("銘柄名", "")),
-            "dividendForeign": _to_float(r.get("1株配当（外貨）", 0)),
-            "shares": _to_float(r.get("保有株数", 0)),
-            "totalForeign": _to_float(r.get("配当合計（外貨）", 0)),
+            "dividendForeign": to_float(r.get("1株配当（外貨）", 0)),
+            "shares": to_float(r.get("保有株数", 0)),
+            "totalForeign": to_float(r.get("配当合計（外貨）", 0)),
             "currency": str(r.get("通貨", "JPY")),
-            "exchangeRate": _to_float(r.get("為替レート", 1)),
-            "totalJpy": _to_float(r.get("配当合計（円）", 0)),
+            "exchangeRate": to_float(r.get("為替レート", 1)),
+            "totalJpy": to_float(r.get("配当合計（円）", 0)),
         })
     return result
-
-
-def _to_float(value) -> float:
-    try:
-        return float(str(value).replace(",", ""))
-    except (ValueError, TypeError):
-        return 0.0
