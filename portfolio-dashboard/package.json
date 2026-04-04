@@ -1,0 +1,18 @@
+{
+  "name": "portfolio-dashboard",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client && npm run build -w server",
+    "start": "npm run start -w server",
+    "lint": "npm run lint -w server && npm run lint -w client",
+    "check": "npm run check -w server && npm run check -w client",
+    "test": "npm run test -w server && npm run test -w client",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:studio": "npm run db:studio -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "server",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "check": "tsc --noEmit",
+    "lint": "echo 'TODO: setup biome or eslint'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "hono": "^4",
+    "@hono/node-server": "^1",
+    "better-sqlite3": "^11",
+    "drizzle-orm": "^0.36"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30",
+    "@types/better-sqlite3": "^7",
+    "tsx": "^4",
+    "typescript": "^5.7",
+    "vitest": "^3"
+  }
+}

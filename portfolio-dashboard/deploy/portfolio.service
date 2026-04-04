@@ -1,0 +1,17 @@
+[Unit]
+Description=Portfolio Dashboard (Hono)
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/app
+ExecStart=/home/deploy/.local/share/fnm/aliases/default/bin/node server/dist/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DB_PATH=/app/data/portfolio.db
+
+[Install]
+WantedBy=multi-user.target

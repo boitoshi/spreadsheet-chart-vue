@@ -1,0 +1,36 @@
+[project]
+name = "portfolio-collector"
+version = "0.1.0"
+description = "Portfolio data collector (SQLite version)"
+requires-python = ">=3.12"
+dependencies = [
+    "yfinance>=0.2.18",
+    "pandas>=2.0.0",
+    "gspread>=6.2.1",
+    "google-auth>=2.40.3",
+    "python-dotenv>=1.0.0",
+    "jinja2>=3.1.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+ai = ["anthropic>=0.49.0", "markdown>=3.7"]
+charts = ["matplotlib>=3.7.0", "pillow>=10.0.0"]
+dev = ["ruff>=0.12.0", "ty"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["collectors", "config"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+
+[tool.ty.environment]
+python-version = "3.12"
