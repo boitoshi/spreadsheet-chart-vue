@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { dashboardRoute } from "./routes/dashboard.js";
@@ -34,6 +35,10 @@ app.route("/api/dividend", dividendRoute);
 app.route("/api/reports", reportsRoute);
 app.route("/api/benchmark", benchmarkRoute);
 app.route("/api/exposure", exposureRoute);
+
+// SPA 静的ファイル配信（Vite ビルド成果物）
+app.use("/*", serveStatic({ root: "./client/dist" }));
+app.get("/*", serveStatic({ root: "./client/dist", path: "index.html" }));
 
 // サーバー起動
 const port = parseInt(process.env.PORT ?? "3000", 10);
