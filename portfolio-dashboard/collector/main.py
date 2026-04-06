@@ -346,7 +346,7 @@ class PortfolioDataCollector:
         return True
 
     def generate_blog_draft(self, year: int, month: int) -> bool:
-        """ブログ下書き生成
+        """ブログ下書き生成（AI コメント・WordPress 投稿含む）
 
         Args:
             year: 年
@@ -362,14 +362,37 @@ class PortfolioDataCollector:
             print("❌ レポートデータが取得できませんでした")
             return False
 
-        markdown = self.template_engine.render("blog_template.md", report_data)
+        # AI コメント生成（有効な場合）
+        if self.ai_comment:
+            print("  AI コメント生成中...")
+            ai_comments = self.ai_comment.generate_all(report_data)
+            report_data["ai_comments"] = ai_comments
+            print("  AI コメント生成完了")
+
+        markdown_text = self.template_engine.render(
+            "blog_template.md", report_data
+        )
 
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        output_path = os.path.join(OUTPUT_DIR, f"blog_draft_{year}_{month:02d}.md")
+        output_path = os.path.join(
+            OUTPUT_DIR, f"blog_draft_{year}_{month:02d}.md"
+        )
         with open(output_path, "w", encoding="utf-8") as f:
-            f.write(markdown)
+            f.write(markdown_text)
 
         print(f"  ブログ下書きを生成しました: {output_path}")
+
+        # WordPress 下書き投稿（有効な場合）
+        if self.wp_publisher:
+            try:
+                post_url = self.wp_publisher.create_draft(
+                    title=f"{year}年{month}月の投資成績",
+                    markdown_content=markdown_text,
+                )
+                print(f"  WordPress 投稿完了: {post_url}")
+            except Exception as e:
+                print(f"  WordPress 投稿エラー: {e}")
+
         return True
 
     def collect_range_data(
