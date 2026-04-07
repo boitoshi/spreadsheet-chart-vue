@@ -18,7 +18,7 @@ class GutenbergBlockConverter:
 
     # ブロックレベル要素の開始タグパターン
     _BLOCK_TAGS = re.compile(
-        r"^<(?:h[1-6]|p|ul|ol|hr|img|blockquote|pre|div|figure)[\s>/]",
+        r"^<(?:h[1-6]|p|ul|ol|hr|img|blockquote|pre|div|figure|details)[\s>/]",
         re.IGNORECASE,
     )
 
@@ -91,7 +91,7 @@ class GutenbergBlockConverter:
     def _extract_multiline_blocks(
         self, html: str, placeholders: dict[str, str]
     ) -> str:
-        """複数行要素（table, div.huki-box）をプレースホルダーに置換する。
+        """複数行要素（table, div.huki-box, details）をプレースホルダーに置換する。
 
         Args:
             html: 処理対象の HTML 文字列
@@ -125,6 +125,12 @@ class GutenbergBlockConverter:
         replace_block(
             r'<div\s+class="huki-box[^"]*">(?:[\s\S]*?</div>){3}',
             self._convert_huki_box,
+        )
+
+        # details ブロックを抽出・変換（購入履歴の折りたたみ）
+        replace_block(
+            r"<details[\s\S]*?</details>",
+            self._convert_details,
         )
 
         return html
@@ -287,3 +293,14 @@ class GutenbergBlockConverter:
             Gutenberg html ブロック形式の文字列
         """
         return f"<!-- wp:html -->\n{div_html}\n<!-- /wp:html -->"
+
+    def _convert_details(self, details_html: str) -> str:
+        """details 要素を Gutenberg html ブロックに変換する。
+
+        Args:
+            details_html: 変換対象の <details>...</details> HTML 文字列
+
+        Returns:
+            Gutenberg html ブロック形式の文字列
+        """
+        return f"<!-- wp:html -->\n{details_html}\n<!-- /wp:html -->"

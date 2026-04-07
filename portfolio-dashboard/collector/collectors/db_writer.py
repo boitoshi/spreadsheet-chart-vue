@@ -133,6 +133,24 @@ class DbWriter:
                 rates[currency] = row["rate"]
         return rates
 
+    def get_purchase_history(self, code: str) -> list[dict]:
+        """指定銘柄の購入履歴を取得する。
+
+        Args:
+            code: 銘柄コード
+
+        Returns:
+            購入履歴のリスト（seq 昇順）
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT * FROM purchase_history WHERE code = ? ORDER BY seq",
+            (code,),
+        )
+        rows = cursor.fetchall()
+        self.conn.row_factory = None
+        return [dict(row) for row in rows]
+
     def get_all_pnl_data(self) -> list[dict]:
         """全月の損益データを取得（ベンチマーク計算用）"""
         self.conn.row_factory = sqlite3.Row

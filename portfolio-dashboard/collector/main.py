@@ -128,7 +128,7 @@ class PortfolioDataCollector:
         if self.wp_publisher and output_path:
             try:
                 post_url = self.wp_publisher.create_draft(
-                    title=f"{year}年{month}月の投資成績",
+                    title=f"「ポケモン投資」{year}年{month}月の状況",
                     markdown_content=open(output_path, encoding="utf-8").read(),
                     slug=f"pokemon-investment-{year}{month:02d}",
                 )
@@ -387,7 +387,7 @@ class PortfolioDataCollector:
         if self.wp_publisher:
             try:
                 post_url = self.wp_publisher.create_draft(
-                    title=f"{year}年{month}月の投資成績",
+                    title=f"「ポケモン投資」{year}年{month}月の状況",
                     markdown_content=markdown_text,
                     slug=f"pokemon-investment-{year}{month:02d}",
                 )

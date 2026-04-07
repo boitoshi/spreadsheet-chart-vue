@@ -97,3 +97,17 @@ export const benchmarkData = sqliteTable("benchmark_data", {
 }, (table) => ({
   dateUniq: uniqueIndex("uq_benchmark_data_date").on(table.date),
 }));
+
+// ━━━ 購入履歴 ━━━
+export const purchaseHistory = sqliteTable("purchase_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull(),
+  seq: integer("seq").notNull(),
+  shares: real("shares").notNull(),
+  price: real("price").notNull(),
+  priceForeign: real("price_foreign"),
+  exchangeRate: real("exchange_rate"),
+  purchasedAt: text("purchased_at").notNull(),
+}, (table) => ({
+  codeSeqUniq: uniqueIndex("uq_purchase_history_code_seq").on(table.code, table.seq),
+}));

@@ -215,6 +215,10 @@ class BlogReportGenerator:
                         holding_info["stock_profit_loss"] = round(stock_pl, 0)
                         holding_info["fx_profit_loss"] = round(fx_pl, 0)
 
+                # 購入履歴を取得
+                purchase_history = self.db.get_purchase_history(symbol)
+                holding_info["purchase_history"] = purchase_history
+
                 holdings.append(holding_info)
 
                 # 日本株/外国株の分類
