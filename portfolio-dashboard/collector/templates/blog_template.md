@@ -2,21 +2,13 @@
 
 {{ year }}年{{ month_num }}月の投資成績をまとめました。今月の総合損益は**{{ total_pl | format_currency }}円 ({{ total_pl_rate | format_percent }})**でした。
 
-## 📋 目次
-- [ポートフォリオサマリー](#ポートフォリオサマリー)
-- [ポートフォリオ推移グラフ](#ポートフォリオ推移グラフ)
-- [🇯🇵 日本株](#日本株)
-- [🌏 外国株](#外国株)
-- [📊 資産配分](#資産配分)
-- [💭 まとめ](#まとめ)
-
 ## ポートフォリオサマリー
 
-| 項目 | 金額 | 備考 |
-|------|------|------|
-| 💰 合計取得額 | {{ total_cost | format_currency }}円 | 投資元本 |
-| 📈 合計評価額 | {{ total_value | format_currency }}円 | 現在価値 |
-| {% if total_pl >= 0 %}🎉{% else %}😢{% endif %} 総合損益 | {{ total_pl | format_currency }}円 | {{ total_pl_rate | format_percent }} |
+| 項目 | 金額 |
+|------|------|
+| 合計取得額 | {{ total_cost | format_currency }}円 |
+| 合計評価額 | {{ total_value | format_currency }}円 |
+| {% if total_pl >= 0 %}🎉{% else %}😢{% endif %} 総合損益 | {{ total_pl | format_currency }}円 ({{ total_pl_rate | format_percent }}) |
 
 {% if interactive_chart %}
 ## ポートフォリオ推移グラフ
@@ -38,15 +30,16 @@
 {% for stock in jp_stocks_list %}
 ### {% if stock.pl >= 0 %}✅{% else %}⚠️{% endif %} {{ stock.name }} ({{ stock.symbol }})
 
-| 項目 | 値 | 詳細 |
-|------|------|------|
-| 📊 保有株数 | {{ stock.shares }}株 | - |
-| 💵 取得単価 | {{ stock.cost_price | format_currency }}円 | - |
-| 💹 現在価格 | {{ stock.current_price | format_currency }}円 | - |
-| 💰 評価額 | {{ stock.value | format_currency }}円 | - |
-| {% if stock.pl >= 0 %}🎉{% else %}📉{% endif %} 損益 | {{ stock.pl | format_currency }}円 | {{ stock.pl_rate | format_percent }} |
+| 項目 | 値 |
+|------|------|
+| 保有株数 | {{ stock.shares }}株 |
+| 取得単価 | {{ stock.cost_price | format_currency }}円 |
+| 現在価格 | {{ stock.current_price | format_currency }}円 |
+| 評価額 | {{ stock.value | format_currency }}円 |
+| {% if stock.pl >= 0 %}🎉{% else %}📉{% endif %} 損益 | {{ stock.pl | format_currency }}円 ({{ stock.pl_rate | format_percent }}) |
 
-**📈 月間動向**:
+**📈 月間動向**
+
 - 🔺 最高値: {{ stock.market_data.high | format_currency }}円
 - 🔻 最安値: {{ stock.market_data.low | format_currency }}円
 - 📊 月間変動率: {{ stock.market_data.change_rate | format_percent }}
@@ -60,7 +53,18 @@
 
 {% endif %}
 
-<!-- 🖊️ ここに手動でコメントを追加 -->
+{% if ai_comments and ai_comments.stock_comments and ai_comments.stock_comments[stock.symbol] %}
+<div class="huki-box huki-left">
+  <div class="huki-imgname">
+    <img class="pf-face-img" src="https://www.pokebros.net/wp-content/uploads/2021/01/img_5545-e1610199620450.png" alt="あかブロス"/>
+    <p class="huki-name">あかブロス</p>
+  </div>
+  <div class="huki-text" style="background-color:#ffcfcf">
+    <p>{{ ai_comments.stock_comments[stock.symbol] }}</p>
+    <span class="huki-text-after" style="border-right-color:#ffcfcf"></span>
+  </div>
+</div>
+{% endif %}
 
 ---
 
@@ -76,18 +80,19 @@
 {% for stock in foreign_stocks_list %}
 ### {% if stock.pl >= 0 %}✅{% else %}⚠️{% endif %} {{ stock.name }} ({{ stock.symbol }})
 
-| 項目 | 値 | 詳細 |
-|------|------|------|
-| 📊 保有株数 | {{ stock.shares }}株 | - |
-| 💵 取得単価 | {{ stock.cost_price | format_number(2) }}{{ stock.currency }} | - |
-| 💹 現在価格 | {{ stock.current_price | format_number(2) }}{{ stock.currency }} | - |
-| 💰 評価額 | {{ stock.value | format_currency }}円 | 円換算 |
-| {% if stock.pl >= 0 %}🎉{% else %}📉{% endif %} 損益 | {{ stock.pl | format_currency }}円 | {{ stock.pl_rate | format_percent }} |
+| 項目 | 値 |
+|------|------|
+| 保有株数 | {{ stock.shares }}株 |
+| 取得単価 | {{ stock.cost_price | format_number(2) }}{{ stock.currency }} |
+| 現在価格 | {{ stock.current_price | format_number(2) }}{{ stock.currency }} |
+| 評価額 | {{ stock.value | format_currency }}円（円換算）|
+| {% if stock.pl >= 0 %}🎉{% else %}📉{% endif %} 損益 | {{ stock.pl | format_currency }}円 ({{ stock.pl_rate | format_percent }}) |
 {% if stock.exchange_rate %}
-| 💱 為替レート | 1{{ stock.currency }} = {{ stock.exchange_rate | format_number(2) }}円 | 使用レート |
+| 為替レート | 1{{ stock.currency }} = {{ stock.exchange_rate | format_number(2) }}円 |
 {% endif %}
 
-**📈 月間動向**:
+**📈 月間動向**
+
 - 🔺 最高値: {{ stock.market_data.high | format_number(2) }}{{ stock.currency }}
 - 🔻 最安値: {{ stock.market_data.low | format_number(2) }}{{ stock.currency }}
 - 📊 月間変動率: {{ stock.market_data.change_rate | format_percent }}
@@ -101,7 +106,18 @@
 
 {% endif %}
 
-<!-- 🖊️ ここに手動でコメントを追加 -->
+{% if ai_comments and ai_comments.stock_comments and ai_comments.stock_comments[stock.symbol] %}
+<div class="huki-box huki-left">
+  <div class="huki-imgname">
+    <img class="pf-face-img" src="https://www.pokebros.net/wp-content/uploads/2021/01/img_5545-e1610199620450.png" alt="あかブロス"/>
+    <p class="huki-name">あかブロス</p>
+  </div>
+  <div class="huki-text" style="background-color:#ffcfcf">
+    <p>{{ ai_comments.stock_comments[stock.symbol] }}</p>
+    <span class="huki-text-after" style="border-right-color:#ffcfcf"></span>
+  </div>
+</div>
+{% endif %}
 
 ---
 
@@ -120,24 +136,20 @@
 | 🌏 外国株 | {{ foreign_stocks.ratio | format_number(1) }}% | {{ foreign_stocks.value | format_currency }}円 |
 | **合計** | **100.0%** | **{{ total_value | format_currency }}円** |
 
-{% if chart_data and chart_data.labels %}
-## 📈 過去6ヶ月の推移データ
-
-<details>
-<summary>グラフ用JSONデータ（クリックして展開）</summary>
-
-```json
-{{ chart_data | format_json }}
-```
-
-Chart.jsやPlotlyで可視化できます。
-
-</details>
-{% endif %}
-
 ## 💭 まとめ
 
-<!-- 🖊️ ここに手動でまとめを追加 -->
+{% if ai_comments and ai_comments.summary %}
+<div class="huki-box huki-right">
+  <div class="huki-text" style="background-color:#97ffb1">
+    <p>{{ ai_comments.summary }}</p>
+    <span class="huki-text-after" style="border-right-color:#97ffb1"></span>
+  </div>
+  <div class="huki-imgname">
+    <img class="pf-face-img" src="https://www.pokebros.net/wp-content/uploads/2021/01/img_9449-e1611203011189.png" alt="みどブロス"/>
+    <p class="huki-name">みどブロス</p>
+  </div>
+</div>
+{% endif %}
 
 **今月のハイライト**:
 - 総合損益: {{ total_pl | format_currency }}円 ({{ total_pl_rate | format_percent }})
@@ -146,7 +158,4 @@ Chart.jsやPlotlyで可視化できます。
 
 ---
 
-<div style="text-align: center; color: #666; font-size: 0.9em;">
-<em>このレポートは data-collector で自動生成されました 🤖</em><br>
-Generated on {{ year }}-{{ month_num }}
-</div>
+*このレポートは自動生成されました*

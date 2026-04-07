@@ -130,6 +130,7 @@ class PortfolioDataCollector:
                 post_url = self.wp_publisher.create_draft(
                     title=f"{year}年{month}月の投資成績",
                     markdown_content=open(output_path, encoding="utf-8").read(),
+                    slug=f"pokemon-investment-{year}{month:02d}",
                 )
                 print(f"  投稿完了: {post_url}")
             except Exception as e:
@@ -388,6 +389,7 @@ class PortfolioDataCollector:
                 post_url = self.wp_publisher.create_draft(
                     title=f"{year}年{month}月の投資成績",
                     markdown_content=markdown_text,
+                    slug=f"pokemon-investment-{year}{month:02d}",
                 )
                 print(f"  WordPress 投稿完了: {post_url}")
             except Exception as e:

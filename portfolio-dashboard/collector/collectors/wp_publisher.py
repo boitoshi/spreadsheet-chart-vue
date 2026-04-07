@@ -7,6 +7,8 @@ from pathlib import Path
 import markdown
 import requests
 
+from .block_converter import GutenbergBlockConverter
+
 
 class WpPublisher:
     """WordPress REST API を使って月次投資ブログを下書き投稿するクラス。
@@ -81,6 +83,7 @@ class WpPublisher:
         title: str,
         markdown_content: str,
         image_paths: list[str] | None = None,
+        slug: str | None = None,
     ) -> str:
         """Markdown コンテンツを HTML に変換し、WordPress に下書き投稿する。
 
@@ -91,6 +94,8 @@ class WpPublisher:
             title: 投稿タイトル
             markdown_content: Markdown 形式の本文
             image_paths: アップロードする画像ファイルのパスリスト（省略可）
+            slug: 投稿のスラッグ（URL パーマリンク用）。
+                省略時は WordPress が自動生成する
 
         Returns:
             作成された下書き投稿の URL
@@ -135,16 +140,23 @@ class WpPublisher:
             extensions=["tables", "fenced_code"],
         )
 
+        # 2.5. HTML → Gutenberg ブロック変換
+        converter = GutenbergBlockConverter()
+        html_content = converter.convert(html_content)
+
         # 3. WordPress に下書きとして POST
         print(f"  WordPress に下書き投稿中: 「{title}」")
+        body: dict = {
+            "title": title,
+            "content": html_content,
+            "status": "draft",
+        }
+        if slug:
+            body["slug"] = slug
         resp = requests.post(
             f"{self.wp_url}/wp-json/wp/v2/posts",
             auth=self.auth,
-            json={
-                "title": title,
-                "content": html_content,
-                "status": "draft",
-            },
+            json=body,
             timeout=60,
         )
 
