@@ -16,6 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 ai = ["anthropic>=0.49.0", "markdown>=3.7"]
 charts = ["matplotlib>=3.7.0", "pillow>=10.0.0"]
+capture = ["playwright>=1.47.0"]
 dev = ["ruff>=0.12.0", "ty"]
 
 [build-system]

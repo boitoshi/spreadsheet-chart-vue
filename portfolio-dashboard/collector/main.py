@@ -80,7 +80,8 @@ class PortfolioDataCollector:
         # 1. Sheets からポートフォリオ同期
         print("\n[1/7] Sheets からポートフォリオ同期中...")
         synced = self.sheets_sync.sync_holdings()
-        print(f"  同期完了: {synced}件")
+        history_count = self.sheets_sync.sync_purchase_history()
+        print(f"  同期完了: {synced}件（購入履歴: {history_count}件）")
 
         # 2. yfinance で株価取得 → SQLite 保存
         print("\n[2/7] 株価データ収集中...")
@@ -93,14 +94,15 @@ class PortfolioDataCollector:
         print("\n[3/7] ベンチマーク収集中...")
         self.benchmark_collector.collect(year, month)
 
-        # 4. チャート画像生成（Phase 3 では未実装）
-        print("\n[4/7] チャート生成: スキップ（Phase 3 未実装）")
+        # 4. チャート画像生成（後の [5/7] でレポートデータに埋め込む）
+        print("\n[4/7] チャート画像: [5/7] のレポート生成時に合わせて作成します")
 
         # 5. ブログ下書き生成
         print("\n[5/7] ブログ下書き生成中...")
         report_data = self.report_generator.get_monthly_report_data(year, month)
         output_path = None
         if report_data:
+            self._generate_stock_charts(report_data, year, month)
             markdown_text = self.template_engine.render("blog_template.md", report_data)
             os.makedirs(OUTPUT_DIR, exist_ok=True)
             output_path = os.path.join(OUTPUT_DIR, f"blog_draft_{year}_{month:02d}.md")
@@ -303,6 +305,70 @@ class PortfolioDataCollector:
 
         return price_count > 0
 
+    def _generate_stock_charts(
+        self, report_data: dict, year: int, month: int
+    ) -> None:
+        """各銘柄の株価チャートを生成し、report_data に chart_images を追加する。
+
+        取得日から報告月末までの期間で折れ線チャートを描画する。
+        チャートは output/charts/{year}_{month:02d}/{symbol}.png に保存される。
+        """
+        try:
+            from collectors.chart_generator import ChartGenerator
+        except ImportError as e:
+            print(f"  チャート生成スキップ（matplotlib 未インストール）: {e}")
+            return
+
+        print("  チャート画像生成中...")
+
+        # 月末日を計算
+        if month == 12:
+            last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            last_day = datetime(year, month + 1, 1) - timedelta(days=1)
+        end_date = last_day.strftime("%Y-%m-%d")
+
+        # 保存先ディレクトリ
+        chart_dir = os.path.join(OUTPUT_DIR, "charts", f"{year}_{month:02d}")
+        os.makedirs(chart_dir, exist_ok=True)
+
+        # holdings から acquired_date を引くためのマップ
+        portfolio_data = self.db_writer.get_portfolio_data()
+        portfolio_map = {p["code"]: p for p in portfolio_data}
+
+        generator = ChartGenerator()
+        stocks_map: dict[str, str] = {}
+        citations_map: dict[str, str] = {}
+
+        for h in report_data.get("holdings", []):
+            symbol = h.get("symbol", "")
+            name = h.get("name", "")
+            currency = h.get("currency", "JPY")
+
+            portfolio_entry = portfolio_map.get(symbol, {})
+            start_date = portfolio_entry.get("acquired_date")
+            if not start_date:
+                print(f"    スキップ: {symbol} に取得日なし")
+                continue
+
+            out_path = os.path.join(chart_dir, f"{symbol}.png")
+            try:
+                generator.generate(
+                    symbol, name, start_date, end_date, out_path, currency
+                )
+                stocks_map[symbol] = out_path
+                citations_map[symbol] = (
+                    f"https://finance.yahoo.co.jp/quote/{symbol}"
+                )
+                print(f"    ✓ {name}（{symbol}）")
+            except Exception as e:  # noqa: BLE001
+                print(f"    ✗ {name}（{symbol}）: {e}")
+
+        report_data["chart_images"] = {
+            "stocks": stocks_map,
+            "citations": citations_map,
+        }
+
     def _save_exchange_rate(
         self, currency: str, rate: float, date_str: str, now_str: str
     ) -> None:
@@ -337,7 +403,8 @@ class PortfolioDataCollector:
         """Sheets 同期のみ実行"""
         print("\n=== Sheets → SQLite 銘柄マスタ同期 ===")
         synced = self.sheets_sync.sync_holdings()
-        print(f"同期完了: {synced}件")
+        history_count = self.sheets_sync.sync_purchase_history()
+        print(f"同期完了: {synced}件（購入履歴: {history_count}件）")
         return True
 
     def collect_benchmark_only(self, year: int, month: int) -> bool:
@@ -362,6 +429,9 @@ class PortfolioDataCollector:
         if not report_data:
             print("❌ レポートデータが取得できませんでした")
             return False
+
+        # チャート画像生成
+        self._generate_stock_charts(report_data, year, month)
 
         # AI コメント生成（有効な場合）
         if self.ai_comment:
@@ -577,12 +647,37 @@ def _parse_year_month(args: list[str], flag: str) -> tuple[int, int] | None:
 
 def main() -> None:
     """メイン関数（CLI エントリーポイント）"""
+    args = sys.argv[1:]
+
+    # python main.py --generate-chart NAME SYMBOL START END [CURRENCY]
+    # 例: python main.py --generate-chart 任天堂 7974.T 2023-06-28 2026-03-31
+    # DB 非依存の POC 用
+    if len(args) in (5, 6) and args[0] == "--generate-chart":
+        name = args[1]
+        symbol = args[2]
+        start = args[3]
+        end = args[4]
+        currency = args[5] if len(args) == 6 else "JPY"
+        from collectors.chart_generator import ChartGenerator
+
+        out_path = os.path.join(
+            OUTPUT_DIR, "charts", f"{symbol}_{start}_{end}.png"
+        )
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        print(f"  {name}（{symbol}）のチャートを生成中 {start}〜{end}...")
+        try:
+            generator = ChartGenerator()
+            saved = generator.generate(symbol, name, start, end, out_path, currency)
+            print(f"  保存完了: {saved}")
+        except Exception as e:
+            print(f"❌ チャート生成エラー: {e}")
+        return
+
     if not SPREADSHEET_ID:
         print("❌ SPREADSHEET_ID が設定されていません。.env ファイルを確認してください")
         return
 
     collector = PortfolioDataCollector()
-    args = sys.argv[1:]
 
     # python main.py 2024 12  → バッチ（月次フル収集）
     if len(args) == 2 and args[0].isdigit():
@@ -628,6 +723,9 @@ def main() -> None:
         print("  python main.py --benchmark 2024 12     # ベンチマークのみ")
         print("  python main.py --blog 2024 12          # ブログ生成のみ")
         print("  python main.py --range 2024 1 2024 12  # 期間範囲バッチ")
+        print(
+            "  python main.py --generate-chart 任天堂 7974.T 2023-06-28 2026-03-31"
+        )
 
 
 if __name__ == "__main__":

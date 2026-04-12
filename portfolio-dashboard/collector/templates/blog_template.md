@@ -41,10 +41,10 @@
 {% for stock in jp_list %}
 ### {{ stock.name }}の値動き
 
-<!-- ここに{{ stock.name }}のチャート画像を挿入 -->
-
 {% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
 ![{{ stock.name }}の株価推移]({{ chart_images.stocks[stock.symbol] }})
+
+*出典: [Yahoo!ファイナンス]({{ chart_images.citations[stock.symbol] }})*
 {% endif %}
 
 {% if ai_comments and ai_comments.stock_comments and ai_comments.stock_comments[stock.symbol] %}
@@ -103,10 +103,10 @@
 {% for stock in foreign_list %}
 ### {{ stock.name }}の値動き
 
-<!-- ここに{{ stock.name }}のチャート画像を挿入 -->
-
 {% if chart_images and chart_images.stocks and chart_images.stocks[stock.symbol] %}
 ![{{ stock.name }}の株価推移]({{ chart_images.stocks[stock.symbol] }})
+
+*出典: [Yahoo!ファイナンス]({{ chart_images.citations[stock.symbol] }})*
 {% endif %}
 
 {% if ai_comments and ai_comments.stock_comments and ai_comments.stock_comments[stock.symbol] %}
