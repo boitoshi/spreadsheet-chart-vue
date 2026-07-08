@@ -1,4 +1,4 @@
-CREATE TABLE `purchase_history` (
+CREATE TABLE IF NOT EXISTS `purchase_history` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`code` text NOT NULL,
 	`seq` integer NOT NULL,
@@ -9,4 +9,4 @@ CREATE TABLE `purchase_history` (
 	`purchased_at` text NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_purchase_history_code_seq` ON `purchase_history` (`code`,`seq`);
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_purchase_history_code_seq` ON `purchase_history` (`code`,`seq`);

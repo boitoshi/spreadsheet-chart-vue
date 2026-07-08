@@ -1,4 +1,6 @@
-# プロジェクト構成
+# プロジェクト構成（⚠️ 旧構成: web-app / data-collector）
+
+> **このドキュメントは 2026-04 に移行した旧システムの記述です。現行システムは `portfolio-dashboard/`（docs/portfolio-dashboard.md 参照）。**
 
 ## ディレクトリ構成
 

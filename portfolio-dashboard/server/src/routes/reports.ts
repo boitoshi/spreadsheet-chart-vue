@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { db } from "../db/index.js";
+import { buildReportData } from "../services/reportData.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +51,29 @@ app.get("/", (c) => {
   return c.json({ reports });
 });
 
-// GET /:year/:month → 指定月のレポート内容
+// GET /:year/:month/data → 構造化レポートデータ（Markdown より先に定義）
+app.get("/:year/:month/data", (c) => {
+  const year = parseInt(c.req.param("year"), 10);
+  const month = parseInt(c.req.param("month"), 10);
+
+  if (isNaN(year) || isNaN(month)) {
+    return c.json({ error: "Invalid year or month" }, 400);
+  }
+
+  // "YYYY-MM-末" 形式に変換（month は 2 桁ゼロ埋め）
+  const mm = String(month).padStart(2, "0");
+  const targetDate = `${year}-${mm}-末`;
+
+  const data = buildReportData(db, targetDate);
+
+  if (!data) {
+    return c.json({ error: "Report data not found" }, 404);
+  }
+
+  return c.json(data);
+});
+
+// GET /:year/:month → 指定月のレポート内容（Markdown テキスト）
 app.get("/:year/:month", (c) => {
   const year = parseInt(c.req.param("year"), 10);
   const month = parseInt(c.req.param("month"), 10);

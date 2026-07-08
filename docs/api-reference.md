@@ -1,4 +1,6 @@
-# API リファレンス
+# API リファレンス（⚠️ 旧構成: FastAPI）
+
+> **このドキュメントは旧システム（web-app/backend）の記述です。現行 API（Hono、ポート3000）は docs/portfolio-dashboard.md 参照。**
 
 FastAPI バックエンド（ポート8000）のエンドポイント一覧。
 

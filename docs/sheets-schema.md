@@ -1,4 +1,6 @@
-# スプレッドシート構成
+# スプレッドシート構成（⚠️ 旧構成）
+
+> **このドキュメントは旧システム（web-app / data-collector）の記述です。現行の DB スキーマは docs/portfolio-dashboard.md 参照。ただし Google Sheets は collector の --sync の入力元として現役。**
 
 ヘッダー定義は `shared/sheets_config.py` に一元管理。
 

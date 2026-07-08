@@ -1,28 +1,43 @@
+/**
+ * ダッシュボードページ
+ * - data.stocks && data.totalHistory が存在: 新デザイン（B-4 Phase）
+ * - 存在しない: 旧レイアウト（後方互換）
+ */
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
-import type { DashboardResponse, ExposureResponse, HistoryResponse } from "@/types";
+import type {
+  DashboardResponse,
+  ExposureResponse,
+  HistoryResponse,
+} from "@/types";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { LatestBarChart } from "@/components/dashboard/LatestBarChart";
 import { AllocationTrendChart } from "@/components/dashboard/AllocationTrendChart";
 import { CurrencyExposureTable } from "@/components/dashboard/CurrencyExposureTable";
+import { GradientHeader } from "@/components/dashboard/GradientHeader";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
+import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
+import { StockCard } from "@/components/dashboard/StockCard";
+import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 
-export default function Dashboard() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => fetchApi<DashboardResponse>("/api/dashboard"),
-  });
-  const { data: history } = useQuery({
-    queryKey: ["history"],
-    queryFn: () => fetchApi<HistoryResponse>("/api/history"),
-  });
-  const { data: exposure } = useQuery({
-    queryKey: ["exposure"],
-    queryFn: () => fetchApi<ExposureResponse>("/api/exposure"),
-  });
+/** kpi.baseDate ("2026-03-末") から { year, month } をパース */
+function parseBaseDate(baseDate: string): { year: number; month: number } {
+  const match = baseDate.match(/^(\d{4})-(\d{2})/);
+  if (!match) return { year: 0, month: 0 };
+  return { year: parseInt(match[1], 10), month: parseInt(match[2], 10) };
+}
 
-  if (isLoading || !data) return <p className="text-gray-500">読み込み中...</p>;
-
+/** 旧レイアウト（後方互換）*/
+function LegacyDashboard({
+  data,
+  history,
+  exposure,
+}: {
+  data: DashboardResponse;
+  history: HistoryResponse | undefined;
+  exposure: ExposureResponse | undefined;
+}) {
   return (
     <div className="space-y-8">
       <div>
@@ -53,5 +68,102 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Dashboard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => fetchApi<DashboardResponse>("/api/dashboard"),
+  });
+
+  // 新データが存在するか（isLoading 中は false → 旧系クエリを一時的に抑制）
+  const hasNewData = !isLoading && !!(data?.stocks && data?.totalHistory);
+
+  // 旧レイアウト用クエリ（新データがある場合は発火しない）
+  const { data: history } = useQuery({
+    queryKey: ["history"],
+    queryFn: () => fetchApi<HistoryResponse>("/api/history"),
+    enabled: !hasNewData,
+  });
+  const { data: exposure } = useQuery({
+    queryKey: ["exposure"],
+    queryFn: () => fetchApi<ExposureResponse>("/api/exposure"),
+    enabled: !hasNewData,
+  });
+
+  if (isLoading || !data) {
+    return <p className="text-gray-500">読み込み中...</p>;
+  }
+
+  // 新デザイン
+  if (hasNewData && data.stocks && data.totalHistory) {
+    const { year, month } = parseBaseDate(data.kpi.baseDate);
+    const usdJpy = data.usdJpy ?? 0;
+    const stocks = data.stocks;
+    const totalHistory = data.totalHistory;
+
+    return (
+      // AppLayout の main padding（px-4 sm:px-6 lg:px-8 py-8）を負マージンで打ち消し、
+      // グラデーションヘッダーをコンテナ全幅まで広げる
+      <div className="-mt-8 -mx-4 sm:-mx-6 lg:-mx-8">
+        {/* グラデーションヘッダー（全幅） */}
+        <GradientHeader year={year} month={month} usdJpy={usdJpy} />
+
+        {/* メインコンテンツ */}
+        <div
+          style={{
+            maxWidth: "1280px",
+            margin: "0 auto",
+            padding: "20px",
+          }}
+        >
+          {/* 上段: サマリーカード＋資産推移チャート */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "340px 1fr",
+              gap: "16px",
+              marginBottom: "16px",
+            }}
+            className="max-[900px]:!grid-cols-1"
+          >
+            <SummaryCard
+              stocks={stocks}
+              totalValue={data.kpi.totalValue}
+              totalProfit={data.kpi.totalProfit}
+              totalProfitRate={data.kpi.profitRate}
+            />
+            <AssetTrendChart
+              totalHistory={totalHistory}
+              totalProfit={data.kpi.totalProfit}
+            />
+          </div>
+
+          {/* 銘柄カードグリッド */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "16px",
+              marginBottom: "16px",
+            }}
+            className="max-[900px]:!grid-cols-1"
+          >
+            {stocks.map((stock) => (
+              <StockCard key={stock.code} stock={stock} />
+            ))}
+          </div>
+
+          {/* フッター */}
+          <DashboardFooter />
+        </div>
+      </div>
+    );
+  }
+
+  // 旧レイアウト（後方互換）
+  return (
+    <LegacyDashboard data={data} history={history} exposure={exposure} />
   );
 }

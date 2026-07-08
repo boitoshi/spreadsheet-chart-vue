@@ -25,6 +25,9 @@ export interface DashboardResponse {
   kpi: KpiSummary;
   allocation: AllocationItem[];
   latestProfits: LatestProfitItem[];
+  stocks?: DashboardStock[];
+  totalHistory?: TotalHistory;
+  usdJpy?: number;
 }
 
 // ポートフォリオ保有銘柄
@@ -146,4 +149,72 @@ export interface ExposureItem {
 // 通貨エクスポージャー レスポンス
 export interface ExposureResponse {
   items: ExposureItem[];
+}
+
+// ダッシュボード用トランザクション
+export interface DashboardTransaction {
+  /** monthLabels のインデックス */
+  month: number;
+  action: "buy" | "sell";
+  quantity: number;
+  /** ネイティブ通貨単価 */
+  price: number;
+}
+
+// ダッシュボード拡張: 銘柄データ
+export interface DashboardStock {
+  code: string;
+  name: string;
+  ticker: string;
+  market: string;
+  currency: "JPY" | "USD";
+  quantity: number;
+  /** ネイティブ通貨の月末価格 */
+  currentPrice: number;
+  /** 前月のネイティブ価格（前月データなければ null） */
+  previousMonthPrice: number | null;
+  /** 月間変動率（%）。データなければ null */
+  monthlyChangeRate: number | null;
+  color: string;
+  /** 移動平均取得単価（ネイティブ） */
+  acquiredPrice: number;
+  /** 保有開始月〜対象月のネイティブ月末価格 */
+  priceHistory: number[];
+  /** priceHistory と同長の stepped line 用移動平均取得単価 */
+  acquiredAvgHistory: number[];
+  /** "YYYY/M" 形式。priceHistory と同長 */
+  monthLabels: string[];
+  transactions: DashboardTransaction[];
+  /** AI コメント。未設定は null */
+  comment: string | null;
+  /** 円建て評価額 */
+  value: number;
+  /** 円建て損益 */
+  profit: number;
+  /** 損益率（%） */
+  profitRate: number;
+}
+
+// ダッシュボード拡張: 資産推移履歴
+export interface TotalHistory {
+  /** "YYYY/M" 形式 */
+  months: string[];
+  /** 全銘柄合計の月次評価額（円） */
+  assetValues: number[];
+  /** 全銘柄合計の月次損益（円） */
+  plValues: number[];
+}
+
+// 月次レポートデータレスポンス（新デザイン用）
+export interface ReportDataResponse {
+  meta: {
+    year: number;
+    month: number;
+    exchangeRate: number; // USD/JPY レート
+    reportDate: string;   // "YYYY年M月末" 形式
+  };
+  stocks: DashboardStock[];
+  totalHistory: TotalHistory;
+  intro: string | null;
+  summary: string | null;
 }

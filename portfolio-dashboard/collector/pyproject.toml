@@ -35,3 +35,9 @@ select = ["E", "W", "F", "I", "B", "C4", "UP"]
 
 [tool.ty.environment]
 python-version = "3.12"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.9",
+    "ty>=0.0.28",
+]

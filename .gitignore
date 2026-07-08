@@ -61,6 +61,14 @@ local_settings.py
 service-account*.json
 my-service-account.json
 
+# Drizzle マイグレーション台帳は追跡する（db:migrate に必須）
+!portfolio-dashboard/server/drizzle/migrations/meta/*.json
+
+# SQLite 実データと collector 生成物はコミットしない
+portfolio-dashboard/data/*.db
+portfolio-dashboard/data/*.db-*
+portfolio-dashboard/collector/output/
+
 # Personal investment data
 docs/monthly-reports/*/
 \!docs/monthly-reports/README.md

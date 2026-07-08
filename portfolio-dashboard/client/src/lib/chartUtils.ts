@@ -37,3 +37,12 @@ export function buildPivotData(
     names,
   };
 }
+
+/** フォールバックカラー（stock_meta 未登録銘柄用） */
+export const FALLBACK_STOCK_COLORS = [
+  "#E53935",
+  "#1565C0",
+  "#76B900",
+  "#FF6F00",
+  "#7B1FA2",
+];

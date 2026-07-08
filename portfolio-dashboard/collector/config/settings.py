@@ -32,6 +32,12 @@ WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD", "")
 AI_COMMENTS_ENABLED = os.getenv("AI_COMMENTS_ENABLED", "false").lower() == "true"
 WP_PUBLISH_ENABLED = os.getenv("WP_PUBLISH_ENABLED", "false").lower() == "true"
 
+# ブログ埋め込みエクスポート（portfolio_{year}_{month}.json + blog_embed HTML 生成）
+BLOG_EMBED_ENABLED = os.getenv("BLOG_EMBED_ENABLED", "true").lower() == "true"
+
+# AI コメント強制再生成フラグ（true のとき既存 DB コメントを無視して再生成）
+AI_COMMENTS_FORCE = os.getenv("AI_COMMENTS_FORCE", "false").lower() == "true"
+
 # 対応通貨設定
 CURRENCY_SETTINGS = {
     "supported_currencies": ["USD", "HKD", "EUR", "GBP"],

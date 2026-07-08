@@ -159,6 +159,126 @@ class DbWriter:
         self.conn.row_factory = None
         return [dict(row) for row in rows]
 
+    def save_ai_comment(self, date: str, code: str, kind: str, content: str) -> None:
+        """AI コメントを保存（UPSERT）。
+
+        Args:
+            date: 対象月（"YYYY-MM-末" 形式）
+            code: 銘柄コード。intro/summary は空文字列
+            kind: コメント種別（"stock" | "intro" | "summary"）
+            content: コメント本文
+        """
+        from datetime import datetime
+
+        self.conn.execute(
+            """
+            INSERT INTO ai_comments (date, code, kind, content, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(date, code, kind) DO UPDATE SET
+                content=excluded.content, created_at=excluded.created_at
+            """,
+            (date, code, kind, content, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
+        self.conn.commit()
+
+    def get_ai_comments(self, date: str) -> dict[tuple[str, str], str]:
+        """指定月の AI コメントを {(code, kind): content} 形式で取得する。
+
+        Args:
+            date: 対象月（"YYYY-MM-末" 形式）
+
+        Returns:
+            {(code, kind): content} の辞書。コメントなしは空辞書
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT code, kind, content FROM ai_comments WHERE date = ?",
+            (date,),
+        )
+        rows = cursor.fetchall()
+        self.conn.row_factory = None
+        return {(row["code"], row["kind"]): row["content"] for row in rows}
+
+    def get_stock_meta(self) -> dict[str, dict]:
+        """stock_meta テーブルから全銘柄メタ情報を取得する。
+
+        Returns:
+            {code: {"color": str, "market": str, "sort_order": int}} の辞書
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT code, color, market, sort_order FROM stock_meta"
+        )
+        rows = cursor.fetchall()
+        self.conn.row_factory = None
+        return {
+            row["code"]: {
+                "color": row["color"],
+                "market": row["market"],
+                "sort_order": row["sort_order"],
+            }
+            for row in rows
+        }
+
+    def get_pnl_history_until(self, date: str) -> list[dict]:
+        """指定月以前の全 monthly_pnl を日付昇順で取得する（totalHistory 構築用）。
+
+        Args:
+            date: 上限月（"YYYY-MM-末" 形式、この月を含む）
+
+        Returns:
+            monthly_pnl レコードのリスト（date 昇順）
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT * FROM monthly_pnl WHERE date <= ? ORDER BY date",
+            (date,),
+        )
+        rows = cursor.fetchall()
+        self.conn.row_factory = None
+        return [dict(row) for row in rows]
+
+    def get_exchange_rate_for_month(
+        self, pair: str, year: int, month: int
+    ) -> float | None:
+        """指定月の為替レートを取得する（対象月内のレートを優先、なければ最新）。
+
+        Args:
+            pair: 通貨ペア（例: "USD/JPY"）
+            year: 年
+            month: 月
+
+        Returns:
+            為替レート。取得できない場合は None
+        """
+        prefix = f"{year}-{month:02d}"
+        self.conn.row_factory = sqlite3.Row
+        # 対象月のレートを優先
+        cursor = self.conn.execute(
+            """
+            SELECT rate FROM exchange_rates
+            WHERE pair = ? AND date LIKE ?
+            ORDER BY date DESC LIMIT 1
+            """,
+            (pair, f"{prefix}%"),
+        )
+        row = cursor.fetchone()
+        if row:
+            self.conn.row_factory = None
+            return float(row["rate"])
+        # 対象月になければ最新レートを取得
+        cursor = self.conn.execute(
+            """
+            SELECT rate FROM exchange_rates
+            WHERE pair = ?
+            ORDER BY date DESC LIMIT 1
+            """,
+            (pair,),
+        )
+        row = cursor.fetchone()
+        self.conn.row_factory = None
+        return float(row["rate"]) if row else None
+
     def display_portfolio_summary(self, year: int, month: int) -> None:
         """ポートフォリオサマリーを表示"""
         records = self.get_performance_data(year, month)

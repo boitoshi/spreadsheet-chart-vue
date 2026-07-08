@@ -134,6 +134,56 @@ class AiCommentGenerator:
         except Exception:  # noqa: BLE001
             return "（コメント生成をスキップ）"
 
+    def generate_intro(self, portfolio_data: dict, year: int, month: int) -> str:
+        """ポートフォリオ全体の記事導入文（2〜3文）を生成する。
+
+        Args:
+            portfolio_data: ポートフォリオデータ辞書。以下のキーを持つ:
+                - total_value: 合計評価額
+                - total_pl: 総損益額
+                - total_pl_rate: 総損益率 (%)
+                - holdings: 保有銘柄リスト
+            year: 対象年
+            month: 対象月
+
+        Returns:
+            生成された導入文字列。失敗時は「（コメント生成をスキップ）」。
+        """
+        total_value = portfolio_data.get("total_value", 0)
+        total_pl = portfolio_data.get("total_pl", 0)
+        total_pl_rate = portfolio_data.get("total_pl_rate", 0)
+
+        prompt = (
+            f"対象月: {year}年{month}月\n"
+            f"合計評価額: {total_value:,.0f} 円\n"
+            f"総損益: {total_pl:+,.0f} 円（{total_pl_rate:+.2f}%）\n\n"
+            "このポケモン投資ブログの月次レポートの冒頭に使う導入文を2〜3文で書いてください。"
+            "ポケモンファンがポケモン関連銘柄に「お布施投資」している雰囲気で、"
+            "読者が続きを読みたくなるような自然な書き出しにしてください。"
+            "箇条書きや見出しは使わず、自然な文章のみで回答してください。"
+        )
+
+        try:
+            response = self.client.messages.create(
+                model=self.MODEL,
+                max_tokens=300,
+                system=(
+                    "あなたはポケモンファンのブロガーです。"
+                    "ポケモン関連銘柄に「推しへのお布施」として投資しています。"
+                    "読者に対して親しみやすいトーンで記事の導入文を書いてください。"
+                    "箇条書きや見出しは使わず、自然な文章のみで回答してください。"
+                ),
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text_block = next(
+                (b for b in response.content if b.type == "text"), None
+            )
+            if text_block:
+                return text_block.text.strip()
+            return "（コメント生成をスキップ）"
+        except Exception:  # noqa: BLE001
+            return "（コメント生成をスキップ）"
+
     def generate_all(self, report_data: dict) -> dict:
         """全銘柄コメントとサマリーをまとめて生成する。
 
@@ -172,4 +222,12 @@ class AiCommentGenerator:
         }
         summary = self.generate_summary(portfolio_data, year, month)
 
-        return {"stock_comments": stock_comments, "summary": summary}
+        portfolio_data_for_intro = {
+            "total_value": report_data.get("total_value", 0),
+            "total_pl": report_data.get("total_pl", 0),
+            "total_pl_rate": report_data.get("total_pl_rate", 0),
+            "holdings": holdings,
+        }
+        intro = self.generate_intro(portfolio_data_for_intro, year, month)
+
+        return {"stock_comments": stock_comments, "summary": summary, "intro": intro}

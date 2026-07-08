@@ -111,3 +111,30 @@ export const purchaseHistory = sqliteTable("purchase_history", {
 }, (table) => ({
   codeSeqUniq: uniqueIndex("uq_purchase_history_code_seq").on(table.code, table.seq),
 }));
+
+// ━━━ 銘柄メタ情報（チャート色・市場区分・表示順） ━━━
+export const stockMeta = sqliteTable("stock_meta", {
+  code: text("code").primaryKey(),
+  color: text("color").notNull(),
+  market: text("market").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+// ━━━ AI コメント（銘柄別・月次レポート用） ━━━
+export const aiComments = sqliteTable("ai_comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // "YYYY-MM-末" 形式。intro/summary は date のみで code=''
+  date: text("date").notNull(),
+  // 銘柄コード。intro/summary は空文字
+  code: text("code").notNull().default(""),
+  // 種別: 'stock'（銘柄コメント）| 'intro'（イントロ）| 'summary'（まとめ）
+  kind: text("kind").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at"),
+}, (table) => ({
+  dateCodeKindUniq: uniqueIndex("uq_ai_comments_date_code_kind").on(
+    table.date,
+    table.code,
+    table.kind,
+  ),
+}));

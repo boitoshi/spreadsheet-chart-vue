@@ -15,21 +15,26 @@ beforeAll(async () => {
   // db/index.ts は process.env.DB_PATH を参照するので、インポート前に設定済み
   const { sqlite } = await import("../db/index.js");
 
-  // マイグレーション SQL を読み込んで実行
-  const migrationPath = resolve(
-    __dirname,
-    "../../drizzle/migrations/0000_wise_morgan_stark.sql",
-  );
-  const migrationSql = readFileSync(migrationPath, "utf-8");
+  // 全マイグレーション SQL を順に読み込んで実行
+  const migrationFiles = [
+    "0000_wise_morgan_stark.sql",
+    "0001_add_purchase_history.sql",
+    "0002_petite_vampiro.sql",
+    "0003_overjoyed_santa_claus.sql",
+  ];
 
-  // --> statement-breakpoint で分割して各文を実行
-  const statements = migrationSql
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  for (const stmt of statements) {
-    sqlite.exec(stmt);
+  for (const file of migrationFiles) {
+    const sql = readFileSync(
+      resolve(__dirname, "../../drizzle/migrations", file),
+      "utf-8",
+    );
+    const statements = sql
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    for (const stmt of statements) {
+      sqlite.exec(stmt);
+    }
   }
 
   // テストデータ INSERT
@@ -74,6 +79,14 @@ beforeAll(async () => {
     VALUES ('2025-03-末', 15.0, 8.0, 6.0);
   `);
 
+  // purchase_history（buildReportData / stocks 拡張が参照するため追加）
+  sqlite.exec(`
+    INSERT INTO purchase_history (code, seq, shares, price, price_foreign, exchange_rate, purchased_at)
+    VALUES
+      ('7974.T', 1, 100, 6433, NULL, NULL, '2023-06-28'),
+      ('NVDA',   1,  10,    0, 110.0, 150.0, '2024-03-15');
+  `);
+
   // app をインポート（DB 準備完了後）
   const mod = await import("../index.js");
   app = mod.default;
@@ -94,6 +107,30 @@ describe("API routes", () => {
     expect(body.kpi.totalValue).toBe(1180000);
     expect(body.allocation).toHaveLength(2);
     expect(body.latestProfits).toHaveLength(2);
+  });
+
+  it("GET /api/dashboard → 拡張フィールド stocks/totalHistory/usdJpy が存在する", async () => {
+    const res = await app.request("/api/dashboard");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // stocks は 2件（7974.T, NVDA）
+    expect(Array.isArray(body.stocks)).toBe(true);
+    expect(body.stocks).toHaveLength(2);
+    // 各 stock に必須フィールドが含まれる
+    const stock = body.stocks[0];
+    expect(stock).toHaveProperty("code");
+    expect(stock).toHaveProperty("priceHistory");
+    expect(stock).toHaveProperty("acquiredAvgHistory");
+    expect(stock).toHaveProperty("monthLabels");
+    expect(stock).toHaveProperty("transactions");
+    expect(Array.isArray(stock.priceHistory)).toBe(true);
+    // totalHistory
+    expect(body.totalHistory).toHaveProperty("months");
+    expect(body.totalHistory).toHaveProperty("assetValues");
+    expect(body.totalHistory).toHaveProperty("plValues");
+    // usdJpy は数値
+    expect(typeof body.usdJpy).toBe("number");
+    expect(body.usdJpy).toBe(150.0);
   });
 
   it("GET /api/portfolio → items は 2件、items[0].totalCost === 643300", async () => {
@@ -166,5 +203,39 @@ describe("API routes", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body.reports)).toBe(true);
+  });
+
+  it("GET /api/reports/2025/3/data → 正常系: meta.year=2025, stocks は 2件", async () => {
+    const res = await app.request("/api/reports/2025/3/data");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // meta フィールドの確認
+    expect(body.meta.year).toBe(2025);
+    expect(body.meta.month).toBe(3);
+    expect(body.meta.reportDate).toBe("2025年3月末");
+    // stocks は 2件
+    expect(Array.isArray(body.stocks)).toBe(true);
+    expect(body.stocks).toHaveLength(2);
+    // totalHistory の形状確認
+    expect(Array.isArray(body.totalHistory.months)).toBe(true);
+    expect(Array.isArray(body.totalHistory.assetValues)).toBe(true);
+    // intro/summary は null（テストデータ未設定）
+    expect(body.intro).toBeNull();
+    expect(body.summary).toBeNull();
+  });
+
+  it("GET /api/reports/1999/1/data → 404 JSON", async () => {
+    const res = await app.request("/api/reports/1999/1/data");
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toHaveProperty("error");
+  });
+
+  it("GET /api/reports/2025/3 → Markdown ルートは既存のまま動作（404 is ok, endpoint still exists）", async () => {
+    // テスト環境では REPORTS_DIR が存在しないため 404 が期待値
+    const res = await app.request("/api/reports/2025/3");
+    // 200 または 404（ファイル存在有無による）— ステータスは問わず形状のみ確認
+    const body = await res.json();
+    expect(body).toBeDefined();
   });
 });

@@ -1,5 +1,9 @@
 import { Hono } from "hono";
+import { desc, eq } from "drizzle-orm";
+import { db } from "../db/index.js";
 import { getLatestDate, getLatestPnlRecords } from "../db/queries.js";
+import { exchangeRates } from "../db/schema.js";
+import { buildReportData } from "../services/reportData.js";
 
 const app = new Hono();
 
@@ -11,6 +15,9 @@ app.get("/", (c) => {
       kpi: { totalValue: 0, totalProfit: 0, profitRate: 0, baseDate: "" },
       allocation: [],
       latestProfits: [],
+      stocks: [],
+      totalHistory: { months: [], assetValues: [], plValues: [] },
+      usdJpy: null,
     });
   }
 
@@ -37,6 +44,19 @@ app.get("/", (c) => {
     }))
     .sort((a, b) => b.profit - a.profit);
 
+  // ── 拡張データ：stocks / totalHistory / usdJpy ───────────────
+  // buildReportData は latestDate をベースに詳細データを構築する
+  const reportData = buildReportData(db, latestDate);
+
+  // 最新 USD/JPY レート
+  const latestUsdJpy = db
+    .select({ rate: exchangeRates.rate })
+    .from(exchangeRates)
+    .where(eq(exchangeRates.pair, "USD/JPY"))
+    .orderBy(desc(exchangeRates.date))
+    .limit(1)
+    .get();
+
   return c.json({
     kpi: {
       totalValue,
@@ -46,6 +66,14 @@ app.get("/", (c) => {
     },
     allocation,
     latestProfits,
+    // 以下は Phase A で追加した拡張フィールド
+    stocks: reportData?.stocks ?? [],
+    totalHistory: reportData?.totalHistory ?? {
+      months: [],
+      assetValues: [],
+      plValues: [],
+    },
+    usdJpy: latestUsdJpy?.rate ?? null,
   });
 });
 

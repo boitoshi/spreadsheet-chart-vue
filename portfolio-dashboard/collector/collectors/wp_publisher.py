@@ -84,6 +84,7 @@ class WpPublisher:
         markdown_content: str,
         image_paths: list[str] | None = None,
         slug: str | None = None,
+        raw_html_prepend: str | None = None,
     ) -> str:
         """Markdown コンテンツを HTML に変換し、WordPress に下書き投稿する。
 
@@ -96,6 +97,9 @@ class WpPublisher:
             image_paths: アップロードする画像ファイルのパスリスト（省略可）
             slug: 投稿のスラッグ（URL パーマリンク用）。
                 省略時は WordPress が自動生成する
+            raw_html_prepend: Gutenberg 変換前に本文先頭に追加する生 HTML 文字列。
+                指定時は <!-- wp:html --> ブロックで包み、
+                Markdown 変換済み本文の前に連結する
 
         Returns:
             作成された下書き投稿の URL
@@ -143,6 +147,13 @@ class WpPublisher:
         # 2.5. HTML → Gutenberg ブロック変換
         converter = GutenbergBlockConverter()
         html_content = converter.convert(html_content)
+
+        # 2.6. raw_html_prepend を本文先頭に連結（埋め込み HTML など）
+        if raw_html_prepend:
+            prepend_block = (
+                f"<!-- wp:html -->\n{raw_html_prepend}\n<!-- /wp:html -->"
+            )
+            html_content = f"{prepend_block}\n\n{html_content}"
 
         # 3. WordPress に下書きとして POST
         print(f"  WordPress に下書き投稿中: 「{title}」")

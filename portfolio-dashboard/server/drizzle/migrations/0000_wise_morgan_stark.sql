@@ -1,4 +1,4 @@
-CREATE TABLE `benchmark_data` (
+CREATE TABLE IF NOT EXISTS `benchmark_data` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`portfolio` real NOT NULL,
@@ -6,8 +6,8 @@ CREATE TABLE `benchmark_data` (
 	`sp500` real
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_benchmark_data_date` ON `benchmark_data` (`date`);--> statement-breakpoint
-CREATE TABLE `dividends` (
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_benchmark_data_date` ON `benchmark_data` (`date`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `dividends` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`code` text NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE `dividends` (
 	`total_jpy` real NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `exchange_rates` (
+CREATE TABLE IF NOT EXISTS `exchange_rates` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`pair` text NOT NULL,
@@ -32,8 +32,8 @@ CREATE TABLE `exchange_rates` (
 	`updated_at` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_exchange_rates_date_pair` ON `exchange_rates` (`date`,`pair`);--> statement-breakpoint
-CREATE TABLE `holdings` (
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_exchange_rates_date_pair` ON `exchange_rates` (`date`,`pair`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `holdings` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`code` text NOT NULL,
 	`name` text NOT NULL,
@@ -48,8 +48,8 @@ CREATE TABLE `holdings` (
 	`updated_at` text
 );
 --> statement-breakpoint
-CREATE INDEX `idx_holdings_code` ON `holdings` (`code`);--> statement-breakpoint
-CREATE TABLE `monthly_pnl` (
+CREATE INDEX IF NOT EXISTS `idx_holdings_code` ON `holdings` (`code`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `monthly_pnl` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`code` text NOT NULL,
@@ -69,9 +69,9 @@ CREATE TABLE `monthly_pnl` (
 	`updated_at` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_monthly_pnl_date_code` ON `monthly_pnl` (`date`,`code`);--> statement-breakpoint
-CREATE INDEX `idx_monthly_pnl_date` ON `monthly_pnl` (`date`);--> statement-breakpoint
-CREATE TABLE `monthly_prices` (
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_monthly_pnl_date_code` ON `monthly_pnl` (`date`,`code`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_monthly_pnl_date` ON `monthly_pnl` (`date`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `monthly_prices` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`code` text NOT NULL,
@@ -84,4 +84,4 @@ CREATE TABLE `monthly_prices` (
 	`created_at` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `uq_monthly_prices_date_code` ON `monthly_prices` (`date`,`code`);
+CREATE UNIQUE INDEX IF NOT EXISTS `uq_monthly_prices_date_code` ON `monthly_prices` (`date`,`code`);

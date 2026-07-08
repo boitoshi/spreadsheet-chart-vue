@@ -79,58 +79,63 @@ npm run test      # テスト
 
 ## 概要
 
-Next.js + FastAPI による投資ポートフォリオ管理アプリケーション。Google Sheets をデータストアとして、資産管理・月次レポート生成・チャート表示を行う。
+投資ポートフォリオ管理＋月次ブログ自動化アプリケーション。**現行システムは `portfolio-dashboard/`**（Hono + React SPA + SQLite）。GCE e2-micro で本番稼働中（月次 cron・WordPress 自動投稿）。
 
-## 技術スタック
+**⚠️ `web-app/` と `data-collector/` は旧構成（Next.js + FastAPI + Google Sheets）。メンテ停止中で、変更しないこと。**
 
-- **フロントエンド**: Next.js 16, Recharts, Tailwind CSS v4, TypeScript
-- **バックエンド**: FastAPI, gspread, uvicorn（uv 管理）
-- **Pythonツールチェーン**: uv, ruff, ty（すべてAstral社製）
-- **言語**: TypeScript/Next.js（フロント）, Python 3.12（バック）
+## 技術スタック（portfolio-dashboard）
+
+- **client**: Vite 6, React 19, react-router-dom 7, TanStack Query 5, Recharts 3, Tailwind CSS v4
+- **server**: Hono 4, Drizzle ORM, better-sqlite3（ポート3000、SPA 静的配信兼用）
+- **collector**: Python 3.12（uv / ruff / ty）。yfinance→SQLite、ブログ生成・AI コメント・WordPress 投稿・ブログ埋め込み HTML 生成
+- **DB**: `portfolio-dashboard/data/portfolio.db`（SQLite。ローカルに無ければ GCS `portfolio-backup-pokebros` から復元）
 
 ## 開発コマンド
 
 ```bash
-# データ収集（月次実行）
-cd data-collector && uv sync --dev
-cd data-collector && uv run python main.py          # 対話型
-cd data-collector && uv run python main.py 2024 12  # バッチ
+cd portfolio-dashboard
 
-# フロントエンド（ポート3000）
-cd web-app/frontend && npm run dev
+# 開発サーバー（server:3000 + client:5173 を並行起動）
+npm run dev
 
-# バックエンド（ポート8000）
-cd web-app/backend && uv run uvicorn main:app --reload
+# 品質チェック（server + client）
+npm run lint && npm run check && npm run test
+npm run build
 
-# Python品質チェック（各プロジェクトディレクトリで実行）
-uv run ruff check . --fix
-uvx ty check
+# DB マイグレーション
+npm run db:generate -w server   # スキーマ差分から SQL 生成
+npm run db:migrate -w server    # 適用（冪等）
+
+# collector（月次バッチ・ブログ生成）
+cd collector
+uv run python main.py --blog 2026 3   # ブログ下書き＋埋め込み生成
+uv run ruff check . && uv run ty check
 ```
 
 ## 環境設定
 
-- `data-collector/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
-- `web-app/backend/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
+- `portfolio-dashboard/collector/.env`: `DB_PATH`, `ANTHROPIC_API_KEY`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`, `WP_PUBLISH_ENABLED`, `BLOG_EMBED_ENABLED`, `AI_COMMENTS_FORCE`
+- `.env` の `DB_PATH` は GCE パス（`/app/...`）。ローカル実行時は `DB_PATH=<リポジトリ>/portfolio-dashboard/data/portfolio.db` を環境変数で上書きする
+- API キー等の秘密情報はユーザー本人が直接設定する（LLM に渡さない）
 
 ## 実装状況
 
 | 層 | 状態 |
 |---|---|
-| data-collector | 完成（yfinance→Sheets書き込み・ブログ生成） |
-| FastAPI backend | 完成（dashboard/portfolio/history/currency API）|
-| Next.js frontend | 完成（ダッシュボード・ポートフォリオ・損益推移・為替レート）|
+| server | 完成（dashboard/portfolio/history/currency/dividend/reports/benchmark/exposure API、reports/:y/:m/data 追加済み）|
+| client | 完成（claude.ai/design 由来の新デザイン: Dashboard・ReportDetail。他ページは旧デザイン）|
+| collector | 完成（--sync/--range/--blog、AI コメント永続化、ブログ埋め込みエクスポート）|
+| デプロイ | GCE e2-micro 稼働中（systemd portfolio.service、Caddy、月次 cron、GCS 日次バックアップ）|
 
 ## 開発ガイドライン
 
 - コードコメント・コミットメッセージ・会話はすべて日本語
 - CLAUDE.md・README.md は開発状況に合わせて随時更新する
 - 開発の問題点・実装計画は `PROJECT_PROCEED.md` で管理する
-- コンポーネントは単一責任の原則に従い、Server / Client Components を適切に分離する
+- DB スキーマ変更は additive のみ（本番 SQLite が GCE にあるため）。`sheets_sync` が holdings を全入替するので銘柄メタは `stock_meta` テーブルに置く
 
 ---
 
 # 詳細ドキュメント
 
-@docs/project-structure.md
-@docs/sheets-schema.md
-@docs/api-reference.md
+@docs/portfolio-dashboard.md

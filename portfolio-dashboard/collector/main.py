@@ -17,6 +17,8 @@ from collectors.stock_collector import StockDataCollector
 from collectors.template_engine import MarkdownTemplateEngine
 from config.settings import (
     AI_COMMENTS_ENABLED,
+    AI_COMMENTS_FORCE,
+    BLOG_EMBED_ENABLED,
     CURRENCY_SETTINGS,
     DB_PATH,
     GOOGLE_APPLICATION_CREDENTIALS,
@@ -36,9 +38,15 @@ class PortfolioDataCollector:
     def __init__(self) -> None:
         """初期化"""
         self.db_writer = DbWriter(DB_PATH)
-        self.sheets_sync = SheetsSync(
-            GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID, DB_PATH
-        )
+        # SheetsSync は認証ファイルが存在しない環境でも起動できるよう
+        # 初期化失敗を握りつぶす（--blog 等の DB 専用コマンドで有効）
+        self.sheets_sync = None
+        try:
+            self.sheets_sync = SheetsSync(
+                GOOGLE_APPLICATION_CREDENTIALS, SPREADSHEET_ID, DB_PATH
+            )
+        except Exception as e:
+            print(f"  Sheets 同期: 無効（{e}）")
         self.stock_collector = StockDataCollector()
         self.benchmark_collector = BenchmarkCollector(self.db_writer)
         self.report_generator = BlogReportGenerator(self.db_writer)
@@ -65,6 +73,18 @@ class PortfolioDataCollector:
             self.wp_publisher = WpPublisher(WP_URL, WP_USER, WP_APP_PASSWORD)
             print("  WordPress 投稿: 有効")
 
+        # オプショナル: ブログ埋め込みエクスポート
+        self.embed_generator = None
+        if BLOG_EMBED_ENABLED:
+            from collectors.embed_generator import EmbedGenerator
+
+            self.embed_generator = EmbedGenerator(
+                db=self.db_writer,
+                output_dir=OUTPUT_DIR,
+                template_dir=os.path.join(os.path.dirname(__file__), "templates"),
+            )
+            print("  ブログ埋め込みエクスポート: 有効")
+
     def collect_and_publish(self, year: int, month: int) -> bool:
         """月次バッチ: データ収集 → ブログ生成
 
@@ -79,9 +99,12 @@ class PortfolioDataCollector:
 
         # 1. Sheets からポートフォリオ同期
         print("\n[1/7] Sheets からポートフォリオ同期中...")
-        synced = self.sheets_sync.sync_holdings()
-        history_count = self.sheets_sync.sync_purchase_history()
-        print(f"  同期完了: {synced}件（購入履歴: {history_count}件）")
+        if self.sheets_sync:
+            synced = self.sheets_sync.sync_holdings()
+            history_count = self.sheets_sync.sync_purchase_history()
+            print(f"  同期完了: {synced}件（購入履歴: {history_count}件）")
+        else:
+            print("  スキップ（Sheets 認証無効）")
 
         # 2. yfinance で株価取得 → SQLite 保存
         print("\n[2/7] 株価データ収集中...")
@@ -114,9 +137,29 @@ class PortfolioDataCollector:
 
         # 6. AI コメント生成（オプショナル）
         print("\n[6/7] AI コメント生成中...")
+        batch_target_date = f"{year}-{month:02d}-末"
+        batch_ai_comments: dict = {}
         if self.ai_comment and report_data:
-            ai_comments = self.ai_comment.generate_all(report_data)
-            report_data["ai_comments"] = ai_comments
+            if not AI_COMMENTS_FORCE:
+                existing = self.db_writer.get_ai_comments(batch_target_date)
+                if existing:
+                    print("  AI コメント: DB から既存コメントを再利用します")
+                    stock_coms: dict[str, str] = {}
+                    for (code, kind), content in existing.items():
+                        if kind == "stock" and code:
+                            stock_coms[code] = content
+                    batch_ai_comments = {
+                        "stock_comments": stock_coms,
+                        "summary": existing.get(("", "summary")),
+                        "intro": existing.get(("", "intro")),
+                    }
+                else:
+                    batch_ai_comments = self.ai_comment.generate_all(report_data)
+                    self._save_ai_comments(batch_target_date, batch_ai_comments)
+            else:
+                batch_ai_comments = self.ai_comment.generate_all(report_data)
+                self._save_ai_comments(batch_target_date, batch_ai_comments)
+            report_data["ai_comments"] = batch_ai_comments
             # AI コメント付きで再生成
             markdown = self.template_engine.render("blog_template.md", report_data)
             with open(output_path, "w", encoding="utf-8") as f:
@@ -124,6 +167,15 @@ class PortfolioDataCollector:
             print("  AI コメント付きブログを再生成しました")
         else:
             print("  スキップ（AI コメント無効 or データなし）")
+
+        # 6.5. 埋め込み HTML/JSON 生成（オプショナル）
+        batch_fragment_html: str | None = None
+        if self.embed_generator and report_data:
+            print("\n  埋め込みコンテンツ生成中...")
+            self.embed_generator.generate(year, month)
+            batch_fragment_html = self.embed_generator.get_fragment_content(
+                year, month
+            )
 
         # 7. WordPress 下書き投稿（オプショナル）
         print("\n[7/7] WordPress 投稿中...")
@@ -133,6 +185,7 @@ class PortfolioDataCollector:
                     title=f"「ポケモン投資」{year}年{month}月の状況",
                     markdown_content=open(output_path, encoding="utf-8").read(),
                     slug=f"pokemon-investment-{year}{month:02d}",
+                    raw_html_prepend=batch_fragment_html,
                 )
                 print(f"  投稿完了: {post_url}")
             except Exception as e:
@@ -369,6 +422,25 @@ class PortfolioDataCollector:
             "citations": citations_map,
         }
 
+    def _save_ai_comments(self, target_date: str, ai_comments: dict) -> None:
+        """生成した AI コメントを SQLite に保存する。
+
+        Args:
+            target_date: 対象月（"YYYY-MM-末" 形式）
+            ai_comments: generate_all の戻り値辞書（stock_comments / summary / intro）
+        """
+        stock_comments = ai_comments.get("stock_comments") or {}
+        for code, content in stock_comments.items():
+            if content:
+                self.db_writer.save_ai_comment(target_date, code, "stock", content)
+        summary = ai_comments.get("summary")
+        if summary:
+            self.db_writer.save_ai_comment(target_date, "", "summary", summary)
+        intro = ai_comments.get("intro")
+        if intro:
+            self.db_writer.save_ai_comment(target_date, "", "intro", intro)
+        print(f"  AI コメントを DB に保存しました（{target_date}）")
+
     def _save_exchange_rate(
         self, currency: str, rate: float, date_str: str, now_str: str
     ) -> None:
@@ -402,6 +474,9 @@ class PortfolioDataCollector:
     def sync_holdings_only(self) -> bool:
         """Sheets 同期のみ実行"""
         print("\n=== Sheets → SQLite 銘柄マスタ同期 ===")
+        if not self.sheets_sync:
+            print("❌ Sheets 同期が無効です（認証設定を確認してください）")
+            return False
         synced = self.sheets_sync.sync_holdings()
         history_count = self.sheets_sync.sync_purchase_history()
         print(f"同期完了: {synced}件（購入履歴: {history_count}件）")
@@ -434,11 +509,48 @@ class PortfolioDataCollector:
         self._generate_stock_charts(report_data, year, month)
 
         # AI コメント生成（有効な場合）
+        target_date = f"{year}-{month:02d}-末"
+        ai_comments: dict = {}
         if self.ai_comment:
-            print("  AI コメント生成中...")
-            ai_comments = self.ai_comment.generate_all(report_data)
+            # DB に既存コメントがあれば再利用（AI_COMMENTS_FORCE=true で強制再生成）
+            if not AI_COMMENTS_FORCE:
+                existing = self.db_writer.get_ai_comments(target_date)
+                if existing:
+                    print("  AI コメント: DB から既存コメントを再利用します")
+                    # generate_all 形式に変換
+                    stock_comments: dict[str, str] = {}
+                    for (code, kind), content in existing.items():
+                        if kind == "stock" and code:
+                            stock_comments[code] = content
+                    ai_comments = {
+                        "stock_comments": stock_comments,
+                        "summary": existing.get(("", "summary")),
+                        "intro": existing.get(("", "intro")),
+                    }
+                else:
+                    print("  AI コメント生成中...")
+                    ai_comments = self.ai_comment.generate_all(report_data)
+                    print("  AI コメント生成完了")
+                    self._save_ai_comments(target_date, ai_comments)
+            else:
+                print("  AI コメント強制再生成中（AI_COMMENTS_FORCE=true）...")
+                ai_comments = self.ai_comment.generate_all(report_data)
+                print("  AI コメント生成完了")
+                self._save_ai_comments(target_date, ai_comments)
             report_data["ai_comments"] = ai_comments
-            print("  AI コメント生成完了")
+        else:
+            # AI コメント無効でも DB に保存済みのコメントがあれば読み込む
+            existing = self.db_writer.get_ai_comments(target_date)
+            if existing:
+                stock_comments = {}
+                for (code, kind), content in existing.items():
+                    if kind == "stock" and code:
+                        stock_comments[code] = content
+                report_data["ai_comments"] = {
+                    "stock_comments": stock_comments,
+                    "summary": existing.get(("", "summary")),
+                    "intro": existing.get(("", "intro")),
+                }
 
         markdown_text = self.template_engine.render(
             "blog_template.md", report_data
@@ -453,6 +565,13 @@ class PortfolioDataCollector:
 
         print(f"  ブログ下書きを生成しました: {output_path}")
 
+        # 埋め込み HTML/JSON 生成（有効な場合）
+        fragment_html: str | None = None
+        if self.embed_generator:
+            print("\n  埋め込みコンテンツ生成中...")
+            self.embed_generator.generate(year, month)
+            fragment_html = self.embed_generator.get_fragment_content(year, month)
+
         # WordPress 下書き投稿（有効な場合）
         if self.wp_publisher:
             try:
@@ -460,6 +579,7 @@ class PortfolioDataCollector:
                     title=f"「ポケモン投資」{year}年{month}月の状況",
                     markdown_content=markdown_text,
                     slug=f"pokemon-investment-{year}{month:02d}",
+                    raw_html_prepend=fragment_html,
                 )
                 print(f"  WordPress 投稿完了: {post_url}")
             except Exception as e:
