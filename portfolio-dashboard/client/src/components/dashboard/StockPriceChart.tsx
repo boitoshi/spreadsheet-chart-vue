@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { formatMonthTick, formatMonthFull } from "@/lib/formatters";
 
 interface Props {
   prices: number[];
@@ -62,7 +63,9 @@ function makeTooltipContent(currency: "JPY" | "USD") {
           lineHeight: 1.6,
         }}
       >
-        <p style={{ margin: 0, color: "#b0b4c3", fontSize: "9px" }}>{label}</p>
+        <p style={{ margin: 0, color: "#b0b4c3", fontSize: "9px" }}>
+          {formatMonthFull(String(label ?? ""))}
+        </p>
         <p style={{ margin: 0 }}>
           株価: {fmtPrice(price, currency)}
           {diffStr}
@@ -105,6 +108,7 @@ export function StockPriceChart({
           tick={{ fontSize: 9, fill: "#b0b4c3" }}
           axisLine={false}
           tickLine={false}
+          tickFormatter={formatMonthTick}
         />
         <YAxis
           tick={{ fontSize: 9, fill: "#b0b4c3" }}

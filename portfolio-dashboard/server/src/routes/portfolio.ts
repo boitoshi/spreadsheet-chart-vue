@@ -1,11 +1,29 @@
 import { Hono } from "hono";
+import { asc } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { holdings } from "../db/schema.js";
+import { holdings, purchaseHistory } from "../db/schema.js";
 
 const app = new Hono();
 
 app.get("/", (c) => {
   const rows = db.select().from(holdings).all();
+
+  // purchase_history を 1 クエリで全件取得し、code ごとに Map へグルーピング（N+1 禁止）
+  const purchaseRows = db
+    .select()
+    .from(purchaseHistory)
+    .orderBy(asc(purchaseHistory.seq))
+    .all();
+
+  const purchasesByCode = new Map<string, typeof purchaseRows>();
+  for (const p of purchaseRows) {
+    const list = purchasesByCode.get(p.code);
+    if (list) {
+      list.push(p);
+    } else {
+      purchasesByCode.set(p.code, [p]);
+    }
+  }
 
   const items = rows.map((r) => {
     let acquiredPriceJpy = r.acquiredPriceJpy;
@@ -20,6 +38,15 @@ app.get("/", (c) => {
 
     const totalCost = acquiredPriceJpy * r.shares;
 
+    const purchases = (purchasesByCode.get(r.code) ?? []).map((p) => ({
+      seq: p.seq,
+      shares: p.shares,
+      price: p.price,
+      priceForeign: p.priceForeign ?? null,
+      exchangeRate: p.exchangeRate ?? null,
+      purchasedAt: p.purchasedAt,
+    }));
+
     return {
       code: r.code,
       name: r.name,
@@ -31,6 +58,7 @@ app.get("/", (c) => {
       totalCost,
       currency: r.currency,
       isForeign: r.isForeign,
+      purchases,
     };
   });
 

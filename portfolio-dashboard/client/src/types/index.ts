@@ -30,6 +30,16 @@ export interface DashboardResponse {
   usdJpy?: number;
 }
 
+// 買付履歴 1 件（purchase_history テーブル由来）
+export interface PurchaseRecord {
+  seq: number; // 買付回次
+  shares: number; // 買付株数
+  price: number; // 取得単価（円。外国株は 0 の場合あり）
+  priceForeign: number | null; // 取得単価（外貨）
+  exchangeRate: number | null; // 取得時為替レート
+  purchasedAt: string; // 買付日
+}
+
 // ポートフォリオ保有銘柄
 export interface PortfolioItem {
   code: string; // 銘柄コード
@@ -42,6 +52,7 @@ export interface PortfolioItem {
   totalCost: number; // 取得額合計
   currency: string; // 通貨コード（JPY/USD/HKD）
   isForeign: boolean; // 外国株フラグ
+  purchases: PurchaseRecord[]; // 買付履歴（回ごとの明細）
 }
 
 // ポートフォリオ レスポンス

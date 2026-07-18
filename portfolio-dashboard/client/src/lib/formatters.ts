@@ -54,3 +54,19 @@ export function formatSignedPercent(v: number): string {
   const sign = v >= 0 ? "+" : "-";
   return `${sign}${Math.abs(v).toFixed(2)}%`;
 }
+
+/** "YYYY/M" → "M月"（チャート軸目盛り用。不正入力はそのまま返す）*/
+export function formatMonthTick(ym: string): string {
+  const parts = ym.split("/");
+  if (parts.length !== 2) return ym;
+  const [, m] = parts;
+  return `${m}月`;
+}
+
+/** "YYYY/M" → "YYYY年M月"（ツールチップ用。不正入力はそのまま返す）*/
+export function formatMonthFull(ym: string): string {
+  const parts = ym.split("/");
+  if (parts.length !== 2) return ym;
+  const [y, m] = parts;
+  return `${y}年${m}月`;
+}

@@ -2,6 +2,7 @@
  * formatters.ts のユニットテスト
  * 既存: formatJpy / formatPercent / formatYearMonth / profitColor
  * 追加: formatMan / formatNative / plColor / formatSignedYen / formatSignedPercent
+ *       / formatMonthTick / formatMonthFull
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -10,6 +11,8 @@ import {
   plColor,
   formatSignedYen,
   formatSignedPercent,
+  formatMonthTick,
+  formatMonthFull,
   // 既存関数（回帰確認）
   formatJpy,
   formatPercent,
@@ -97,6 +100,28 @@ describe("formatSignedPercent", () => {
 
   it("整数値も小数2桁で表示", () => {
     expect(formatSignedPercent(5)).toBe("+5.00%");
+  });
+});
+
+describe("formatMonthTick", () => {
+  it("YYYY/M を M月 に変換する", () => {
+    expect(formatMonthTick("2026/6")).toBe("6月");
+    expect(formatMonthTick("2023/12")).toBe("12月");
+  });
+
+  it("不正入力はそのまま返す", () => {
+    expect(formatMonthTick("invalid")).toBe("invalid");
+  });
+});
+
+describe("formatMonthFull", () => {
+  it("YYYY/M を YYYY年M月 に変換する", () => {
+    expect(formatMonthFull("2026/6")).toBe("2026年6月");
+    expect(formatMonthFull("2023/12")).toBe("2023年12月");
+  });
+
+  it("不正入力はそのまま返す", () => {
+    expect(formatMonthFull("invalid")).toBe("invalid");
   });
 });
 

@@ -16,12 +16,6 @@ interface Props {
   stock: DashboardStock;
 }
 
-/** "YYYY/M" → "M月" */
-function toLabel(ym: string): string {
-  const m = ym.split("/")[1];
-  return `${m}月`;
-}
-
 /** 期間に応じてスライス件数を返す */
 function sliceCount(period: Period, total: number): number {
   if (period === "3M") return Math.min(3, total);
@@ -46,8 +40,8 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
   const count = sliceCount(period, total);
   const prices = stock.priceHistory.slice(-count);
   const avgCosts = stock.acquiredAvgHistory.slice(-count);
-  const rawLabels = stock.monthLabels.slice(-count);
-  const labels = rawLabels.map(toLabel);
+  // dataKey には年付きの "YYYY/M" をそのまま使う（表示はチャート側でフォーマット）
+  const labels = stock.monthLabels.slice(-count);
 
   // 前月比の計算
   const prevMonthRate: number | null =

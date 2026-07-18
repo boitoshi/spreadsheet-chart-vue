@@ -10,19 +10,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { TotalHistory } from "@/types";
-import { formatMan } from "@/lib/formatters";
+import { formatMan, formatMonthTick, formatMonthFull } from "@/lib/formatters";
 
 interface Props {
   totalHistory: TotalHistory;
   totalProfit: number;
   /** チャート高さ（px）。省略時は 260 */
   height?: number;
-}
-
-/** "YYYY/M" → "M月" に変換 */
-function toMonthLabel(ym: string): string {
-  const m = ym.split("/")[1];
-  return `${m}月`;
 }
 
 /** 円表示ツールチップ用 */
@@ -36,9 +30,9 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
   const plGradId = totalProfit >= 0 ? "plGradRed" : "plGradBlue";
   const plGradColor = plStroke;
 
-  // チャートデータに変換
+  // チャートデータに変換（dataKey には年付きの "YYYY/M" をそのまま使い、表示はフォーマッタで変換）
   const chartData = totalHistory.months.map((m, i) => ({
-    month: toMonthLabel(m),
+    month: m,
     asset: totalHistory.assetValues[i] ?? 0,
     pl: totalHistory.plValues[i] ?? 0,
   }));
@@ -77,6 +71,7 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
             tick={{ fontSize: 9, fill: "#b0b4c3" }}
             axisLine={false}
             tickLine={false}
+            tickFormatter={formatMonthTick}
           />
 
           {/* 左軸: 総資産 */}
@@ -105,6 +100,7 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
               typeof value === "number" ? fmtJpy(value) : String(value),
               name === "asset" ? "総資産" : "損益",
             ]}
+            labelFormatter={(label) => formatMonthFull(String(label ?? ""))}
             contentStyle={{ fontSize: "11px" }}
           />
           <Legend

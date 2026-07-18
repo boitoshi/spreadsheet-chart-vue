@@ -138,3 +138,57 @@ def cumulative_position(
     return CumulativePosition(
         shares=cum_shares, cost_jpy=cum_cost_jpy, cost_native=cum_cost_native
     )
+
+
+def time_weighted_returns(series: list[tuple[str, float, float]]) -> dict[str, float]:
+    """(date, 総評価額, 累積投入コスト) の昇順リストから月次連鎖の累積 TWR（%）を返す。
+
+    追加買付（キャッシュフロー）の投入額そのものがリターンとして計上されて
+    しまう単純な「(評価額 − 初月コスト) ÷ 初月コスト」方式のバグを解消する
+    ための時間加重リターン（Time-Weighted Return）計算。
+
+    数式:
+        月次フロー: F_m = cost[m] − cost[m−1]（初月は F_0 = cost[0]）
+            → その月に新たに投入された購入コストの増分。
+        分母（期初評価額 + 当月フロー）:
+            D_m = value[m−1] + F_m（初月は D_0 = cost[0]）
+            → フローは「期初に投入された」とみなして分母に加える
+              （Modified Dietz 法の簡易版・月次のみのフロータイミング近似）。
+        月次リターン:
+            r_m = value[m] / D_m − 1
+            ただし D_m <= 0 のときはゼロ除算・負の分母による発散を防ぐため
+            r_m = 0.0 とする（防御的フォールバック）。
+        累積 TWR:
+            cum = Π(1 + r_i) − 1
+        戻り値は {date: round(cum × 100, 2)}（パーセント表記・小数2桁）。
+
+    欠損月（例: 途中の月が series に存在しない）はそのまま連鎖する。
+    欠損分のフローは次に存在する月の cost 差分に自然に吸収されるため、
+    特別な補間は行わない。
+
+    Args:
+        series: (date, value, cost) のタプルのリスト。date 昇順であること
+            （呼び出し側でソート済みを渡す）。value は総評価額、cost は
+            その月末時点の累積投入コスト（いずれも円）。
+
+    Returns:
+        {date: 累積 TWR（%、小数2桁）} の辞書。series が空なら空辞書。
+    """
+    returns: dict[str, float] = {}
+    cum = 1.0
+    prev_value: float | None = None
+    prev_cost: float | None = None
+
+    for date, value, cost in series:
+        flow = cost if prev_cost is None else cost - prev_cost
+        denominator = cost if prev_value is None else prev_value + flow
+
+        rate = (value / denominator - 1) if denominator > 0 else 0.0
+
+        cum *= 1 + rate
+        returns[date] = round((cum - 1) * 100, 2)
+
+        prev_value = value
+        prev_cost = cost
+
+    return returns

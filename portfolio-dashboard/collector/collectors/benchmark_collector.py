@@ -8,6 +8,7 @@ from datetime import datetime
 import yfinance as yf
 
 from .db_writer import DbWriter
+from .purchase_math import time_weighted_returns
 
 
 class BenchmarkCollector:
@@ -38,17 +39,9 @@ class BenchmarkCollector:
         if not dates:
             return
 
-        # ポートフォリオ累積リターン（初月基準）
-        first_cost = monthly_agg[dates[0]]["cost"]
-        portfolio_returns: dict[str, float] = {}
-        for d in dates:
-            agg = monthly_agg[d]
-            rate = (
-                ((agg["value"] - first_cost) / first_cost * 100)
-                if first_cost > 0
-                else 0.0
-            )
-            portfolio_returns[d] = round(rate, 2)
+        # ポートフォリオ累積リターン（時間加重リターン・追加買付フローの影響を除去）
+        series = [(d, monthly_agg[d]["value"], monthly_agg[d]["cost"]) for d in dates]
+        portfolio_returns = time_weighted_returns(series)
 
         # 日経225 / S&P500 の月次終値を取得
         nikkei_returns = self._fetch_index_returns("^N225", dates)

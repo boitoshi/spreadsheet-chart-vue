@@ -80,10 +80,12 @@ beforeAll(async () => {
   `);
 
   // purchase_history（buildReportData / stocks 拡張が参照するため追加）
+  // 7974.T: 日本株2件（seq 1, 2）、NVDA: 外国株1件（seq 1）
   sqlite.exec(`
     INSERT INTO purchase_history (code, seq, shares, price, price_foreign, exchange_rate, purchased_at)
     VALUES
       ('7974.T', 1, 100, 6433, NULL, NULL, '2023-06-28'),
+      ('7974.T', 2,  50, 6500, NULL, NULL, '2023-09-01'),
       ('NVDA',   1,  10,    0, 110.0, 150.0, '2024-03-15');
   `);
 
@@ -144,6 +146,27 @@ describe("API routes", () => {
     );
     expect(nintendo).toBeDefined();
     expect(nintendo.totalCost).toBe(643300);
+  });
+
+  it("GET /api/portfolio → items[].purchases が seq 昇順で返り、外国株は priceForeign/exchangeRate を含む", async () => {
+    const res = await app.request("/api/portfolio");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    const nintendo = body.items.find(
+      (item: { code: string }) => item.code === "7974.T",
+    );
+    expect(nintendo.purchases).toHaveLength(2);
+    expect(nintendo.purchases.map((p: { seq: number }) => p.seq)).toEqual([1, 2]);
+    expect(nintendo.purchases[0].priceForeign).toBeNull();
+    expect(nintendo.purchases[0].exchangeRate).toBeNull();
+
+    const nvda = body.items.find(
+      (item: { code: string }) => item.code === "NVDA",
+    );
+    expect(nvda.purchases).toHaveLength(1);
+    expect(nvda.purchases[0].priceForeign).toBe(110.0);
+    expect(nvda.purchases[0].exchangeRate).toBe(150.0);
   });
 
   it("GET /api/history → data は 2件、symbols は ['7974.T', 'NVDA']", async () => {
