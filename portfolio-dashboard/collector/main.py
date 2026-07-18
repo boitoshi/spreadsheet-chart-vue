@@ -11,9 +11,11 @@ from datetime import datetime, timedelta
 
 from collectors.benchmark_collector import BenchmarkCollector
 from collectors.db_writer import DbWriter
+from collectors.pnl_repair import repair_monthly_pnl
 from collectors.report_generator import BlogReportGenerator
 from collectors.sheets_sync import SheetsSync
 from collectors.stock_collector import StockDataCollector
+from collectors.stock_utils import is_foreign_stock
 from collectors.template_engine import MarkdownTemplateEngine
 from config.settings import (
     AI_COMMENTS_ENABLED,
@@ -356,6 +358,14 @@ class PortfolioDataCollector:
         # 日本株のみの場合は為替レート取得がスキップされているため、ここで取得
         self._update_all_currency_rates(last_day_str, now_str)
 
+        # 収集直後に purchase_history 基準で取得系カラムを補正する。
+        # holdings 集約は「現在の合計」を対象月に適用するため、
+        # 過去月の収集（--range 等）では shares/cost が不正確になる。
+        if price_count > 0:
+            repair_monthly_pnl(
+                self.db_writer, target_months=[(year, month)], verbose=False
+            )
+
         return price_count > 0
 
     def _generate_stock_charts(
@@ -480,6 +490,118 @@ class PortfolioDataCollector:
         synced = self.sheets_sync.sync_holdings()
         history_count = self.sheets_sync.sync_purchase_history()
         print(f"同期完了: {synced}件（購入履歴: {history_count}件）")
+        return True
+
+    def repair_pnl(self, dry_run: bool = False) -> bool:
+        """monthly_pnl の取得系カラムを purchase_history 基準で一括バックフィルする。
+
+        Args:
+            dry_run: True の場合は差分表示のみで DB は更新しない。
+
+        Returns:
+            常に True（バックフィル自体の成否ではなく実行完了を示す）。
+        """
+        repair_monthly_pnl(self.db_writer, dry_run=dry_run, verbose=True)
+        return True
+
+    def add_purchase(
+        self,
+        code: str,
+        date_str: str,
+        shares_str: str,
+        price_str: str,
+        rate_str: str | None = None,
+    ) -> bool:
+        """スプレッドシートに買付行を追記し、DB に同期する。
+
+        Args:
+            code: 銘柄コード（例: 7974.T, NVDA）
+            date_str: 取得日（"YYYY-MM-DD"）
+            shares_str: 保有株数（文字列。1以上の整数のみ許可）
+            price_str: 取得単価（日本株=円、外国株=外貨）
+            rate_str: 取得時為替レート（外国株のみ必須、日本株は指定不可）
+
+        Returns:
+            成功/失敗
+        """
+        if not self.sheets_sync:
+            print("❌ Sheets 認証が無効です")
+            return False
+
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            print("❌ 日付は YYYY-MM-DD 形式で指定してください")
+            return False
+
+        try:
+            shares = int(shares_str)
+        except ValueError:
+            shares = 0
+        if shares < 1:
+            print(
+                "❌ 株数は 1 以上の整数で指定してください"
+                "（1株未満の端株はポートフォリオ対象外）"
+            )
+            return False
+
+        is_foreign = is_foreign_stock(code)
+        if is_foreign and rate_str is None:
+            print(
+                "❌ 外国株は為替レートが必要です"
+                "（例: --add-purchase NVDA 2026-08-01 1 208.27 162.35）"
+            )
+            return False
+        if not is_foreign and rate_str is not None:
+            print("❌ 日本株に為替レートは指定できません")
+            return False
+
+        try:
+            price = float(price_str)
+        except ValueError:
+            price = 0.0
+        if price <= 0:
+            print("❌ 取得単価は正の数値で指定してください")
+            return False
+
+        rate: float | None = None
+        if rate_str is not None:
+            try:
+                rate = float(rate_str)
+            except ValueError:
+                rate = 0.0
+            if rate <= 0:
+                print("❌ 為替レートは正の数値で指定してください")
+                return False
+
+        try:
+            if is_foreign:
+                name = self.sheets_sync.append_purchase_row(
+                    code,
+                    date_str,
+                    shares,
+                    price_foreign=price,
+                    exchange_rate=rate,
+                )
+            else:
+                name = self.sheets_sync.append_purchase_row(
+                    code,
+                    date_str,
+                    shares,
+                    price_jpy=price,
+                )
+        except ValueError as e:
+            print(f"❌ {e}")
+            return False
+
+        price_info = f"@{price}" if not is_foreign else f"@{price}（為替{rate}）"
+        print(
+            f"✅ {name}（{code}）の買付行を追記しました: "
+            f"{date_str} {shares}株 {price_info}"
+        )
+
+        self.sync_holdings_only()
+        repair_monthly_pnl(self.db_writer, verbose=False)
         return True
 
     def collect_benchmark_only(self, year: int, month: int) -> bool:
@@ -831,6 +953,22 @@ def main() -> None:
             print("❌ 年と月は数値で指定してください")
             print("使用例: python main.py --range 2024 1 2024 12")
 
+    # python main.py --repair-pnl [--dry-run]  → monthly_pnl バックフィル
+    elif len(args) in (1, 2) and args[0] == "--repair-pnl":
+        if len(args) == 2 and args[1] != "--dry-run":
+            print("❌ 不明なオプションです")
+            print("使用例: python main.py --repair-pnl --dry-run")
+        else:
+            collector.repair_pnl(dry_run=(len(args) == 2))
+
+    # python main.py --add-purchase 7974.T 2026-08-01 1 8500          （日本株）
+    # python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35   （外国株）
+    elif len(args) in (5, 6) and args[0] == "--add-purchase":
+        collector.add_purchase(
+            args[1], args[2], args[3], args[4],
+            args[5] if len(args) == 6 else None,
+        )
+
     # 引数なし  → 対話型
     elif not args:
         collector.run_interactive()
@@ -843,6 +981,15 @@ def main() -> None:
         print("  python main.py --benchmark 2024 12     # ベンチマークのみ")
         print("  python main.py --blog 2024 12          # ブログ生成のみ")
         print("  python main.py --range 2024 1 2024 12  # 期間範囲バッチ")
+        print("  python main.py --repair-pnl [--dry-run]  # monthly_pnl バックフィル")
+        print(
+            "  python main.py --add-purchase 7974.T 2026-08-01 1 8500"
+            "          # 買付追記（日本株）"
+        )
+        print(
+            "  python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35"
+            "  # 買付追記（外国株）"
+        )
         print(
             "  python main.py --generate-chart 任天堂 7974.T 2023-06-28 2026-03-31"
         )

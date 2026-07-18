@@ -20,7 +20,7 @@ portfolio-dashboard/
 │   ├── src/db/schema.ts    # Drizzle スキーマ
 │   └── drizzle/migrations/ # マイグレーション SQL（IF NOT EXISTS で冪等化済み）
 ├── collector/              # Python バッチ（uv）
-│   ├── main.py             # --sync / --range / --blog / collect_and_publish
+│   ├── main.py             # --sync / --range / --blog / --repair-pnl / --add-purchase / collect_and_publish
 │   ├── collectors/         # db_writer, report_generator, ai_comment, wp_publisher,
 │   │                       #   block_converter, report_json_builder, embed_generator ほか
 │   ├── templates/          # blog_template.md, blog_embed.html（Jinja2）
@@ -75,6 +75,11 @@ uv run python main.py --blog YYYY MM
 
 - fragment は全 CSS を `.pf-report-embed` プレフィックスでスコープ済み（テーマ衝突防止）、Chart.js は二重読み込みガード付き動的ロード
 - server 側 `reportData.ts` と collector 側 `report_json_builder.py` は同一形状・同一計算。片方を変えたら必ず両方直す
+
+## 買付の記録と monthly_pnl 補正
+
+- 買付入力: `uv run python main.py --add-purchase 7974.T 2026-08-01 1 8500`（日本株）/ `--add-purchase NVDA 2026-08-01 1 208.27 162.35`（外国株: 外貨単価と為替）。シート追記 → holdings/purchase_history 同期 → monthly_pnl 補正まで自動実行。1 株未満の端株（ポケポケサブスク相当の積立分）はポートフォリオ対象外のため受け付けない
+- `--repair-pnl [--dry-run]`: monthly_pnl の取得系カラム（shares/cost/acquired_price 系/value/profit）を purchase_history の累積で全月再計算。current_price 系は変更しない。月次収集後にも対象月分が自動補正される（collect_monthly_data 末尾フック）
 
 ## GCE デプロイ手順
 

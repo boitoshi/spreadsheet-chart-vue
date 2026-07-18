@@ -279,6 +279,41 @@ class DbWriter:
         self.conn.row_factory = None
         return float(row["rate"]) if row else None
 
+    def update_monthly_pnl_acquisition(self, rows: list[dict]) -> int:
+        """monthly_pnl の取得系カラムのみを一括 UPDATE（バックフィル用）。
+
+        purchase_history から再計算した shares/cost/acquired_price 系のみを
+        更新し、current_price 系（保存済みの正しい市場データ）には触れない。
+
+        Args:
+            rows: UPDATE 対象の行のリスト。各要素は date, code, shares, cost,
+                acquired_price, acquired_price_foreign, acquired_exchange_rate,
+                value, profit, profit_rate, updated_at をキーに持つ dict。
+
+        Returns:
+            更新された行数（rowcount の合計）。
+        """
+        if not rows:
+            return 0
+        cursor = self.conn.executemany(
+            """
+            UPDATE monthly_pnl SET
+                shares = :shares,
+                cost = :cost,
+                acquired_price = :acquired_price,
+                acquired_price_foreign = :acquired_price_foreign,
+                acquired_exchange_rate = :acquired_exchange_rate,
+                value = :value,
+                profit = :profit,
+                profit_rate = :profit_rate,
+                updated_at = :updated_at
+            WHERE date = :date AND code = :code
+            """,
+            rows,
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
     def display_portfolio_summary(self, year: int, month: int) -> None:
         """ポートフォリオサマリーを表示"""
         records = self.get_performance_data(year, month)

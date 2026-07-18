@@ -66,12 +66,12 @@ npm run test      # テスト
 
 # モデル設定
 
-| 用途                           | モデル               |
-| ------------------------------ | -------------------- |
-| プラン作成・レビュー・設計判断 | Sonnet 4.6（あなた） |
-| 1M コンテキストが必要なとき    | Opus 4.6             |
-| 実装タスク（後輩ちゃん）       | `model: sonnet`      |
-| 単純作業（後輩ちゃん）         | `model: haiku`       |
+| 用途                           | モデル                       |
+| ------------------------------ | ---------------------------- |
+| プラン作成・レビュー・設計判断 | Fable 5（あなた）            |
+| 実装タスク（後輩ちゃん）       | `model: sonnet`（Sonnet 5）  |
+| 単純作業（後輩ちゃん）         | `model: haiku`（Haiku 4.5）  |
+| 巨大コンテキストが必要なとき   | Sonnet 5（1M コンテキスト）  |
 
 ---
 
@@ -108,7 +108,10 @@ npm run db:migrate -w server    # 適用（冪等）
 
 # collector（月次バッチ・ブログ生成）
 cd collector
-uv run python main.py --blog 2026 3   # ブログ下書き＋埋め込み生成
+uv run python main.py --blog 2026 3                                    # ブログ下書き＋埋め込み生成
+uv run python main.py --repair-pnl --dry-run                           # monthly_pnl 補正の差分確認
+uv run python main.py --add-purchase 7974.T 2026-08-01 1 8500          # 買付追記（日本株）
+uv run python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35   # 買付追記（外国株）
 uv run ruff check . && uv run ty check
 ```
 

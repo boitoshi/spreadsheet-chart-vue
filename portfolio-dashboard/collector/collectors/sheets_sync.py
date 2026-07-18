@@ -5,11 +5,13 @@ from datetime import datetime
 
 import gspread
 from google.oauth2.service_account import Credentials
+from gspread.utils import ValueInputOption
 
 from .stock_utils import get_currency_from_symbol, is_foreign_stock
 
 SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    # 読み書き（--add-purchase の行追記に必要）
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.readonly",
 ]
 
@@ -224,6 +226,100 @@ class SheetsSync:
         self.conn.commit()
         print(f"  purchase_history テーブルに {count} 件同期しました")
         return count
+
+    def append_purchase_row(
+        self,
+        code: str,
+        purchase_date: str,
+        shares: int,
+        price_jpy: float | None = None,
+        price_foreign: float | None = None,
+        exchange_rate: float | None = None,
+    ) -> str:
+        """ポートフォリオシートに買付行を追記し、銘柄名を返す。
+
+        既存の銘柄コードへの追加購入のみをサポートする。銘柄名は同一銘柄コードの
+        既存行から引き継ぐため、シートに未登録の銘柄コードは追記できない
+        （新規銘柄はシートを直接編集して最初の1行を作成すること）。
+
+        Args:
+            code: 銘柄コード（例: 7974.T, NVDA）
+            purchase_date: 取得日（"YYYY-MM-DD"）
+            shares: 保有株数
+            price_jpy: 取得単価（円）。日本株の場合に指定する
+            price_foreign: 取得単価（外貨）。外国株の場合に指定する
+            exchange_rate: 取得時為替レート。外国株の場合に指定する
+
+        Returns:
+            シートから引き継いだ銘柄名
+
+        Raises:
+            ValueError: シートに必須列が無い、または銘柄コードが未知の場合
+        """
+        sheet = self.spreadsheet.worksheet("ポートフォリオ")
+        header = sheet.row_values(1)
+        col_index = {name: i for i, name in enumerate(header)}
+
+        required_columns = (
+            "銘柄コード",
+            "銘柄名",
+            "取得日",
+            "取得単価（円）",
+            "取得単価（外貨）",
+            "取得時為替レート",
+            "保有株数",
+        )
+        missing = [c for c in required_columns if c not in col_index]
+        if missing:
+            raise ValueError(
+                f"シートに必須列が見つかりません: {', '.join(missing)}"
+            )
+
+        # 銘柄名は既存行から引き継ぐ（銘柄コードを唯一の真実として扱う方針に合わせる）
+        name: str | None = None
+        for row in self._read_portfolio_rows():
+            if str(row.get("銘柄コード", "")).strip() == code:
+                name = str(row.get("銘柄名", ""))
+                break
+        if name is None:
+            raise ValueError(
+                f"未知の銘柄コードです: {code}（シートに既存行が必要です）"
+            )
+
+        values: list[str | int | float] = [""] * len(header)
+        values[col_index["銘柄コード"]] = code
+        values[col_index["銘柄名"]] = name
+        values[col_index["取得日"]] = purchase_date
+        values[col_index["保有株数"]] = shares
+        if "最終更新" in col_index:
+            values[col_index["最終更新"]] = datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        if price_jpy is not None:
+            # 日本株: 円建て単価のみ設定し、外貨2列は空のままにする
+            values[col_index["取得単価（円）"]] = price_jpy
+        else:
+            # 外国株: 円建て単価は空のまま（sync 時に price=0.0 になる既存規約と一致）
+            if price_foreign is None or exchange_rate is None:
+                raise ValueError(
+                    "外国株は取得単価（外貨）と取得時為替レートの両方が必要です"
+                )
+            values[col_index["取得単価（外貨）"]] = price_foreign
+            values[col_index["取得時為替レート"]] = exchange_rate
+
+        sheet.append_row(
+            values,
+            value_input_option=ValueInputOption.user_entered,
+            table_range="A1",
+        )
+
+        # キャッシュ破棄: 破棄しないと直後の sync が追記前のキャッシュを読んで
+        # 新行が DB に反映されない
+        if hasattr(self, "_portfolio_cache"):
+            del self._portfolio_cache
+
+        return name
 
     def close(self) -> None:
         self.conn.close()
