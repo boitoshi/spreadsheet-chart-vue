@@ -89,7 +89,7 @@ cd /app && git pull
 cd portfolio-dashboard && npm ci && npm run build
 npm run db:migrate -w server        # DB: /app/portfolio-dashboard/data/portfolio.db
 sudo systemctl restart portfolio
-cd collector && uv sync
+cd collector && uv sync --extra ai --extra charts   # 素の uv sync は extras（anthropic/markdown/matplotlib）を削除してしまう
 ```
 
 ## 旧構成（参考）
