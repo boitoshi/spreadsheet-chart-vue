@@ -6,27 +6,8 @@ on:
   pull_request:
 
 jobs:
-  backend-lint:
-    name: Backend (ruff)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: uv をセットアップ
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - name: 依存関係をインストール
-        working-directory: web-app/backend
-        run: uv sync
-
-      - name: ruff lint
-        working-directory: web-app/backend
-        run: uv run ruff check .
-
-  frontend-build:
-    name: Frontend (npm build)
+  dashboard:
+    name: portfolio-dashboard (型チェック・テスト・ビルド)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,12 +17,35 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: web-app/frontend/package-lock.json
+          cache-dependency-path: portfolio-dashboard/package-lock.json
 
       - name: 依存関係をインストール
-        working-directory: web-app/frontend
+        working-directory: portfolio-dashboard
         run: npm ci
 
-      - name: ビルド（型チェック含む）
-        working-directory: web-app/frontend
+      - name: 型チェック（server + client）
+        working-directory: portfolio-dashboard
+        run: npm run check
+
+      - name: テスト（server + client）
+        working-directory: portfolio-dashboard
+        run: npm run test
+
+      - name: ビルド
+        working-directory: portfolio-dashboard
         run: npm run build
+
+  collector:
+    name: collector (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: uv をセットアップ
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: ruff lint
+        working-directory: portfolio-dashboard/collector
+        run: uv run ruff check .

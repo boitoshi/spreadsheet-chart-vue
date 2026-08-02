@@ -16,7 +16,8 @@ export function AppLayout() {
     <>
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16 gap-8">
+          {/* モバイルは折返して全タブを表示（横スクロールや文字の縦割れを防ぐ） */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 sm:py-0 sm:h-16 sm:gap-8">
             <span className="font-bold text-gray-900 text-lg">Portfolio</span>
             {navItems.map((item) => (
               <NavLink
@@ -25,7 +26,7 @@ export function AppLayout() {
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   clsx(
-                    "text-sm transition-colors",
+                    "text-sm transition-colors whitespace-nowrap",
                     isActive
                       ? "text-blue-600 font-medium"
                       : "text-gray-600 hover:text-gray-900",
