@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "../db/index.js";
+import { monthlyPnl, wpPosts } from "../db/schema.js";
 import { buildReportData } from "../services/reportData.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,36 +17,55 @@ function getReportsDir(): string {
 
 const app = new Hono();
 
-// GET / → レポート一覧
+// GET / → レポート一覧（DB（monthly_pnl）とファイル走査の和集合）
 app.get("/", (c) => {
-  const reportsDir = getReportsDir();
+  // ── 1. monthly_pnl の日付（"YYYY-MM-末"）から年月を抽出 ──────────
+  const pnlDatePattern = /^(\d{4})-(\d{2})-末$/;
+  const pnlRows = db.selectDistinct({ date: monthlyPnl.date }).from(monthlyPnl).all();
+  const dbYearMonths = pnlRows
+    .map((r) => pnlDatePattern.exec(r.date))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ year: parseInt(m[1], 10), month: parseInt(m[2], 10) }));
 
-  let files: string[];
+  // ── 2. blog_draft_YYYY_MM.md ファイルの走査 ────────────────────
+  const reportsDir = getReportsDir();
+  let files: string[] = [];
   try {
     files = readdirSync(reportsDir);
   } catch {
-    // ディレクトリが存在しない場合は空リストを返す
-    return c.json({ reports: [] });
+    // ディレクトリが存在しない場合はファイル側は空扱い（DB 側だけで一覧を構成）
+    files = [];
   }
 
-  // blog_draft_YYYY_MM.md にマッチするファイルを抽出
-  const pattern = /^blog_draft_(\d{4})_(\d{2})\.md$/;
-  const reports = files
-    .filter((f) => pattern.test(f))
-    .map((filename) => {
-      const m = pattern.exec(filename)!;
-      const year = parseInt(m[1], 10);
-      const month = parseInt(m[2], 10);
+  const filePattern = /^blog_draft_(\d{4})_(\d{2})\.md$/;
+  const fileYearMonths = files
+    .map((f) => filePattern.exec(f))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ year: parseInt(m[1], 10), month: parseInt(m[2], 10) }));
+
+  // ── 3. 和集合（重複排除） ──────────────────────────────────────
+  const merged = new Map<string, { year: number; month: number }>();
+  for (const ym of [...dbYearMonths, ...fileYearMonths]) {
+    merged.set(`${ym.year}-${ym.month}`, ym);
+  }
+
+  // ── 4. wp_posts（month="YYYY-MM"）を引いて wpUrl を付与 ────────
+  const wpRows = db.select().from(wpPosts).all();
+  const wpMap = new Map(wpRows.map((r) => [r.month, r]));
+
+  const reports = [...merged.values()]
+    .sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    })
+    .map(({ year, month }) => {
+      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
       return {
         year,
         month,
         label: `${year}年${month}月`,
-        filename,
+        wpUrl: wpMap.get(monthKey)?.url ?? null,
       };
-    })
-    .sort((a, b) => {
-      if (a.year !== b.year) return b.year - a.year;
-      return b.month - a.month;
     });
 
   return c.json({ reports });

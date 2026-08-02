@@ -85,7 +85,9 @@ export const dividends = sqliteTable("dividends", {
   currency: text("currency").notNull().default("JPY"),
   exchangeRate: real("exchange_rate"),
   totalJpy: real("total_jpy").notNull(),
-});
+}, (table) => ({
+  dateCodeUniq: uniqueIndex("uq_dividends_date_code").on(table.date, table.code),
+}));
 
 // ━━━ ベンチマークデータ ━━━
 export const benchmarkData = sqliteTable("benchmark_data", {
@@ -137,4 +139,16 @@ export const aiComments = sqliteTable("ai_comments", {
     table.code,
     table.kind,
   ),
+}));
+
+// ━━━ WordPress 投稿リンク（月次レポート） ━━━
+export const wpPosts = sqliteTable("wp_posts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  // "YYYY-MM" 形式
+  month: text("month").notNull(),
+  url: text("url").notNull(),
+  title: text("title"),
+  createdAt: text("created_at"),
+}, (table) => ({
+  monthUniq: uniqueIndex("uq_wp_posts_month").on(table.month),
 }));
