@@ -110,7 +110,9 @@ def build_plan(conn: sqlite3.Connection) -> list[dict]:
         new_price = round(foreign * new_rate, DECIMALS)
         new_value = round(foreign * new_rate * shares, DECIMALS)
         new_profit = round(new_value - cost, DECIMALS)
-        new_profit_rate = round((new_profit / cost * 100) if cost > 0 else 0.0, DECIMALS)
+        new_profit_rate = round(
+            (new_profit / cost * 100) if cost > 0 else 0.0, DECIMALS
+        )
 
         # monthly_prices 側は「その行が実際に使ったレート」を行から復元する。
         # pnl の current_exchange_rate を流用すると、両テーブルが別バッチで

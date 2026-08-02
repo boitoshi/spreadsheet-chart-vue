@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING
 
 import yfinance as yf
 
+from config.settings import BACKFILLED_MONTHS
+
 if TYPE_CHECKING:
     from .db_writer import DbWriter
-
-from ..config.settings import BACKFILLED_MONTHS
 
 # フォールバックカラー（stock_meta 未登録銘柄用）
 _FALLBACK_COLORS = ["#FF6F00", "#7B1FA2"]

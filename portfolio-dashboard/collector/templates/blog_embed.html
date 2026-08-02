@@ -468,7 +468,7 @@
     </div>
     <div class="pf-stock-price-wrap">
       <div class="pf-stock-current">
-        {% if stock.currency == 'USD' %}${{ stock.currentPrice | format_number(2) }}{% else %}¥{{ stock.currentPrice | format_currency }}{% endif %}
+        {% if stock.currency == 'USD' %}${{ stock.currentPrice | format_number(2) }}{% else %}¥{{ stock.currentPrice | format_price }}{% endif %}
       </div>
       <div class="pf-stock-acq">
         取得単価 {% if stock.currency == 'USD' %}${{ stock.acquiredPrice | format_number(2) }}{% else %}¥{{ stock.acquiredPrice | format_currency }}{% endif %}

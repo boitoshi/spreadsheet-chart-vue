@@ -325,7 +325,8 @@ class PortfolioDataCollector:
 
             # 為替レートも保存（外貨銘柄の場合）
             if CURRENCY_SETTINGS.get("update_rates_with_stocks", True):
-                currency = metrics.get("currency", "JPY")
+                # metrics は dict[str, object] なので str へ明示的に落とす
+                currency = str(metrics.get("currency", "JPY"))
                 if currency != "JPY" and metrics.get("current_exchange_rate"):
                     current_rate = float(metrics["current_exchange_rate"])
                     self._save_exchange_rate(
