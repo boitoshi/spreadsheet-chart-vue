@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from collectors.benchmark_collector import BenchmarkCollector
 from collectors.db_writer import DbWriter
@@ -640,21 +641,22 @@ class PortfolioDataCollector:
             print("❌ 日本株に為替レートは指定できません")
             return False
 
+        # 金額は float を経由させず Decimal で扱う（2進浮動小数の誤差を持ち込まない）
         try:
-            per_share = float(per_share_str)
-        except ValueError:
-            per_share = 0.0
-        if per_share <= 0:
+            per_share = Decimal(per_share_str)
+        except InvalidOperation:
+            per_share = Decimal(0)
+        if not per_share.is_finite() or per_share <= 0:
             print("❌ 1株配当は正の数値で指定してください")
             return False
 
-        rate: float | None = None
+        rate: Decimal | None = None
         if rate_str is not None:
             try:
-                rate = float(rate_str)
-            except ValueError:
-                rate = 0.0
-            if rate <= 0:
+                rate = Decimal(rate_str)
+            except InvalidOperation:
+                rate = Decimal(0)
+            if not rate.is_finite() or rate <= 0:
                 print("❌ 為替レートは正の数値で指定してください")
                 return False
 
@@ -665,19 +667,30 @@ class PortfolioDataCollector:
         name = holding["name"]
         currency = holding["currency"]
 
+        # 円への丸めは四捨五入で統一（組み込み round() は偶数丸めのため使わない）
         dividend_foreign: float | None
         total_foreign: float | None
         exchange_rate: float | None
         if is_foreign:
-            dividend_foreign = per_share
-            total_foreign = shares * per_share
-            exchange_rate = rate
-            total_jpy = round(total_foreign * rate) if rate is not None else 0
+            if rate is None:  # is_foreign なら検証済みで到達しない（型ガード）
+                print("❌ 外国株は為替レートが必要です")
+                return False
+            total_foreign_dec = per_share * shares
+            total_jpy = int(
+                (total_foreign_dec * rate).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
+            )
+            dividend_foreign = float(per_share)
+            total_foreign = float(total_foreign_dec)
+            exchange_rate = float(rate)
         else:
+            total_jpy = int(
+                (per_share * shares).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            )
             dividend_foreign = None
             total_foreign = None
             exchange_rate = None
-            total_jpy = round(shares * per_share)
 
         self.db_writer.save_dividend(
             {
@@ -695,7 +708,7 @@ class PortfolioDataCollector:
 
         print(
             f"✅ {name}（{code}）の配当を記録しました: "
-            f"{date_str} {total_jpy:,.0f}円"
+            f"{date_str} {total_jpy:,}円"
         )
         return True
 

@@ -4,27 +4,33 @@ interface Props {
   data: DividendItem[];
 }
 
+/** 外貨額表示（小数第4位まで実値のまま。丸めて誤った金額に見せない）*/
+function formatForeignAmount(value: number, currency: string): string {
+  if (currency === "USD") {
+    return `$${value.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+  }
+  // USD 以外の外貨は通貨記号なしの安全な表記
+  return `${value.toLocaleString("ja-JP", { maximumFractionDigits: 4 })} ${currency}`;
+}
+
 /** 1株配当表示。外国株は通貨表記、日本株は totalJpy/shares の円表記（null 安全）*/
 function formatPerShare(item: DividendItem): string {
   if (item.dividendForeign !== null) {
-    if (item.currency === "USD") {
-      return `$${item.dividendForeign.toFixed(2)}`;
-    }
-    // USD 以外の外貨は通貨記号なしの安全な表記
-    return `${item.dividendForeign.toLocaleString("ja-JP", { maximumFractionDigits: 4 })} ${item.currency}`;
+    return formatForeignAmount(item.dividendForeign, item.currency);
   }
+  // 整数に丸めず実値のまま表示（118.5円 のような端数を潰さない）
   const perShare = item.shares > 0 ? item.totalJpy / item.shares : 0;
-  return `¥${Math.round(perShare).toLocaleString("ja-JP")}`;
+  return `¥${perShare.toLocaleString("ja-JP", { maximumFractionDigits: 2 })}`;
 }
 
-/** 外国株の受取額補足（例: "($0.02 @155.30)"）。null 安全、算出不能なら null */
+/** 外国株の受取額補足（例: "($0.03 @155.3)"）。null 安全、算出不能なら null */
 function formatForeignNote(item: DividendItem): string | null {
   if (item.totalForeign === null || item.exchangeRate === null) return null;
-  const amount =
-    item.currency === "USD"
-      ? `$${item.totalForeign.toFixed(2)}`
-      : `${item.totalForeign.toLocaleString("ja-JP", { maximumFractionDigits: 4 })} ${item.currency}`;
-  return `(${amount} @${item.exchangeRate.toFixed(2)})`;
+  const amount = formatForeignAmount(item.totalForeign, item.currency);
+  const rate = item.exchangeRate.toLocaleString("ja-JP", {
+    maximumFractionDigits: 4,
+  });
+  return `(${amount} @${rate})`;
 }
 
 export function DividendTable({ data }: Props) {
