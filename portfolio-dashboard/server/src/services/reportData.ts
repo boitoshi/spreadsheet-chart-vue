@@ -155,6 +155,39 @@ export interface ReportData {
 }
 
 // ────────────────────────────────────────────────────────────
+// 色解決ユーティリティ（stock_meta 未登録銘柄へのフォールバック割当）
+// ────────────────────────────────────────────────────────────
+
+/** stock_meta 未登録銘柄に割り当てるフォールバックカラー */
+const FALLBACK_COLORS = ["#FF6F00", "#7B1FA2"];
+
+/**
+ * 銘柄コードの表示色を解決する。
+ * stock_meta に登録があればその色、なければ未登録銘柄の出現順に
+ * FALLBACK_COLORS を割り当てる（buildReportData と同一の割当ロジック）。
+ *
+ * @param codes - 色を解決したい銘柄コードの並び（出現順。重複可、重複分は初出時の色を使い回す）
+ * @param metaMap - stock_meta の code → { color } マップ
+ * @returns code → color のマップ
+ */
+export function resolveStockColors(
+  codes: string[],
+  metaMap: Map<string, { color: string }>,
+): Map<string, string> {
+  let fallbackIdx = 0;
+  const colorMap = new Map<string, string>();
+  for (const code of codes) {
+    if (colorMap.has(code)) continue;
+    const meta = metaMap.get(code);
+    colorMap.set(
+      code,
+      meta?.color ?? FALLBACK_COLORS[fallbackIdx++ % FALLBACK_COLORS.length],
+    );
+  }
+  return colorMap;
+}
+
+// ────────────────────────────────────────────────────────────
 // メイン関数
 // ────────────────────────────────────────────────────────────
 
@@ -197,9 +230,11 @@ export function buildReportData(
   const metaRows = db.select().from(stockMeta).all();
   const metaMap = new Map(metaRows.map((r) => [r.code, r]));
 
-  // フォールバックカラー（stock_meta 未登録銘柄用）
-  const fallbackColors = ["#FF6F00", "#7B1FA2"];
-  let fallbackIdx = 0;
+  // 色の解決（stock_meta 未登録銘柄は出現順にフォールバックカラーを割当）
+  const colorMap = resolveStockColors(
+    targetRecords.map((r) => r.code),
+    metaMap,
+  );
 
   // ── 3. USD/JPY レートの取得 ────────────────────────────────────
   // 対象月のレートを優先。なければ最新を使用
@@ -257,8 +292,7 @@ export function buildReportData(
     const isForeign = pnlRow.currency !== "JPY";
     const meta = metaMap.get(code);
 
-    // 色の決定（stock_meta 未登録はフォールバック）
-    const color = meta?.color ?? fallbackColors[fallbackIdx++ % fallbackColors.length];
+    const color = colorMap.get(code)!;
     const market = meta?.market ?? "";
 
     // ── 5a. 全期間の monthly_pnl 履歴（保有開始月〜対象月） ────

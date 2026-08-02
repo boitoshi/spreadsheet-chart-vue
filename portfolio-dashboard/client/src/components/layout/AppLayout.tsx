@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { clsx } from "clsx";
+import { SiteFooter } from "./SiteFooter";
 
 const navItems = [
   { to: "/", label: "ダッシュボード" },
@@ -40,6 +41,7 @@ export function AppLayout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+      <SiteFooter />
     </>
   );
 }

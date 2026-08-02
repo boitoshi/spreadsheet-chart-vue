@@ -19,7 +19,6 @@ import { GradientHeader } from "@/components/dashboard/GradientHeader";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
 import { StockCard } from "@/components/dashboard/StockCard";
-import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
 
 /** kpi.baseDate ("2026-03-末") から { year, month } をパース */
 function parseBaseDate(baseDate: string): { year: number; month: number } {
@@ -154,9 +153,6 @@ export default function Dashboard() {
               <StockCard key={stock.code} stock={stock} />
             ))}
           </div>
-
-          {/* フッター */}
-          <DashboardFooter />
         </div>
       </div>
     );

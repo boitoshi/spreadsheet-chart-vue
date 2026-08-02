@@ -100,12 +100,13 @@ export interface DividendItem {
   date: string;        // 受取日
   code: string;        // 銘柄コード
   name: string;        // 銘柄名
-  dividendForeign: number;  // 1株配当（外貨）
+  dividendForeign: number | null;  // 1株配当（外貨）。日本株は null
   shares: number;      // 保有株数
-  totalForeign: number; // 配当合計（外貨）
+  totalForeign: number | null; // 配当合計（外貨）。日本株は null
   currency: string;    // 通貨コード（JPY/USD/HKD）
-  exchangeRate: number; // 為替レート
+  exchangeRate: number | null; // 為替レート。日本株は null
   totalJpy: number;    // 配当合計（円）
+  color: string;       // 銘柄カラー（stock_meta 由来）
 }
 
 // 配当・分配金 レスポンス
@@ -119,7 +120,7 @@ export interface ReportItem {
   year: number;
   month: number;
   label: string;   // 例: "2026年1月"
-  filename: string;
+  wpUrl: string | null; // WordPress 記事URL。未投稿は null
 }
 
 // 月次レポート一覧 レスポンス
