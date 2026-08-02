@@ -94,7 +94,24 @@ uv run python main.py --blog YYYY MM
 
 ## GCE デプロイ手順
 
+### 自動デプロイ（GitHub Actions）
+
+main への push（portfolio-dashboard/ 配下の変更）で `.github/workflows/deploy.yml` が起動し、SSH で GCE 上の `deploy/deploy.sh` を実行する（バックアップ → git pull → npm ci/build → db:migrate → systemctl restart → uv sync --extra）。手動実行（workflow_dispatch）も可。
+
+必要な設定:
+
+- リポジトリ Secrets: `GCE_HOST`（IP かホスト名）、`GCE_SSH_USER`（例: deploy）、`GCE_SSH_KEY`（秘密鍵。公開鍵を GCE 側 `~/.ssh/authorized_keys` に登録）
+- GCE 側で deploy ユーザーがパスワードなしで再起動できるよう sudoers 設定:
+  `echo 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart portfolio' | sudo tee /etc/sudoers.d/deploy-portfolio`
+- Secrets 未設定の間はデプロイジョブはエラーにならずスキップされる
+
+### 手動デプロイ
+
 ```bash
+# GCE 上で（deploy.sh は同じ手順を自動化したもの）
+bash /app/portfolio-dashboard/deploy/deploy.sh
+
+# もしくは従来どおり:
 # 事前に deploy/backup.sh 相当で DB バックアップを取ること
 cd /app && git pull
 cd portfolio-dashboard && npm ci && npm run build

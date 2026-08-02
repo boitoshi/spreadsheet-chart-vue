@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "portfolio-dashboard/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      skip_backup:
+        description: "デプロイ前の DB バックアップを省略する"
+        type: boolean
+        default: false
+
+# デプロイの同時実行を防ぐ（後発は先発の完了を待つ）
+concurrency:
+  group: deploy-gce
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: GCE へデプロイ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # シークレット未設定のリポジトリでも失敗にせずスキップで終わらせる
+      - name: シークレット設定を確認
+        id: check
+        env:
+          HOST: ${{ secrets.GCE_HOST }}
+          SSH_USER: ${{ secrets.GCE_SSH_USER }}
+          SSH_KEY: ${{ secrets.GCE_SSH_KEY }}
+        run: |
+          if [ -n "$HOST" ] && [ -n "$SSH_USER" ] && [ -n "$SSH_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️ GCE_HOST / GCE_SSH_USER / GCE_SSH_KEY が未設定のためデプロイをスキップしました。リポジトリの Settings → Secrets and variables → Actions で設定してください。" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: SSH 鍵をセットアップ
+        if: steps.check.outputs.configured == 'true'
+        env:
+          SSH_KEY: ${{ secrets.GCE_SSH_KEY }}
+          HOST: ${{ secrets.GCE_HOST }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: デプロイ実行
+        if: steps.check.outputs.configured == 'true'
+        env:
+          HOST: ${{ secrets.GCE_HOST }}
+          SSH_USER: ${{ secrets.GCE_SSH_USER }}
+          SKIP_BACKUP: ${{ github.event.inputs.skip_backup == 'true' && '1' || '0' }}
+        run: |
+          ssh -i ~/.ssh/id_deploy "$SSH_USER@$HOST" \
+            "SKIP_BACKUP=$SKIP_BACKUP bash -s" \
+            < portfolio-dashboard/deploy/deploy.sh
