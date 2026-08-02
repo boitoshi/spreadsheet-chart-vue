@@ -9,9 +9,11 @@ import { buildReportData } from "../services/reportData.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function getReportsDir(): string {
+  // 現行 collector の blog_draft 出力先（portfolio-dashboard/collector/output）。
+  // src/routes と dist/routes は server からの深さが同じなので、どちらの実行でも同じ場所を指す
   return (
     process.env.REPORTS_DIR ??
-    resolve(__dirname, "../../../../data-collector/output")
+    resolve(__dirname, "../../../collector/output")
   );
 }
 

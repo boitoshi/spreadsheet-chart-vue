@@ -62,9 +62,18 @@ beforeAll(async () => {
     VALUES ('2025-03-31', 'USD/JPY', 150.0, 149.0, 0.67, 151.0, 148.0);
   `);
 
+  // 配当: 外国株1件＋日本株1件＋stock_meta 未登録銘柄1件（ソート・color・null 安全の検証用）
   sqlite.exec(`
     INSERT INTO dividends (date, code, name, dividend_foreign, shares, total_foreign, currency, exchange_rate, total_jpy)
     VALUES ('2025-03-15', 'NVDA', 'エヌビディア', 0.01, 10, 0.1, 'USD', 150.0, 15);
+  `);
+  sqlite.exec(`
+    INSERT INTO dividends (date, code, name, dividend_foreign, shares, total_foreign, currency, exchange_rate, total_jpy)
+    VALUES ('2025-06-27', '7974.T', '任天堂', NULL, 2, NULL, 'JPY', NULL, 236);
+  `);
+  sqlite.exec(`
+    INSERT INTO dividends (date, code, name, dividend_foreign, shares, total_foreign, currency, exchange_rate, total_jpy)
+    VALUES ('2025-06-27', 'TEST.X', 'テスト銘柄', NULL, 1, NULL, 'JPY', NULL, 100);
   `);
 
   sqlite.exec(`
@@ -195,12 +204,34 @@ describe("API routes", () => {
     expect(body.latestRate).toBe(150.0);
   });
 
-  it("GET /api/dividend → data は 1件、totalJpy === 15", async () => {
+  it("GET /api/dividend → date降順・code昇順、color 付与、totalJpy === 351", async () => {
     const res = await app.request("/api/dividend");
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data).toHaveLength(1);
-    expect(body.totalJpy).toBe(15);
+    expect(body.data).toHaveLength(3);
+    expect(body.totalJpy).toBe(351);
+
+    // ソート: date 降順 → 同一日は code 昇順
+    expect(body.data.map((d: { code: string }) => d.code)).toEqual([
+      "7974.T",
+      "TEST.X",
+      "NVDA",
+    ]);
+
+    // color: stock_meta 登録銘柄はその色、未登録はフォールバック先頭色
+    expect(body.data[0].color).toBe("#E53935"); // 7974.T（stock_meta）
+    expect(body.data[1].color).toBe("#FF6F00"); // TEST.X（フォールバック）
+    expect(body.data[2].color).toBe("#76B900"); // NVDA（stock_meta）
+
+    // 日本株行は外貨系フィールドが null（クライアントの null 安全表示の前提）
+    expect(body.data[0].dividendForeign).toBeNull();
+    expect(body.data[0].totalForeign).toBeNull();
+    expect(body.data[0].exchangeRate).toBeNull();
+
+    // 外国株行は外貨系フィールドが number
+    expect(body.data[2].dividendForeign).toBe(0.01);
+    expect(body.data[2].totalForeign).toBe(0.1);
+    expect(body.data[2].exchangeRate).toBe(150.0);
   });
 
   it("GET /api/benchmark → data は 3件", async () => {

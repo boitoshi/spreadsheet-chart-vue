@@ -146,3 +146,6 @@ pids
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# TypeScript incremental build info
+*.tsbuildinfo
