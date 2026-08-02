@@ -34,8 +34,14 @@ class StockDataCollector:
                 end_date = datetime(year, month + 1, 1) - timedelta(days=1)
 
             # yfinanceでデータ取得
+            # auto_adjust=False: 既存DBの値は未調整終値のため、
+            # yfinanceの既定変更（調整後値）が混入しないよう明示する
             ticker = yf.Ticker(symbol)
-            data = ticker.history(start=start_date, end=end_date + timedelta(days=1))
+            data = ticker.history(
+                start=start_date,
+                end=end_date + timedelta(days=1),
+                auto_adjust=False,
+            )
 
             if data.empty:
                 print(f"⚠️ {symbol} のデータが取得できませんでした")
@@ -55,6 +61,7 @@ class StockDataCollector:
         purchase_exchange_rate: float,
         shares: int,
         convert_to_jpy: bool = True,
+        as_of: datetime | None = None,
     ) -> dict[str, object] | None:
         """株価メトリクスを計算（為替損益分離対応）
 
@@ -65,6 +72,8 @@ class StockDataCollector:
             purchase_exchange_rate (float): 取得時為替レート（日本株は1.0）
             shares (int): 保有株数
             convert_to_jpy (bool): 外貨を円換算するか
+            as_of (datetime, optional): 為替レート取得基準日（月末日等。
+                未指定時はライブレート）
 
         Returns:
             dict: 計算結果
@@ -86,14 +95,15 @@ class StockDataCollector:
             month_end_price_foreign = float(month_end_price)
 
             if convert_to_jpy and currency != "JPY":
-                # 現在の為替レート取得
+                # 為替レート取得（as_of指定時はECB参照レート、未指定はライブレート）
                 current_exchange_rate = self.currency_converter.get_exchange_rate(
-                    currency
+                    currency, as_of
                 )
                 if current_exchange_rate is None:
-                    print(f"⚠️ {symbol} の為替レート取得に失敗、元通貨で計算します")
-                    current_exchange_rate = 1.0
-                    currency = "JPY"
+                    # 1.0にフォールバックするとUSD建て価格がそのまま円として
+                    # 記録される重大バグになるため、計算自体を失敗させる
+                    print(f"❌ {symbol} の為替レート取得に失敗、計算を中止します")
+                    return None
 
                 # 円換算
                 month_end_price_jpy = month_end_price * current_exchange_rate

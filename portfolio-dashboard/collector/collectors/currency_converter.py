@@ -1,6 +1,10 @@
 from datetime import datetime
 
+import requests
 import yfinance as yf
+
+# ECB参照レート（frankfurter API）のタイムアウト秒数
+FRANKFURTER_TIMEOUT_SECONDS = 30
 
 
 class CurrencyConverter:
@@ -26,7 +30,8 @@ class CurrencyConverter:
 
         Args:
             currency (str): 通貨コード（USD, EUR等）
-            date (datetime, optional): 取得日付（デフォルトは最新）
+            date (datetime, optional): 取得日付（指定時はECB参照レート、
+                未指定時はyfinanceのライブレート）
 
         Returns:
             float: 為替レート（None if エラー）
@@ -39,17 +44,25 @@ class CurrencyConverter:
                 print(f"⚠️ {currency} は対応していない通貨です")
                 return None
 
+            if date:
+                # 特定日はECB参照レート（frankfurter API）を使う。
+                # 非営業日は frankfurter 側で直前営業日の値に自動フォールバックする
+                date_str = date.strftime("%Y-%m-%d")
+                url = f"https://api.frankfurter.dev/v1/{date_str}"
+                response = requests.get(
+                    url,
+                    params={"base": currency, "symbols": "JPY"},
+                    timeout=FRANKFURTER_TIMEOUT_SECONDS,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                rate = payload["rates"]["JPY"]
+                return float(rate)
+
+            # 日付未指定は最新レート取得（ダッシュボードのライブ表示用）
             pair = self.supported_pairs[currency]
             ticker = yf.Ticker(pair)
-
-            if date:
-                # 特定日のレート取得
-                start_date = date
-                end_date = date
-                data = ticker.history(start=start_date, end=end_date)
-            else:
-                # 最新レート取得
-                data = ticker.history(period="1d")
+            data = ticker.history(period="1d")
 
             if data.empty:
                 print(f"⚠️ {currency}/JPY のレートが取得できませんでした")
@@ -120,8 +133,13 @@ class CurrencyConverter:
         # デフォルトは米ドル（NASDAQ, NYSE等）
         return "USD"
 
-    def get_all_current_rates(self) -> dict[str, float]:
+    def get_all_current_rates(
+        self, on_date: datetime | None = None
+    ) -> dict[str, float]:
         """全ての対応通貨の現在レートを取得
+
+        Args:
+            on_date (datetime, optional): 取得日付（指定時はECB参照レート）
 
         Returns:
             dict: 通貨コード -> レートの辞書
@@ -129,7 +147,7 @@ class CurrencyConverter:
         rates = {"JPY": 1.0}
 
         for currency, _pair in self.supported_pairs.items():
-            rate = self.get_exchange_rate(currency)
+            rate = self.get_exchange_rate(currency, on_date)
             if rate is not None:
                 rates[currency] = rate
 

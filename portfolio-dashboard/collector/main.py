@@ -275,13 +275,14 @@ class PortfolioDataCollector:
             if stock_data is None:
                 continue
 
-            # メトリクス計算
+            # メトリクス計算（為替レートは月末日基準のECB参照レートを使う）
             metrics = self.stock_collector.calculate_stock_metrics(
                 stock_data,
                 code,
                 acquired_price_foreign,
                 acquired_exchange_rate,
                 shares,
+                as_of=last_day,
             )
             if metrics is None:
                 continue
@@ -475,7 +476,11 @@ class PortfolioDataCollector:
             return
 
         print("\n  為替レート取得中...")
-        rates = self.stock_collector.currency_converter.get_all_current_rates()
+        # date_str（月末日）基準のECB参照レートを使う（実行日スポットではない）
+        on_date = datetime.strptime(date_str, "%Y-%m-%d")
+        rates = self.stock_collector.currency_converter.get_all_current_rates(
+            on_date
+        )
         for currency, rate in rates.items():
             if rate:
                 self._save_exchange_rate(currency, float(rate), date_str, now_str)
