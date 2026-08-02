@@ -15,6 +15,8 @@ import yfinance as yf
 if TYPE_CHECKING:
     from .db_writer import DbWriter
 
+from ..config.settings import BACKFILLED_MONTHS
+
 # フォールバックカラー（stock_meta 未登録銘柄用）
 _FALLBACK_COLORS = ["#FF6F00", "#7B1FA2"]
 
@@ -673,6 +675,10 @@ def build_report_data(db: DbWriter, target_date: str | None = None) -> dict | No
 
     purchases_this_month.sort(key=lambda p: p["purchasedAt"])
 
+    # 対象年月がバックフィル対象に含まれるか確認
+    target_ym_str = f"{target_year:04d}-{target_month:02d}"
+    is_backfilled = target_ym_str in BACKFILLED_MONTHS
+
     return {
         "meta": {
             "year": target_year,
@@ -680,6 +686,7 @@ def build_report_data(db: DbWriter, target_date: str | None = None) -> dict | No
             "exchangeRate": usd_jpy,
             "reportDate": f"{target_year}年{target_month}月末",
             "purchasesThisMonth": purchases_this_month,
+            "isBackfilled": is_backfilled,
         },
         "stocks": stocks,
         "totalHistory": total_history,

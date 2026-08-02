@@ -49,3 +49,10 @@ CURRENCY_SETTINGS = {
     "base_currency": "JPY",
     "foreign_stock_patterns": [".HK", ".L", ".PA", ".DE"],
 }
+
+# まとめて後から公開した月（この月の記事にだけ、その旨の注記を出す）
+BACKFILLED_MONTHS = [
+    x.strip() for x in os.getenv(
+        "BACKFILLED_MONTHS", "2026-03,2026-04,2026-05,2026-06,2026-07"
+    ).split(",") if x.strip()
+]

@@ -35,6 +35,23 @@ from config.settings import (
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
 
+def _get_next_month_date(year: int, month: int) -> str:
+    """対象月の翌月1日 09:00 を ISO 形式で返す（12月は翌年1月1日）。
+
+    Args:
+        year: 対象年
+        month: 対象月
+
+    Returns:
+        ISO 形式の日時文字列 "YYYY-MM-DDTHH:MM:SS"
+    """
+    if month == 12:
+        next_year, next_month = year + 1, 1
+    else:
+        next_year, next_month = year, month + 1
+    return f"{next_year:04d}-{next_month:02d}-01T09:00:00"
+
+
 class PortfolioDataCollector:
     """ポートフォリオデータ収集メインクラス（SQLite版）"""
 
@@ -183,12 +200,14 @@ class PortfolioDataCollector:
         print("\n[7/7] WordPress 投稿中...")
         if self.wp_publisher and output_path:
             try:
+                post_date = _get_next_month_date(year, month)
                 post_url = self.wp_publisher.create_draft(
                     title=f"【ポケモン投資】{year}年{month}月の状況",
                     markdown_content=open(output_path, encoding="utf-8").read(),
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=batch_fragment_html,
                     categories=WP_CATEGORY_IDS,
+                    date=post_date,
                 )
                 print(f"  投稿完了: {post_url}")
             except Exception as e:
@@ -636,12 +655,14 @@ class PortfolioDataCollector:
         # WordPress 下書き投稿（有効な場合）
         if self.wp_publisher:
             try:
+                post_date = _get_next_month_date(year, month)
                 post_url = self.wp_publisher.create_draft(
                     title=f"【ポケモン投資】{year}年{month}月の状況",
                     markdown_content=markdown_text,
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=fragment_html,
                     categories=WP_CATEGORY_IDS,
+                    date=post_date,
                 )
                 print(f"  WordPress 投稿完了: {post_url}")
             except Exception as e:

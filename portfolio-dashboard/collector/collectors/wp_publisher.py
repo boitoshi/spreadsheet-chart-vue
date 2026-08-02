@@ -86,6 +86,7 @@ class WpPublisher:
         slug: str | None = None,
         raw_html_prepend: str | None = None,
         categories: list[int] | None = None,
+        date: str | None = None,
     ) -> str:
         """Markdown コンテンツを HTML に変換し、WordPress に下書き投稿する。
 
@@ -102,6 +103,8 @@ class WpPublisher:
                 指定時は <!-- wp:html --> ブロックで包み、
                 Markdown 変換済み本文の前に連結する
             categories: 投稿に付けるカテゴリ ID のリスト（省略可）
+            date: 投稿日（サイトのローカル時刻、形式 "YYYY-MM-DDTHH:MM:SS"）。
+                省略時は実行日の日付で下書きが作成される
 
         Returns:
             作成された下書き投稿の URL
@@ -168,6 +171,8 @@ class WpPublisher:
             body["slug"] = slug
         if categories:
             body["categories"] = categories
+        if date:
+            body["date"] = date
         resp = requests.post(
             f"{self.wp_url}/wp-json/wp/v2/posts",
             auth=self.auth,
