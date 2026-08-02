@@ -9,7 +9,8 @@ portfolio-dashboard/
 │       ├── pages/          # Dashboard, Portfolio, History, Currency, Dividend, Reports, ReportDetail
 │       ├── components/
 │       │   ├── dashboard/  # 新デザイン: GradientHeader, SummaryCard, AssetTrendChart,
-│       │   │               #   StockCard, StockPriceChart, PeriodToggle, DashboardFooter
+│       │   │               #   StockCard, StockPriceChart, PeriodToggle
+│       │   ├── layout/     # AppLayout, SiteFooter（全ページ共通: ブログ導線・データ出典・免責・©）
 │       │   └── report/     # 新デザイン: ReportHeader, ReportSummaryCard, ReportStockCard,
 │       │                   #   CtaBox, ReportFooter, ReportMarkdown（旧表示フォールバック）
 │       ├── lib/            # api.ts, formatters.ts, chartUtils.ts
