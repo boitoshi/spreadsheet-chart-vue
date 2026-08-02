@@ -51,8 +51,18 @@ echo "[6/6] uv sync --extra ai --extra charts"
 cd "$DASHBOARD_DIR/collector"
 uv sync --extra ai --extra charts
 
-# ヘルスチェック（起動待ちしてから確認）
-sleep 3
-curl -fsS http://localhost:3000/health
-echo ""
+# ヘルスチェック（起動が遅い場合に備えて最大30秒リトライ）
+echo "ヘルスチェック中..."
+for i in $(seq 1 15); do
+  if curl -fsS -m 2 http://localhost:3000/health > /dev/null 2>&1; then
+    echo "ヘルスチェック OK"
+    break
+  fi
+  if [ "$i" -eq 15 ]; then
+    echo "ERROR: ヘルスチェックが 30 秒以内に成功しませんでした" >&2
+    echo "  sudo systemctl status portfolio で状態を確認してください" >&2
+    exit 1
+  fi
+  sleep 2
+done
 echo "=== デプロイ完了: $(date) ==="

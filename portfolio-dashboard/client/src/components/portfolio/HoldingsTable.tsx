@@ -7,6 +7,8 @@ interface Props {
 }
 
 const COLUMN_COUNT = 6;
+// モバイルでは「通貨」「取得日」列を非表示にするため列数が変わる
+const MOBILE_COLUMN_COUNT = 4;
 
 export function HoldingsTable({ items }: Props) {
   // 単一展開方式: 展開中の銘柄コードのみ保持
@@ -81,8 +83,17 @@ export function HoldingsTable({ items }: Props) {
                 </tr>
                 {isExpanded && (
                   <tr className="bg-gray-50">
-                    <td colSpan={COLUMN_COUNT} className="px-2 sm:px-4 py-3">
+                    {/* colSpan は表示中の列数に合わせる（モバイル4列 / sm以上6列） */}
+                    <td colSpan={MOBILE_COLUMN_COUNT} className="sm:hidden px-2 py-3">
                       {/* 収まらない環境向けの保険としてスクロール可能にしておく */}
+                      <div className="overflow-x-auto">
+                        <PurchaseHistoryTable purchases={item.purchases} />
+                      </div>
+                    </td>
+                    <td
+                      colSpan={COLUMN_COUNT}
+                      className="hidden sm:table-cell px-4 py-3"
+                    >
                       <div className="overflow-x-auto">
                         <PurchaseHistoryTable purchases={item.purchases} />
                       </div>
