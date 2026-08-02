@@ -1,21 +1,75 @@
+import type React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import type { DividendResponse } from "@/types";
+import { DividendYearChart } from "@/components/dividend/DividendYearChart";
 import { DividendTable } from "@/components/dividend/DividendTable";
+
+/** サマリーカード共通スタイル（dashboard/SummaryCard の流儀に合わせる）*/
+const cardStyle: React.CSSProperties = {
+  background: "white",
+  borderRadius: "14px",
+  padding: "18px",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+  flex: "1 1 200px",
+};
+
+/** 円表示（¥カンマ整数） */
+function fmtJpy(v: number): string {
+  return `¥${Math.round(v).toLocaleString("ja-JP")}`;
+}
 
 export default function Dividend() {
   const { data, isLoading } = useQuery({
     queryKey: ["dividend"],
     queryFn: () => fetchApi<DividendResponse>("/api/dividend"),
   });
+
   if (isLoading || !data) return <p className="text-gray-500">読み込み中...</p>;
+
+  const currentYear = new Date().getFullYear();
+  const thisYearTotal = data.data
+    .filter((item) => Number(item.date.slice(0, 4)) === currentYear)
+    .reduce((sum, item) => sum + item.totalJpy, 0);
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">配当・分配金</h1>
-      <div className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
-        <p className="text-sm text-gray-600">受取配当合計</p>
-        <p className="text-2xl font-bold text-gray-900">{data.totalJpy.toLocaleString()}円</p>
+
+      {/* サマリーカード3枚 */}
+      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
+        <div style={cardStyle}>
+          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+            累計受取額
+          </p>
+          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+            {fmtJpy(data.totalJpy)}
+          </p>
+        </div>
+        <div style={cardStyle}>
+          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+            今年の受取額
+          </p>
+          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+            {fmtJpy(thisYearTotal)}
+          </p>
+        </div>
+        <div style={cardStyle}>
+          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+            受取回数
+          </p>
+          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+            {data.data.length.toLocaleString("ja-JP")} 回
+          </p>
+        </div>
       </div>
+
+      {/* 年別受取額チャート */}
+      <div style={{ marginBottom: "16px" }}>
+        <DividendYearChart data={data.data} />
+      </div>
+
+      {/* 明細テーブル */}
       <DividendTable data={data.data} />
     </div>
   );

@@ -112,6 +112,8 @@ uv run python main.py --blog 2026 3                                    # ブロ�
 uv run python main.py --repair-pnl --dry-run                           # monthly_pnl 補正の差分確認
 uv run python main.py --add-purchase 7974.T 2026-08-01 1 8500          # 買付追記（日本株）
 uv run python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35   # 買付追記（外国株）
+uv run python main.py --add-dividend 7974.T 2026-06-27 2 118           # 配当記録（日本株: 株数・1株配当円）
+uv run python main.py --add-dividend NVDA 2026-06-27 2 0.01 155.30     # 配当記録（外国株: +為替レート）
 uv run ruff check . && uv run ty check
 ```
 

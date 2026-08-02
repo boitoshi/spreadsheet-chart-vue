@@ -201,8 +201,9 @@ class PortfolioDataCollector:
         if self.wp_publisher and output_path:
             try:
                 post_date = _get_next_month_date(year, month)
+                post_title = f"【ポケモン投資】{year}年{month}月の状況"
                 post_url = self.wp_publisher.create_draft(
-                    title=f"【ポケモン投資】{year}年{month}月の状況",
+                    title=post_title,
                     markdown_content=open(output_path, encoding="utf-8").read(),
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=batch_fragment_html,
@@ -210,6 +211,7 @@ class PortfolioDataCollector:
                     date=post_date,
                 )
                 print(f"  投稿完了: {post_url}")
+                self._save_wp_post(year, month, post_url, post_title)
             except Exception as e:
                 print(f"  WordPress 投稿エラー: {e}")
         else:
@@ -427,6 +429,30 @@ class PortfolioDataCollector:
             }
         )
 
+    def _save_wp_post(self, year: int, month: int, url: str, title: str) -> None:
+        """WordPress 投稿URLを wp_posts に保存する。
+
+        wp_posts テーブルが未整備の古い DB でもバッチ全体を落とさないよう、
+        失敗時は警告表示のみに留める。
+
+        Args:
+            year: 対象年
+            month: 対象月
+            url: 作成された下書き投稿の URL
+            title: create_draft に渡したタイトル文字列（同一のものを渡す）
+        """
+        try:
+            self.db_writer.save_wp_post(
+                {
+                    "month": f"{year:04d}-{month:02d}",
+                    "url": url,
+                    "title": title,
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
+        except Exception as e:
+            print(f"  [警告] WordPress 投稿URLの保存に失敗しました: {e}")
+
     def _update_all_currency_rates(self, date_str: str, now_str: str) -> None:
         """全通貨の為替レートを取得・保存"""
         if not CURRENCY_SETTINGS.get("update_rates_with_stocks", True):
@@ -566,6 +592,113 @@ class PortfolioDataCollector:
         repair_monthly_pnl(self.db_writer, verbose=False)
         return True
 
+    def add_dividend(
+        self,
+        code: str,
+        date_str: str,
+        shares_str: str,
+        per_share_str: str,
+        rate_str: str | None = None,
+    ) -> bool:
+        """配当受取を記録する（DB 直書き。Sheets 認証なしでも実行可能）。
+
+        Args:
+            code: 銘柄コード（例: 7974.T, NVDA）
+            date_str: 受取日（"YYYY-MM-DD"）
+            shares_str: 保有株数（文字列。1以上の整数のみ許可）
+            per_share_str: 1株あたり配当（日本株=円、外国株=外貨）
+            rate_str: 受取時為替レート（外国株のみ必須、日本株は指定不可）
+
+        Returns:
+            成功/失敗
+        """
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            print("❌ 日付は YYYY-MM-DD 形式で指定してください")
+            return False
+
+        try:
+            shares = int(shares_str)
+        except ValueError:
+            shares = 0
+        if shares < 1:
+            print(
+                "❌ 株数は 1 以上の整数で指定してください"
+                "（1株未満の端株はポートフォリオ対象外）"
+            )
+            return False
+
+        is_foreign = is_foreign_stock(code)
+        if is_foreign and rate_str is None:
+            print(
+                "❌ 外国株は為替レートが必要です"
+                "（例: --add-dividend NVDA 2026-06-27 2 0.01 155.30）"
+            )
+            return False
+        if not is_foreign and rate_str is not None:
+            print("❌ 日本株に為替レートは指定できません")
+            return False
+
+        try:
+            per_share = float(per_share_str)
+        except ValueError:
+            per_share = 0.0
+        if per_share <= 0:
+            print("❌ 1株配当は正の数値で指定してください")
+            return False
+
+        rate: float | None = None
+        if rate_str is not None:
+            try:
+                rate = float(rate_str)
+            except ValueError:
+                rate = 0.0
+            if rate <= 0:
+                print("❌ 為替レートは正の数値で指定してください")
+                return False
+
+        holding = self.db_writer.get_holding_by_code(code)
+        if holding is None:
+            print("❌ holdings に存在しない銘柄です")
+            return False
+        name = holding["name"]
+        currency = holding["currency"]
+
+        dividend_foreign: float | None
+        total_foreign: float | None
+        exchange_rate: float | None
+        if is_foreign:
+            dividend_foreign = per_share
+            total_foreign = shares * per_share
+            exchange_rate = rate
+            total_jpy = round(total_foreign * rate) if rate is not None else 0
+        else:
+            dividend_foreign = None
+            total_foreign = None
+            exchange_rate = None
+            total_jpy = round(shares * per_share)
+
+        self.db_writer.save_dividend(
+            {
+                "date": date_str,
+                "code": code,
+                "name": name,
+                "dividend_foreign": dividend_foreign,
+                "shares": shares,
+                "total_foreign": total_foreign,
+                "currency": currency,
+                "exchange_rate": exchange_rate,
+                "total_jpy": total_jpy,
+            }
+        )
+
+        print(
+            f"✅ {name}（{code}）の配当を記録しました: "
+            f"{date_str} {total_jpy:,.0f}円"
+        )
+        return True
+
     def collect_benchmark_only(self, year: int, month: int) -> bool:
         """ベンチマーク収集のみ実行"""
         print(f"\n=== {year}年{month}月 ベンチマーク収集 ===")
@@ -657,8 +790,9 @@ class PortfolioDataCollector:
         if self.wp_publisher:
             try:
                 post_date = _get_next_month_date(year, month)
+                post_title = f"【ポケモン投資】{year}年{month}月の状況"
                 post_url = self.wp_publisher.create_draft(
-                    title=f"【ポケモン投資】{year}年{month}月の状況",
+                    title=post_title,
                     markdown_content=markdown_text,
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=fragment_html,
@@ -666,6 +800,7 @@ class PortfolioDataCollector:
                     date=post_date,
                 )
                 print(f"  WordPress 投稿完了: {post_url}")
+                self._save_wp_post(year, month, post_url, post_title)
             except Exception as e:
                 print(f"  WordPress 投稿エラー: {e}")
 
@@ -931,6 +1066,14 @@ def main() -> None:
             args[5] if len(args) == 6 else None,
         )
 
+    # python main.py --add-dividend 7974.T 2026-06-27 2 118           （日本株）
+    # python main.py --add-dividend NVDA 2026-06-27 2 0.01 155.30     （外国株）
+    elif len(args) in (5, 6) and args[0] == "--add-dividend":
+        collector.add_dividend(
+            args[1], args[2], args[3], args[4],
+            args[5] if len(args) == 6 else None,
+        )
+
     # 引数なし  → 対話型
     elif not args:
         collector.run_interactive()
@@ -951,6 +1094,14 @@ def main() -> None:
         print(
             "  python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35"
             "  # 買付追記（外国株）"
+        )
+        print(
+            "  python main.py --add-dividend 7974.T 2026-06-27 2 118"
+            "                # 配当記録（日本株）"
+        )
+        print(
+            "  python main.py --add-dividend NVDA 2026-06-27 2 0.01 155.30"
+            "    # 配当記録（外国株）"
         )
         print(
             "  python main.py --generate-chart 任天堂 7974.T 2023-06-28 2026-03-31"

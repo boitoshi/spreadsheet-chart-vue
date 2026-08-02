@@ -40,7 +40,9 @@ portfolio-dashboard/
 | purchase_history | 買付履歴（code, seq, shares, price, price_foreign, purchased_at）。移動平均取得単価の源泉 |
 | stock_meta | 銘柄カラー・市場表示（7974.T=#E53935/東証プライム、2432.T=#1565C0/東証プライム、NVDA=#76B900/NASDAQ）。未登録銘柄はフォールバック `#FF6F00`→`#7B1FA2` |
 | ai_comments | AI コメント永続化（date, code, kind='stock'/'intro'/'summary'）。--blog 再実行時は再利用（AI_COMMENTS_FORCE=true で再生成） |
-| dividends / benchmark_data | 配当・ベンチマーク |
+| dividends | 受取配当（date+code UNIQUE）。`--add-dividend` CLI で記録。日本株は total_jpy のみ、外国株は dividend_foreign/total_foreign/exchange_rate も保持 |
+| wp_posts | WordPress 投稿 URL（month `"YYYY-MM"` UNIQUE, url, title）。--blog の create_draft 成功時に保存。レポート一覧の「ブログ記事」リンクの源泉 |
+| benchmark_data | ベンチマーク |
 
 ## API
 
@@ -49,7 +51,9 @@ portfolio-dashboard/
 | GET /api/dashboard | 既存 kpi/allocation/latestProfits ＋ **stocks[]・totalHistory・usdJpy**（新デザイン用。形状の正は `server/src/services/reportData.ts`） |
 | GET /api/reports/:year/:month/data | 月次レポートデータ（portfolio.json 形状）。該当月なしは 404 → client は Markdown 表示にフォールバック |
 | GET /api/reports/:year/:month | 従来の Markdown レポート（維持） |
-| その他 /api/portfolio, /history, /currency, /dividend, /reports, /benchmark, /exposure | 変更なし |
+| GET /api/reports | 一覧は DB（monthly_pnl の月）＋ blog_draft ファイルの和集合。各項目に `wpUrl`（wp_posts 由来、無ければ null）。filename は廃止 |
+| GET /api/dividend | date 降順ソート、各行に stock_meta 由来の `color` 付与（未登録はフォールバック色）。外貨系フィールドは日本株で null |
+| その他 /api/portfolio, /history, /currency, /benchmark, /exposure | 変更なし |
 
 stocks[] の主要フィールド: `currentPrice`/`acquiredPrice`/`priceHistory`/`acquiredAvgHistory` は **native 通貨**（USD 銘柄は外貨）、`value`/`profit` は円建て。`monthLabels` は `"YYYY/M"`。
 
@@ -75,6 +79,12 @@ uv run python main.py --blog YYYY MM
 
 - fragment は全 CSS を `.pf-report-embed` プレフィックスでスコープ済み（テーマ衝突防止）、Chart.js は二重読み込みガード付き動的ロード
 - server 側 `reportData.ts` と collector 側 `report_json_builder.py` は同一形状・同一計算。片方を変えたら必ず両方直す
+
+## 配当の記録
+
+- 配当入力: `uv run python main.py --add-dividend 7974.T 2026-06-27 2 118`（日本株: 株数・1株配当円）/ `--add-dividend NVDA 2026-06-27 2 0.01 155.30`（外国株: 株数・1株配当外貨・為替レート）
+- シート非依存で SQLite の dividends に直接 UPSERT（date+code キー）。銘柄名・通貨は holdings から取得するため、holdings に無い銘柄は登録不可
+- 証券会社の受取通知を見て随時入力する運用（月次バッチとは独立）。`/dividend` ページに累計・今年サマリー、年別積み上げチャート、全期間の明細が表示される
 
 ## 買付の記録と monthly_pnl 補正
 

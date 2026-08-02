@@ -73,6 +73,57 @@ class DbWriter:
         )
         self.conn.commit()
 
+    def save_dividend(self, data: dict) -> None:
+        """配当受取記録を保存（UPSERT）"""
+        self.conn.execute(
+            """
+            INSERT INTO dividends (
+                date, code, name, dividend_foreign, shares,
+                total_foreign, currency, exchange_rate, total_jpy)
+            VALUES (
+                :date, :code, :name, :dividend_foreign, :shares,
+                :total_foreign, :currency, :exchange_rate, :total_jpy)
+            ON CONFLICT(date, code) DO UPDATE SET
+                name=excluded.name, dividend_foreign=excluded.dividend_foreign,
+                shares=excluded.shares, total_foreign=excluded.total_foreign,
+                currency=excluded.currency, exchange_rate=excluded.exchange_rate,
+                total_jpy=excluded.total_jpy
+        """,
+            data,
+        )
+        self.conn.commit()
+
+    def save_wp_post(self, data: dict) -> None:
+        """WordPress 投稿URLを保存（UPSERT）"""
+        self.conn.execute(
+            """
+            INSERT INTO wp_posts (month, url, title, created_at)
+            VALUES (:month, :url, :title, :created_at)
+            ON CONFLICT(month) DO UPDATE SET
+                url=excluded.url, title=excluded.title, created_at=excluded.created_at
+        """,
+            data,
+        )
+        self.conn.commit()
+
+    def get_holding_by_code(self, code: str) -> dict | None:
+        """holdings から銘柄コードで1件取得する（配当記録の銘柄名・通貨引き当て用）。
+
+        Args:
+            code: 銘柄コード
+
+        Returns:
+            該当行の dict。存在しない場合は None
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT name, currency FROM holdings WHERE code = ? LIMIT 1",
+            (code,),
+        )
+        row = cursor.fetchone()
+        self.conn.row_factory = None
+        return dict(row) if row else None
+
     def save_benchmark(self, data: dict) -> None:
         """ベンチマークデータを保存（UPSERT）"""
         self.conn.execute(
