@@ -72,6 +72,11 @@ class BlogReportGenerator:
                     "USD": 150.25,
                     "HKD": 19.35,
                     # ...
+                },
+                "prev_month": {
+                    "year": 2024,
+                    "month": 11,
+                    "slug": "pokemon-investment-202411"
                 }
             }
         """
@@ -246,6 +251,17 @@ class BlogReportGenerator:
                 else 0
             )
 
+            # 前月リンク用（関連リンクブロックで使用）
+            if month == 1:
+                prev_year, prev_month_num = year - 1, 12
+            else:
+                prev_year, prev_month_num = year, month - 1
+            prev_month = {
+                "year": prev_year,
+                "month": prev_month_num,
+                "slug": f"pokemon-investment-{prev_year}{prev_month_num:02d}",
+            }
+
             return {
                 "month": f"{year}年{month}月",
                 "year": year,
@@ -261,6 +277,7 @@ class BlogReportGenerator:
                     "ratio": foreign_ratio,
                 },
                 "exchange_rates": exchange_rates,
+                "prev_month": prev_month,
             }
 
         except Exception as e:

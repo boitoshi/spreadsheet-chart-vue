@@ -28,6 +28,11 @@ WP_URL = os.getenv("WP_URL", "")
 WP_USER = os.getenv("WP_USER", "")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD", "")
 
+# WordPress 投稿時に付けるカテゴリ ID（既定: 30 =「ポケモン投資」）
+WP_CATEGORY_IDS = [
+    int(x) for x in os.getenv("WP_CATEGORY_IDS", "30").split(",") if x.strip()
+]
+
 # AI コメント生成（ANTHROPIC_API_KEY は anthropic ライブラリが自動読み取り）
 AI_COMMENTS_ENABLED = os.getenv("AI_COMMENTS_ENABLED", "false").lower() == "true"
 WP_PUBLISH_ENABLED = os.getenv("WP_PUBLISH_ENABLED", "false").lower() == "true"

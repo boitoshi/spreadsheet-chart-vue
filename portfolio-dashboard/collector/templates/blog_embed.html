@@ -4,11 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POKÉMON STOCK PORTFOLIO {{ data.meta.year }}年{{ data.meta.month }}月</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:20px;background:#e8eaf0;">
+<body style="margin:0;padding:20px;background:#fff4e2;">
 {% endif %}
 <div class="pf-report-embed">
 
@@ -16,69 +13,45 @@
 .pf-report-embed {
   max-width: 680px;
   margin: 0 auto;
-  background: #f0f2f5;
-  font-family: 'Noto Sans JP', sans-serif;
+  background: #fffaf2;
   font-size: 14px;
   color: #1e2130;
 }
 .pf-report-embed * { box-sizing: border-box; }
 .pf-report-embed .pf-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 6px;
+  border: 1px solid #ffbd59;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .pf-report-embed .pf-header {
-  background: linear-gradient(135deg, #0d47a1, #1565c0 40%, #1976d2);
-  border-radius: 16px;
-  padding: 40px 24px 32px;
+  background: #d98b1f;
+  border-radius: 6px;
+  padding: 24px;
   margin-bottom: 16px;
-  position: relative;
-  overflow: hidden;
-  color: #fff;
-}
-.pf-report-embed .pf-header-deco {
-  position: absolute;
-  top: -30px;
-  right: -30px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.08);
-}
-.pf-report-embed .pf-header-deco2 {
-  position: absolute;
-  bottom: -20px;
-  right: 60px;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.05);
+  color: #fffaf2;
 }
 .pf-report-embed .pf-header-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,250,242,0.8);
   letter-spacing: 2px;
   margin-bottom: 8px;
 }
-.pf-report-embed .pf-header-title {
-  font-size: 28px;
-  font-weight: 900;
-  color: #fff;
-  margin-bottom: 8px;
-  line-height: 1.3;
-}
 .pf-report-embed .pf-header-sub {
   font-size: 13px;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,250,242,0.85);
 }
 .pf-report-embed .pf-section-label {
   font-size: 11px;
-  font-weight: 700;
-  color: #8c90a0;
+  font-weight: bold;
+  color: #6b5a3a;
+  background: #fff4e2;
+  border: 1px solid rgb(160 160 160);
   text-transform: uppercase;
   letter-spacing: 1px;
+  padding: 3px 8px;
+  display: inline-block;
   margin-bottom: 12px;
 }
 .pf-report-embed .pf-total-value {
@@ -96,13 +69,14 @@
 .pf-report-embed .pf-stat-box {
   flex: 1;
   min-width: 120px;
-  background: #f6f7fa;
-  border-radius: 10px;
+  background: #fffaf2;
+  border: 1px solid #e8c98f;
+  border-radius: 6px;
   padding: 10px 14px;
 }
 .pf-report-embed .pf-stat-label {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
   margin-bottom: 4px;
 }
 .pf-report-embed .pf-stat-value {
@@ -143,23 +117,23 @@
 }
 .pf-report-embed .pf-legend-sub {
   font-size: 12px;
-  color: #8c90a0;
+  color: #8c7a5c;
 }
 .pf-report-embed .pf-fx-note {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
   margin-top: 12px;
 }
 .pf-report-embed .pf-stock-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 6px;
+  border: 1px solid #ffbd59;
   margin-bottom: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .pf-report-embed .pf-stock-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid #ffe9c2;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -167,7 +141,7 @@
 .pf-report-embed .pf-stock-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,7 +161,7 @@
 }
 .pf-report-embed .pf-stock-ticker {
   font-size: 12px;
-  color: #8c90a0;
+  color: #8c7a5c;
 }
 .pf-report-embed .pf-stock-price-wrap {
   text-align: right;
@@ -200,24 +174,24 @@
 }
 .pf-report-embed .pf-stock-acq {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
 }
 .pf-report-embed .pf-metrics {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
-  background: #f0f2f5;
-  border-bottom: 1px solid #f0f2f5;
+  background: #ffe9c2;
+  border-bottom: 1px solid #ffe9c2;
 }
 .pf-report-embed .pf-metric {
   padding: 12px 16px;
-  background: #f6f7fa;
+  background: #fffaf2;
 }
 .pf-report-embed .pf-metric-pos { background: #fef2f2; }
 .pf-report-embed .pf-metric-neg { background: #eff6ff; }
 .pf-report-embed .pf-metric-label {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
   margin-bottom: 4px;
 }
 .pf-report-embed .pf-metric-value {
@@ -226,13 +200,14 @@
 }
 .pf-report-embed .pf-metric-sub {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
   margin-top: 2px;
 }
 .pf-report-embed .pf-chart-wrap {
   margin: 16px 20px;
-  background: #fafbfc;
-  border-radius: 12px;
+  background: #fffaf2;
+  border: 1px solid #ffe9c2;
+  border-radius: 6px;
   padding: 12px 16px;
 }
 .pf-report-embed .pf-chart-header {
@@ -245,7 +220,7 @@
 }
 .pf-report-embed .pf-chart-title {
   font-size: 11px;
-  color: #8c90a0;
+  color: #8c7a5c;
   font-weight: 600;
 }
 .pf-report-embed .pf-period-btns {
@@ -255,10 +230,10 @@
 .pf-report-embed .pf-period-btn {
   font-size: 11px;
   padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid #e0e2ea;
+  border-radius: 4px;
+  border: 1px solid #e8c98f;
   background: #fff;
-  color: #8c90a0;
+  color: #8c7a5c;
   cursor: pointer;
   font-family: inherit;
 }
@@ -290,53 +265,91 @@
   line-height: 1.9;
   color: #3a3f52;
 }
+.pf-report-embed .pf-details {
+  margin: 0 20px 16px;
+}
+.pf-report-embed .pf-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b5a3a;
+  list-style: none;
+  padding: 4px 0;
+}
+.pf-report-embed .pf-details summary::-webkit-details-marker { display: none; }
+.pf-report-embed .pf-details summary::before {
+  content: "▸ ";
+  color: #d98b1f;
+}
+.pf-report-embed .pf-details[open] summary::before {
+  content: "▾ ";
+}
+.pf-report-embed .pf-table-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+.pf-report-embed .pf-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pf-report-embed .pf-history-table th {
+  background: #ffbd59;
+  color: #fffaf2;
+  padding: 6px 10px;
+  border: 1px solid rgb(160 160 160);
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.pf-report-embed .pf-history-table td {
+  background: #fffaf2;
+  color: #1e2130;
+  padding: 6px 10px;
+  border: 1px solid rgb(160 160 160);
+  text-align: center;
+  white-space: nowrap;
+}
+.pf-report-embed .pf-stock-link {
+  margin: 0 20px 20px;
+}
+.pf-report-embed .pf-stock-link a {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b3701c;
+  text-decoration: none;
+  border-bottom: 1px solid #ffbd59;
+}
+.pf-report-embed .pf-stock-link a:hover {
+  color: #8a5714;
+}
+.pf-report-embed .pf-info-list {
+  margin: 10px 0 0;
+  padding-left: 1.3em;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #3a3f52;
+}
+.pf-report-embed .pf-info-list li {
+  margin-bottom: 2px;
+}
 .pf-report-embed .pf-combo-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 6px;
+  border: 1px solid #ffbd59;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.pf-report-embed .pf-combo-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e2130;
-  margin-bottom: 12px;
-}
-.pf-report-embed .pf-cta {
-  background: #eef1f7;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-.pf-report-embed .pf-cta-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e2130;
-  margin-bottom: 8px;
-}
-.pf-report-embed .pf-cta-body {
-  font-size: 13px;
-  color: #3a3f52;
-  line-height: 1.7;
-  margin-bottom: 8px;
-}
-.pf-report-embed .pf-cta-note {
-  font-size: 12px;
-  color: #8c90a0;
-}
-.pf-report-embed .pf-footer {
-  text-align: center;
-  font-size: 11px;
-  color: #b0b4c3;
-  padding: 8px 0 4px;
-  line-height: 1.8;
 }
 .pf-report-embed .pf-intro-text {
   font-size: 15px;
   line-height: 1.8;
   color: #3a3f52;
+}
+.pf-report-embed .pf-intro-purchase {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8c7a5c;
+  margin-top: 8px;
 }
 .pf-report-embed .pf-summary-title {
   font-size: 14px;
@@ -349,24 +362,43 @@
   line-height: 1.9;
   color: #3a3f52;
 }
+.pf-report-embed h2.pf-block-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e2130;
+  margin: 0 0 10px;
+  padding: 0;
+  line-height: 1.4;
+}
 </style>
 
 <!-- ① ヘッダー -->
 <div class="pf-header">
-  <div class="pf-header-deco"></div>
-  <div class="pf-header-deco2"></div>
   <div class="pf-header-label">POKÉMON STOCK PORTFOLIO</div>
-  <div class="pf-header-title">【ポケモン投資】{{ data.meta.year }}年{{ data.meta.month }}月の状況</div>
-  <div class="pf-header-sub">ポケモン関連銘柄の月次投資レポート</div>
+  <div class="pf-header-sub">ポケモン関連銘柄の月次投資レポート ・ {{ data.meta.year }}年{{ data.meta.month }}月</div>
 </div>
 
-{% if data.intro %}
-<!-- ② intro カード -->
+<!-- ② intro カード（常に表示。data.intro が無ければ既定のリード文） -->
 <div class="pf-card">
-  <div class="pf-section-label">今月のサマリー</div>
-  <div class="pf-intro-text">{{ data.intro }}</div>
+  <!-- 中身が固定のリード文のときに「今月のサマリー」と名乗ると
+       ラベルと内容が食い違うので、月固有の intro があるときだけそう呼ぶ -->
+  <div class="pf-section-label">{{ "今月のサマリー" if data.intro else "この記事について" }}</div>
+  <div class="pf-intro-text">{{ data.intro if data.intro else "ポケモンファンによるお布施として、ポケモン関連銘柄を少しずつ買い増している記録です。推しへのお布施なのでそれだけでハッピーなのですが、もしかすると値上がりなんかしちゃってるかも!?" }}</div>
+  {% if data.meta.purchasesThisMonth %}
+  <div class="pf-intro-purchase">今月の買い増し: {% for p in data.meta.purchasesThisMonth %}{{ p.name }} {{ p.shares | int }}株（{% if p.currency == 'USD' %}${{ p.price | format_number(2) }}{% else %}¥{{ p.price | format_currency }}{% endif %} ・ {{ p.purchasedAt.split('-')[1] | int }}/{{ p.purchasedAt.split('-')[2] | int }}）{% if not loop.last %}、{% endif %}{% endfor %}</div>
+  {% endif %}
 </div>
-{% endif %}
+
+<!-- ⓪ データについて（既定で閉じる） -->
+<details class="pf-card">
+  <summary>データについて</summary>
+  <ul class="pf-info-list">
+    <li>評価額は各月の月末終値ベースです。</li>
+    <li>為替: 評価額の円換算は月末営業日のECB（欧州中央銀行）公表参照レート、取得原価は各購入時のレートを使用しています。</li>
+    <li>これまでの記事では為替の取得元・取得時点が統一されておらず、当時の記載と数値が一致しない場合があります。今後はこのレートに統一します。</li>
+    <li>株価の出典: Yahoo!ファイナンス</li>
+  </ul>
+</details>
 
 <!-- ③ サマリーカード -->
 {% set total_value = data.stocks | sum(attribute='value') %}
@@ -380,7 +412,7 @@
     <div class="pf-stat-box">
       <div class="pf-stat-label">評価損益</div>
       <div class="pf-stat-value {% if total_profit >= 0 %}pf-pos{% else %}pf-neg{% endif %}">
-        {% if total_profit >= 0 %}+{% endif %}¥{{ total_profit | format_currency }}
+        {% if total_profit >= 0 %}+¥{{ total_profit | format_currency }}{% else %}-¥{{ total_profit | abs | format_currency }}{% endif %}
       </div>
     </div>
     <div class="pf-stat-box">
@@ -415,6 +447,13 @@
   </div>
 </div>
 
+<h2 class="pf-block-title">資産の推移</h2>
+<!-- ⑤ コンボチャート（資産推移・損益推移） -->
+<div class="pf-combo-card">
+  <canvas id="pf-combo-chart" height="220"></canvas>
+</div>
+
+<h2 class="pf-block-title">今月の状況</h2>
 <!-- ④ 銘柄カード -->
 {% for stock in data.stocks %}
 <div class="pf-stock-card" id="pf-stock-{{ loop.index }}">
@@ -438,30 +477,24 @@
   <div class="pf-metrics">
     <!-- 評価損益 -->
     <div class="pf-metric {% if stock.profit >= 0 %}pf-metric-pos{% else %}pf-metric-neg{% endif %}">
-      <div class="pf-metric-label">評価損益</div>
+      <div class="pf-metric-label">{% if stock.currency == 'USD' %}評価損益（円換算）{% else %}評価損益{% endif %}</div>
       <div class="pf-metric-value {% if stock.profit >= 0 %}pf-pos{% else %}pf-neg{% endif %}">
-        {% if stock.profit >= 0 %}+{% endif %}¥{{ stock.profit | format_currency }}
+        {% if stock.profit >= 0 %}+¥{{ stock.profit | format_currency }}{% else %}-¥{{ stock.profit | abs | format_currency }}{% endif %}
       </div>
       <div class="pf-metric-sub {% if stock.profitRate >= 0 %}pf-pos{% else %}pf-neg{% endif %}">
         {{ stock.profitRate | format_percent }}
       </div>
     </div>
-    <!-- 月間変動 -->
+    <!-- 前月比（円建て） -->
     <div class="pf-metric">
-      <div class="pf-metric-label">月間変動</div>
-      <div class="pf-metric-value {% if stock.monthlyChangeRate and stock.monthlyChangeRate >= 0 %}pf-pos{% elif stock.monthlyChangeRate and stock.monthlyChangeRate < 0 %}pf-neg{% endif %}">
-        {% if stock.monthlyChangeRate is not none %}{{ stock.monthlyChangeRate | format_percent }}{% else %}—{% endif %}
+      <div class="pf-metric-label">{% if stock.currency != 'JPY' %}前月比（円換算）{% else %}前月比{% endif %}</div>
+      <div class="pf-metric-value {% if stock.prevMonthChangeRate is not none %}{% if stock.prevMonthChangeRate >= 0 %}pf-pos{% else %}pf-neg{% endif %}{% endif %}">
+        {% if stock.prevMonthChangeRate is not none %}{{ stock.prevMonthChangeRate | format_percent }}{% else %}—{% endif %}
       </div>
-    </div>
-    <!-- 前月比 -->
-    <div class="pf-metric">
-      <div class="pf-metric-label">前月比</div>
-      <div class="pf-metric-value {% if stock.previousMonthPrice is not none %}{% if stock.currentPrice >= stock.previousMonthPrice %}pf-pos{% else %}pf-neg{% endif %}{% endif %}">
-        {% if stock.previousMonthPrice is not none %}
-          {% set prev_change = (stock.currentPrice - stock.previousMonthPrice) / stock.previousMonthPrice * 100 %}
-          {{ prev_change | format_percent }}
-        {% else %}—{% endif %}
-      </div>
+      {% if stock.currency != 'JPY' and stock.previousMonthPrice is not none and stock.previousMonthPrice != 0 %}
+      {% set native_change_rate = (stock.currentPrice / stock.previousMonthPrice - 1) * 100 %}
+      <div class="pf-metric-sub {% if native_change_rate >= 0 %}pf-pos{% else %}pf-neg{% endif %}">{{ stock.currency }}建て {{ native_change_rate | format_percent }}</div>
+      {% endif %}
     </div>
     <!-- 保有 -->
     <div class="pf-metric">
@@ -472,7 +505,7 @@
   <!-- チャート枠 -->
   <div class="pf-chart-wrap">
     <div class="pf-chart-header">
-      <div class="pf-chart-title">株価 vs 取得単価</div>
+      <div class="pf-chart-title">株価 ／ - - - 取得単価</div>
       <div class="pf-period-btns" data-stock-idx="{{ loop.index0 }}">
         <button class="pf-period-btn" data-period="3">3ヶ月</button>
         <button class="pf-period-btn pf-active" data-period="6" style="background:{{ stock.color }};">6ヶ月</button>
@@ -482,7 +515,37 @@
     </div>
     <canvas id="pf-price-chart-{{ loop.index }}" height="160"></canvas>
   </div>
-  <!-- AI コメント -->
+  <!-- 買い増しの記録 -->
+  {% if stock.purchaseHistory %}
+  <details class="pf-details">
+    <summary>買い増しの記録</summary>
+    <div class="pf-table-wrap">
+      <table class="pf-history-table">
+        <thead>
+          <tr>
+            <th>回</th>
+            <th>数量</th>
+            <th>取得価額</th>
+            {% if stock.currency == 'USD' %}<th>為替（購入時）</th>{% endif %}
+            <th>購入日</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ph in stock.purchaseHistory %}
+          <tr>
+            <td>{{ ph.seq }}</td>
+            <td>{{ ph.shares }}株</td>
+            <td>{% if stock.currency == 'USD' %}${{ ph.price | format_number(2) }}{% else %}¥{{ ph.price | format_currency }}{% endif %}</td>
+            {% if stock.currency == 'USD' %}<td>¥{{ ph.exchangeRate | format_number(2) }}</td>{% endif %}
+            <td>{{ ph.purchasedAt }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+  <!-- 今月のコメント -->
   {% if stock.comment %}
   <div class="pf-comment-section">
     <div class="pf-comment-label-row">
@@ -492,14 +555,12 @@
     <div class="pf-comment-text">{{ stock.comment }}</div>
   </div>
   {% endif %}
+  <!-- 外部リンク -->
+  <div class="pf-stock-link">
+    <a href="https://finance.yahoo.co.jp/quote/{{ stock.ticker }}" target="_blank" rel="noopener noreferrer">Yahoo!ファイナンスで見る</a>
+  </div>
 </div>
 {% endfor %}
-
-<!-- ⑤ コンボチャート（資産推移・損益推移） -->
-<div class="pf-combo-card">
-  <div class="pf-combo-title">資産推移 ・ 損益推移</div>
-  <canvas id="pf-combo-chart" height="220"></canvas>
-</div>
 
 {% if data.summary %}
 <!-- ⑥ まとめ -->
@@ -508,19 +569,6 @@
   <div class="pf-summary-text">{{ data.summary }}</div>
 </div>
 {% endif %}
-
-<!-- ⑦ CTA -->
-<div class="pf-cta">
-  <div class="pf-cta-title">📌 証券口座の開設はこちら</div>
-  <div class="pf-cta-body">楽天証券・SBI証券・マネックス証券など、単元未満株が購入できる証券会社なら1株からポケモン関連銘柄に投資できます。</div>
-  <div class="pf-cta-note">みなさんもポケモン銘柄へお布施投資しましょう！</div>
-</div>
-
-<!-- ⑧ フッター -->
-<div class="pf-footer">
-  pokebros.net ・ ポケブロス<br>
-  ※ 本レポートは投資助言ではありません。投資は自己責任でお願いします。
-</div>
 
 </div><!-- /.pf-report-embed -->
 
@@ -531,6 +579,91 @@
     var PF_DATA = {{ data | format_json }};
     var stocks = PF_DATA.stocks;
     var totalHistory = PF_DATA.totalHistory;
+
+    // ── ラベル日付パース（月次"YYYY/M" / 日次"YYYY-MM-DD" の両対応） ──────
+    function pfParseLabelDate(label) {
+      if (typeof label !== 'string') return new Date(label);
+      if (label.indexOf('/') !== -1) {
+        var parts = label.split('/');
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+      }
+      return new Date(label);
+    }
+
+    // 期間ボタンの絞り込みは点数ではなく日付で行う（日次データでも正しく動くように）
+    function pfSliceStartForPeriod(labels, periodMonths) {
+      if (periodMonths <= 0 || labels.length === 0) return 0;
+      var lastDate = pfParseLabelDate(labels[labels.length - 1]);
+      var cutoff = new Date(lastDate.getFullYear(), lastDate.getMonth() - periodMonths, lastDate.getDate());
+      for (var i = 0; i < labels.length; i++) {
+        if (pfParseLabelDate(labels[i]) >= cutoff) {
+          return i;
+        }
+      }
+      return labels.length - 1;
+    }
+
+    // x軸ラベルの短縮フォーマッタ。日次"YYYY-MM-DD"は「M/D」、月次"YYYY/M"は
+    // 「M月」を基本形にし、直前に「表示されている」ティックと年が変わったとき
+    // （先頭含む）だけ2桁年を先頭に付ける。
+    function pfFormatAxisTick(label, prevLabel) {
+      if (typeof label !== 'string') return '';
+      var isMonthly = label.indexOf('/') !== -1;
+      var d = pfParseLabelDate(label);
+      var y = d.getFullYear();
+      var m = d.getMonth() + 1;
+      var showYear = true;
+      if (prevLabel) {
+        showYear = pfParseLabelDate(prevLabel).getFullYear() !== y;
+      }
+      var shortYear = ('' + y).slice(-2);
+      if (isMonthly) {
+        return showYear ? (shortYear + '/' + m) : (m + '月');
+      }
+      var day = d.getDate();
+      return showYear ? (shortYear + '/' + m + '/' + day) : (m + '/' + day);
+    }
+
+    // 万円単位の軸ラベル整形。マイナスは「¥-1万」ではなく「-¥1万」の順にする
+    // （本文の -¥12,020 と表記を揃える）
+    function pfFormatManYen(v) {
+      var man = v / 10000;
+      var sign = man < 0 ? '-' : '';
+      return sign + '¥' + Math.abs(man).toFixed(0) + '万';
+    }
+
+    // Chart.js の autoSkip は ticks.callback を「間引く前」の全ティックに対して
+    // 呼ぶため（間引きは描画直前の別処理）、callback 内で「直前の表示ティック」
+    // を正しく参照できない。そのため間引き自体を afterBuildTicks で自前に行い、
+    // 以降は callback にも常に「最終的に表示される配列」だけが渡るようにする。
+    function pfPickEvenIndices(length, maxCount) {
+      if (length <= maxCount) {
+        var all = [];
+        for (var i = 0; i < length; i++) all.push(i);
+        return all;
+      }
+      var picked = [];
+      var step = (length - 1) / (maxCount - 1);
+      for (var j = 0; j < maxCount; j++) {
+        var idx = Math.round(j * step);
+        if (picked.indexOf(idx) === -1) picked.push(idx);
+      }
+      return picked;
+    }
+
+    function pfThinAxisTicks(scale, maxCount) {
+      var indices = pfPickEvenIndices(scale.ticks.length, maxCount);
+      scale.ticks = indices.map(function(i) { return scale.ticks[i]; });
+    }
+
+    // ticks が afterBuildTicks で間引き済みの配列になっているため、
+    // ticks[index-1] がそのまま「直前に表示されるティック」になる
+    function pfAxisTickCallback(value, index, ticks) {
+      /* eslint-disable-next-line no-invalid-this */
+      var label = this.getLabelForValue(value);
+      var prevLabel = index > 0 ? this.getLabelForValue(ticks[index - 1].value) : null;
+      return pfFormatAxisTick(label, prevLabel);
+    }
 
     // ── ドーナツチャート ──────────────────────────────────
     var donutCtx = document.getElementById('pf-donut-chart');
@@ -563,15 +696,14 @@
       var ctx = document.getElementById(canvasId);
       if (!ctx) return;
 
-      var labels = stock.monthLabels;
-      var prices = stock.priceHistory;
-      var acqAvg = stock.acquiredAvgHistory;
+      // 日次系列（priceSeries）があれば優先。まだ JSON に無い環境では月次データにフォールバック
+      var hasDaily = !!(stock.priceSeries && stock.priceSeries.labels && stock.priceSeries.labels.length);
+      var labels = hasDaily ? stock.priceSeries.labels : stock.monthLabels;
+      var prices = hasDaily ? stock.priceSeries.prices : stock.priceHistory;
+      var acqAvg = hasDaily ? stock.priceSeries.acquired : stock.acquiredAvgHistory;
 
-      // 期間スライス
-      var sliceStart = 0;
-      if (period > 0 && labels.length > period) {
-        sliceStart = labels.length - period;
-      }
+      // 期間スライス（日付ベース）
+      var sliceStart = pfSliceStartForPeriod(labels, period);
       var slicedLabels = labels.slice(sliceStart);
       var slicedPrices = prices.slice(sliceStart);
       var slicedAcq = acqAvg.slice(sliceStart);
@@ -582,6 +714,8 @@
       }
 
       var currencyPrefix = stock.currency === 'USD' ? '$' : '¥';
+      // 日次系列は点が多く「ビーズの鎖」に見えるため点を消す。月次フォールバック時のみ点を出す
+      var pricePointRadius = hasDaily ? 0 : 3;
 
       chartInstances[canvasId] = new Chart(ctx, {
         type: 'line',
@@ -595,8 +729,8 @@
               borderWidth: 2.5,
               pointBackgroundColor: '#fff',
               pointBorderColor: stock.color,
-              pointRadius: 3,
-              tension: 0.3,
+              pointRadius: pricePointRadius,
+              tension: 0,
               fill: false,
             },
             {
@@ -636,12 +770,20 @@
           scales: {
             y: {
               ticks: {
-                callback: function(v) { return currencyPrefix + v.toFixed(0); },
+                callback: function(v) { return currencyPrefix + v.toLocaleString('ja-JP', { maximumFractionDigits: 0 }); },
                 font: { size: 10 }
               },
               grid: { color: 'rgba(0,0,0,0.04)' }
             },
-            x: { ticks: { font: { size: 10 } } }
+            x: {
+              afterBuildTicks: function(scale) { pfThinAxisTicks(scale, 7); },
+              ticks: {
+                font: { size: 10 },
+                maxRotation: 0,
+                autoSkip: false,
+                callback: pfAxisTickCallback
+              }
+            }
           }
         }
       });
@@ -692,7 +834,7 @@
               borderWidth: 2,
               pointRadius: 2,
               fill: { target: 'origin', above: 'rgba(21,101,192,0.08)' },
-              tension: 0.3,
+              tension: 0,
             },
             {
               type: 'line',
@@ -704,7 +846,7 @@
               borderDash: [5, 3],
               pointRadius: 2,
               fill: { target: 'origin', above: 'rgba(229,57,53,0.06)', below: 'rgba(21,101,192,0.06)' },
-              tension: 0.3,
+              tension: 0,
             }
           ]
         },
@@ -722,8 +864,10 @@
             yLeft: {
               type: 'linear',
               position: 'left',
+              title: { display: true, text: '総資産', color: '#1565C0', font: { size: 10 } },
               ticks: {
-                callback: function(v) { return '¥' + (v / 10000).toFixed(0) + '万'; },
+                callback: pfFormatManYen,
+                color: '#1565C0',
                 font: { size: 10 }
               },
               grid: { color: 'rgba(0,0,0,0.04)' }
@@ -731,13 +875,23 @@
             yRight: {
               type: 'linear',
               position: 'right',
+              title: { display: true, text: '損益', color: plColor, font: { size: 10 } },
               ticks: {
-                callback: function(v) { return '¥' + (v / 10000).toFixed(0) + '万'; },
+                callback: pfFormatManYen,
+                color: plColor,
                 font: { size: 10 }
               },
               grid: { drawOnChartArea: false }
             },
-            x: { ticks: { font: { size: 10 } } }
+            x: {
+              afterBuildTicks: function(scale) { pfThinAxisTicks(scale, 7); },
+              ticks: {
+                font: { size: 10 },
+                maxRotation: 0,
+                autoSkip: false,
+                callback: pfAxisTickCallback
+              }
+            }
           }
         }
       });

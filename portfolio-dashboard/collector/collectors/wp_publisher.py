@@ -85,6 +85,7 @@ class WpPublisher:
         image_paths: list[str] | None = None,
         slug: str | None = None,
         raw_html_prepend: str | None = None,
+        categories: list[int] | None = None,
     ) -> str:
         """Markdown コンテンツを HTML に変換し、WordPress に下書き投稿する。
 
@@ -100,6 +101,7 @@ class WpPublisher:
             raw_html_prepend: Gutenberg 変換前に本文先頭に追加する生 HTML 文字列。
                 指定時は <!-- wp:html --> ブロックで包み、
                 Markdown 変換済み本文の前に連結する
+            categories: 投稿に付けるカテゴリ ID のリスト（省略可）
 
         Returns:
             作成された下書き投稿の URL
@@ -164,6 +166,8 @@ class WpPublisher:
         }
         if slug:
             body["slug"] = slug
+        if categories:
+            body["categories"] = categories
         resp = requests.post(
             f"{self.wp_url}/wp-json/wp/v2/posts",
             auth=self.auth,

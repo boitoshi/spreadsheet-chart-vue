@@ -26,6 +26,7 @@ from config.settings import (
     GOOGLE_APPLICATION_CREDENTIALS,
     SPREADSHEET_ID,
     WP_APP_PASSWORD,
+    WP_CATEGORY_IDS,
     WP_PUBLISH_ENABLED,
     WP_URL,
     WP_USER,
@@ -119,15 +120,14 @@ class PortfolioDataCollector:
         print("\n[3/7] ベンチマーク収集中...")
         self.benchmark_collector.collect(year, month)
 
-        # 4. チャート画像生成（後の [5/7] でレポートデータに埋め込む）
-        print("\n[4/7] チャート画像: [5/7] のレポート生成時に合わせて作成します")
+        # 4. （廃止）チャート画像生成は行わない
+        # 値動きグラフは埋め込み側の Chart.js に一本化した
 
         # 5. ブログ下書き生成
         print("\n[5/7] ブログ下書き生成中...")
         report_data = self.report_generator.get_monthly_report_data(year, month)
         output_path = None
         if report_data:
-            self._generate_stock_charts(report_data, year, month)
             markdown_text = self.template_engine.render("blog_template.md", report_data)
             os.makedirs(OUTPUT_DIR, exist_ok=True)
             output_path = os.path.join(OUTPUT_DIR, f"blog_draft_{year}_{month:02d}.md")
@@ -184,10 +184,11 @@ class PortfolioDataCollector:
         if self.wp_publisher and output_path:
             try:
                 post_url = self.wp_publisher.create_draft(
-                    title=f"「ポケモン投資」{year}年{month}月の状況",
+                    title=f"【ポケモン投資】{year}年{month}月の状況",
                     markdown_content=open(output_path, encoding="utf-8").read(),
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=batch_fragment_html,
+                    categories=WP_CATEGORY_IDS,
                 )
                 print(f"  投稿完了: {post_url}")
             except Exception as e:
@@ -368,70 +369,6 @@ class PortfolioDataCollector:
             )
 
         return price_count > 0
-
-    def _generate_stock_charts(
-        self, report_data: dict, year: int, month: int
-    ) -> None:
-        """各銘柄の株価チャートを生成し、report_data に chart_images を追加する。
-
-        取得日から報告月末までの期間で折れ線チャートを描画する。
-        チャートは output/charts/{year}_{month:02d}/{symbol}.png に保存される。
-        """
-        try:
-            from collectors.chart_generator import ChartGenerator
-        except ImportError as e:
-            print(f"  チャート生成スキップ（matplotlib 未インストール）: {e}")
-            return
-
-        print("  チャート画像生成中...")
-
-        # 月末日を計算
-        if month == 12:
-            last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
-        else:
-            last_day = datetime(year, month + 1, 1) - timedelta(days=1)
-        end_date = last_day.strftime("%Y-%m-%d")
-
-        # 保存先ディレクトリ
-        chart_dir = os.path.join(OUTPUT_DIR, "charts", f"{year}_{month:02d}")
-        os.makedirs(chart_dir, exist_ok=True)
-
-        # holdings から acquired_date を引くためのマップ
-        portfolio_data = self.db_writer.get_portfolio_data()
-        portfolio_map = {p["code"]: p for p in portfolio_data}
-
-        generator = ChartGenerator()
-        stocks_map: dict[str, str] = {}
-        citations_map: dict[str, str] = {}
-
-        for h in report_data.get("holdings", []):
-            symbol = h.get("symbol", "")
-            name = h.get("name", "")
-            currency = h.get("currency", "JPY")
-
-            portfolio_entry = portfolio_map.get(symbol, {})
-            start_date = portfolio_entry.get("acquired_date")
-            if not start_date:
-                print(f"    スキップ: {symbol} に取得日なし")
-                continue
-
-            out_path = os.path.join(chart_dir, f"{symbol}.png")
-            try:
-                generator.generate(
-                    symbol, name, start_date, end_date, out_path, currency
-                )
-                stocks_map[symbol] = out_path
-                citations_map[symbol] = (
-                    f"https://finance.yahoo.co.jp/quote/{symbol}"
-                )
-                print(f"    ✓ {name}（{symbol}）")
-            except Exception as e:  # noqa: BLE001
-                print(f"    ✗ {name}（{symbol}）: {e}")
-
-        report_data["chart_images"] = {
-            "stocks": stocks_map,
-            "citations": citations_map,
-        }
 
     def _save_ai_comments(self, target_date: str, ai_comments: dict) -> None:
         """生成した AI コメントを SQLite に保存する。
@@ -632,9 +569,6 @@ class PortfolioDataCollector:
             print("❌ レポートデータが取得できませんでした")
             return False
 
-        # チャート画像生成
-        self._generate_stock_charts(report_data, year, month)
-
         # AI コメント生成（有効な場合）
         target_date = f"{year}-{month:02d}-末"
         ai_comments: dict = {}
@@ -703,10 +637,11 @@ class PortfolioDataCollector:
         if self.wp_publisher:
             try:
                 post_url = self.wp_publisher.create_draft(
-                    title=f"「ポケモン投資」{year}年{month}月の状況",
+                    title=f"【ポケモン投資】{year}年{month}月の状況",
                     markdown_content=markdown_text,
                     slug=f"pokemon-investment-{year}{month:02d}",
                     raw_html_prepend=fragment_html,
+                    categories=WP_CATEGORY_IDS,
                 )
                 print(f"  WordPress 投稿完了: {post_url}")
             except Exception as e:
