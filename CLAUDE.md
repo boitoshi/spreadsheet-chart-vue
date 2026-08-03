@@ -114,6 +114,7 @@ uv run python main.py --add-purchase 7974.T 2026-08-01 1 8500          # 買付�
 uv run python main.py --add-purchase NVDA 2026-08-01 1 208.27 162.35   # 買付追記（外国株）
 uv run python main.py --add-dividend 7974.T 2026-06-27 2 118           # 配当記録（日本株: 株数・1株配当円）
 uv run python main.py --add-dividend NVDA 2026-06-27 2 0.01 155.30     # 配当記録（外国株: +為替レート）
+uv run python main.py --import-dividends dividendlist.csv --dry-run    # 配当CSV一括取込（楽天証券・cp932）
 uv run ruff check . && uv run ty check
 ```
 

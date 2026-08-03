@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { TotalHistory } from "@/types";
 import { formatMan, formatMonthTick, formatMonthFull } from "@/lib/formatters";
+import { shouldShowDots } from "@/lib/chartUtils";
 
 interface Props {
   totalHistory: TotalHistory;
@@ -36,6 +37,9 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
     asset: totalHistory.assetValues[i] ?? 0,
     pl: totalHistory.plValues[i] ?? 0,
   }));
+
+  // 点が密集すると丸が線を潰すため、月数が多いときはドットを出さない
+  const showDots = shouldShowDots(chartData.length);
 
   return (
     <div
@@ -115,12 +119,16 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
           {/* 総資産エリア */}
           <Area
             yAxisId="left"
-            type="monotone"
+            type="linear"
             dataKey="asset"
             stroke="#1565C0"
             strokeWidth={2}
             fill="url(#assetGrad)"
-            dot={{ r: 3, fill: "white", stroke: "#1565C0", strokeWidth: 1.5 }}
+            dot={
+              showDots
+                ? { r: 3, fill: "white", stroke: "#1565C0", strokeWidth: 1.5 }
+                : false
+            }
             activeDot={{ r: 4 }}
             name="asset"
           />
@@ -128,7 +136,7 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
           {/* 損益エリア */}
           <Area
             yAxisId="right"
-            type="monotone"
+            type="linear"
             dataKey="pl"
             stroke={plStroke}
             strokeDasharray="5 3"

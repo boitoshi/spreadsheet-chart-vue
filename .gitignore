@@ -74,6 +74,9 @@ docs/monthly-reports/*/
 \!docs/monthly-reports/README.md
 \!docs/monthly-reports/templates/
 
+# 配当明細CSV（個人の取引記録。リポジトリに含めない）
+dividendlist*.csv
+
 # Temporary files
 *.tmp
 *.temp

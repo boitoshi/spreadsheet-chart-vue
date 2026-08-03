@@ -29,7 +29,7 @@ export function CurrencyLineChart({ data }: Props) {
           ]}
         />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="rate"
           stroke="#3b82f6"
           strokeWidth={2}

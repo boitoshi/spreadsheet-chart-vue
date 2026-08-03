@@ -44,7 +44,7 @@ export function StockCompareChart({ data }: Props) {
         {names.map((name, i) => (
           <Line
             key={name}
-            type="monotone"
+            type="linear"
             dataKey={name}
             stroke={COLORS[i % COLORS.length]}
             strokeWidth={2}

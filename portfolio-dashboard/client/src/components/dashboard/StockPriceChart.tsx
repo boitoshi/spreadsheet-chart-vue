@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatMonthTick, formatMonthFull } from "@/lib/formatters";
+import { shouldShowDots } from "@/lib/chartUtils";
 
 interface Props {
   prices: number[];
@@ -95,6 +96,9 @@ export function StockPriceChart({
     avg: avgCosts[i] ?? 0,
   }));
 
+  // 点が密集すると丸が線を潰すため、期間が長いときはドットを出さない（ALL 表示など）
+  const showDots = shouldShowDots(chartData.length);
+
   const TooltipContent = makeTooltipContent(currency);
 
   return (
@@ -131,11 +135,15 @@ export function StockPriceChart({
         />
         {/* 株価 */}
         <Line
-          type="monotone"
+          type="linear"
           dataKey="price"
           stroke={color}
           strokeWidth={2}
-          dot={{ r: 3, fill: "white", stroke: color, strokeWidth: 1.5 }}
+          dot={
+            showDots
+              ? { r: 3, fill: "white", stroke: color, strokeWidth: 1.5 }
+              : false
+          }
           activeDot={{ r: 4, fill: color }}
           name="株価"
         />

@@ -1,7 +1,8 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
+import type { SymbolOption } from "@/types";
 
 interface Props {
-  symbols: string[];
+  symbols: SymbolOption[];
   current?: string;
 }
 
@@ -26,8 +27,8 @@ export function StockFilter({ symbols, current }: Props) {
     >
       <option value="">全銘柄</option>
       {symbols.map((s) => (
-        <option key={s} value={s}>
-          {s}
+        <option key={s.code} value={s.code}>
+          {s.code} {s.name}
         </option>
       ))}
     </select>

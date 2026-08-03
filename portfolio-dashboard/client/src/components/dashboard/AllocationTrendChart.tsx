@@ -44,7 +44,7 @@ export function AllocationTrendChart({ data }: Props) {
         {names.map((name, i) => (
           <Area
             key={name}
-            type="monotone"
+            type="linear"
             dataKey={name}
             stackId="allocation"
             stroke={COLORS[i % COLORS.length]}

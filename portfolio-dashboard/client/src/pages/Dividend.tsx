@@ -34,7 +34,10 @@ export default function Dividend() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">配当・分配金</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">配当・分配金</h1>
+      <p className="text-xs text-gray-500 leading-relaxed mb-6">
+        配当利回りを狙った投資はしていないため金額は小さめですが、受け取った分は記録として残しています。金額は税引前です。
+      </p>
 
       {/* サマリーカード3枚 */}
       <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>

@@ -10,6 +10,18 @@ export const COLORS = [
 ];
 
 /**
+ * 折れ線にドット（節の丸）を表示するデータ点数の上限。
+ * これを超えると点の間隔より丸の方が目立ち、線が読みづらくなるため非表示にする。
+ * ホバー時の activeDot は点数に関わらず出るので、値は読める。
+ */
+export const DOT_VISIBLE_MAX_POINTS = 12;
+
+/** データ点数からドットを表示すべきか判定する */
+export function shouldShowDots(pointCount: number): boolean {
+  return pointCount <= DOT_VISIBLE_MAX_POINTS;
+}
+
+/**
  * MonthlyProfitPoint[] を「日付 × 銘柄名」のピボット形式に変換する。
  * getValue で取り出す値フィールドを選択する。
  */

@@ -93,6 +93,17 @@ class DbWriter:
         )
         self.conn.commit()
 
+    def get_dividend_keys(self) -> set[tuple[str, str]]:
+        """dividends テーブルに既に存在する (date, code) の組を取得する。
+
+        --import-dividends の dry-run で「上書き」判定に使う。
+
+        Returns:
+            {(date, code), ...} の set
+        """
+        cursor = self.conn.execute("SELECT date, code FROM dividends")
+        return {(row[0], row[1]) for row in cursor.fetchall()}
+
     def save_wp_post(self, data: dict) -> None:
         """WordPress 投稿URLを保存（UPSERT）"""
         self.conn.execute(

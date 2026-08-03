@@ -73,10 +73,16 @@ export interface MonthlyProfitPoint {
   fxProfit: number; // 為替損益（円）
 }
 
+// 銘柄セレクタの選択肢（コード＋銘柄名）
+export interface SymbolOption {
+  code: string;
+  name: string;
+}
+
 // 損益推移 レスポンス
 export interface HistoryResponse {
   data: MonthlyProfitPoint[];
-  symbols: string[]; // フィルター選択肢（銘柄コード）
+  symbols: SymbolOption[]; // フィルター選択肢（銘柄コード＋銘柄名）
 }
 
 // 為替レートデータポイント

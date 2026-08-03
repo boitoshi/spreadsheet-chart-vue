@@ -41,7 +41,7 @@ export function BenchmarkChart({ data }: Props) {
         />
         <Legend />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="portfolio"
           name="ポートフォリオ"
           stroke="#3b82f6"
@@ -50,7 +50,7 @@ export function BenchmarkChart({ data }: Props) {
           connectNulls
         />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="nikkei225"
           name="日経225"
           stroke="#ef4444"
@@ -59,7 +59,7 @@ export function BenchmarkChart({ data }: Props) {
           connectNulls
         />
         <Line
-          type="monotone"
+          type="linear"
           dataKey="sp500"
           name="S&P500"
           stroke="#10b981"

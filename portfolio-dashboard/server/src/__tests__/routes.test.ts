@@ -179,13 +179,16 @@ describe("API routes", () => {
     expect(nvda.purchases[0].exchangeRate).toBe(150.0);
   });
 
-  it("GET /api/history → data は 2件、symbols は ['7974.T', 'NVDA']", async () => {
+  it("GET /api/history → data は 2件、symbols は code 昇順で { code, name } の配列", async () => {
     const res = await app.request("/api/history");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toHaveLength(2);
-    expect(body.symbols).toEqual(expect.arrayContaining(["7974.T", "NVDA"]));
     expect(body.symbols).toHaveLength(2);
+    expect(body.symbols).toEqual([
+      { code: "7974.T", name: "任天堂" },
+      { code: "NVDA", name: "エヌビディア" },
+    ]);
   });
 
   it("GET /api/history?stock=7974.T → data は 1件", async () => {

@@ -9,12 +9,20 @@ const app = new Hono();
 app.get("/", (c) => {
   const stockParam = c.req.query("stock");
 
-  // symbols は全銘柄コードの sorted unique list（フィルタ前）
+  // symbols は全銘柄の { code, name } sorted unique list（フィルタ前）
+  // distinct (code, name) で取っているため、name が月によって揺れると
+  // 同じ code が複数出うる。code をキーにした Map で一意化する（後勝ち）
   const symbolRows = db
-    .selectDistinct({ code: monthlyPnl.code })
+    .selectDistinct({ code: monthlyPnl.code, name: monthlyPnl.name })
     .from(monthlyPnl)
     .all();
-  const symbols = symbolRows.map((r) => r.code).sort();
+  const symbolMap = new Map<string, string>();
+  for (const r of symbolRows) {
+    symbolMap.set(r.code, r.name);
+  }
+  const symbols = Array.from(symbolMap, ([code, name]) => ({ code, name })).sort(
+    (a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0),
+  );
 
   // データ取得（stock パラメータで絞り込み可）
   const rows = stockParam

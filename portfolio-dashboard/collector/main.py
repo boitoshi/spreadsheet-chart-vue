@@ -12,6 +12,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from collectors.benchmark_collector import BenchmarkCollector
 from collectors.db_writer import DbWriter
+from collectors.dividend_import import aggregate, build_save_record, parse_rakuten_csv
 from collectors.pnl_repair import repair_monthly_pnl
 from collectors.report_generator import BlogReportGenerator
 from collectors.sheets_sync import SheetsSync
@@ -51,6 +52,13 @@ def _get_next_month_date(year: int, month: int) -> str:
     else:
         next_year, next_month = year, month + 1
     return f"{next_year:04d}-{next_month:02d}-01T09:00:00"
+
+
+def _format_decimal(value: Decimal) -> str:
+    """Decimal をカンマ区切りの表示用文字列に変換する（整数値は小数点を出さない）。"""
+    if value == value.to_integral_value():
+        return f"{int(value):,}"
+    return f"{value.normalize():,}"
 
 
 class PortfolioDataCollector:
@@ -712,6 +720,208 @@ class PortfolioDataCollector:
         )
         return True
 
+    def _fetch_rate_with_retry(
+        self, currency: str, dt: datetime, attempts: int = 3
+    ) -> float | None:
+        """受取日の為替レートを取得する（一時的な通信エラー向けにリトライする）。
+
+        frankfurter API はまれにタイムアウトする。1件でも欠けると全件中断する
+        設計のため、諦める前に間隔を空けて数回試す。
+
+        Args:
+            currency: 通貨コード（USD 等）
+            dt: 受取日
+            attempts: 最大試行回数
+
+        Returns:
+            為替レート（全試行が失敗したら None）
+        """
+        for i in range(attempts):
+            try:
+                rate = self.stock_collector.currency_converter.get_exchange_rate(
+                    currency, dt
+                )
+            except Exception as e:
+                # get_exchange_rate は現状すべての例外を握って None を返す
+                # 実装（collectors/currency_converter.py）だが、将来例外を
+                # 透過するように変わってもリトライが効くよう保険で包む
+                print(f"  ⚠️ 為替レート取得中に例外が発生しました: {e}")
+                rate = None
+            if rate is not None:
+                return rate
+            if i < attempts - 1:
+                print(
+                    f"  ⏳ 為替レートを再取得します（{i + 2}回目）: "
+                    f"{dt.strftime('%Y-%m-%d')}"
+                )
+                time.sleep(1)
+        return None
+
+    def import_dividends(self, csv_path: str, dry_run: bool = False) -> bool:
+        """楽天証券の配当金明細 CSV（cp932）を読み込み、dividends テーブルへ
+        一括登録する。
+
+        add_dividend とは計算の向きが逆（税引前総額が正で、1株配当は導出値）
+        なので処理を共有しない。フェーズを2段階に分けて実行する:
+
+          フェーズ1: 保存レコードを全件確定させる（外国株は受取日の為替
+              レートを取得する）。1件でも為替レートが取得できなければ、
+              何も書き込まずエラー終了する（フェイルファスト）。
+          フェーズ2: dry_run なら表示のみ。本実行なら1件ずつ保存してサマリを
+              表示する。save_dividend は1件ごとに commit するため厳密な
+              原子性は無い点に注意（フェーズ1を通過すれば書き込み自体が
+              失敗することは想定していないが、保存ループの途中で中断した
+              場合は部分的にしか入らない）。dividends は date+code の
+              UPSERT なので、再実行すれば必ず揃う。
+
+        Args:
+            csv_path: CSV ファイルパス。
+            dry_run: True の場合は集計結果の表示のみで DB には書き込まない
+                （為替レート取得は dry_run でも実施する）。
+
+        Returns:
+            成功/失敗。
+        """
+        try:
+            with open(csv_path, "rb") as f:
+                raw_bytes = f.read()
+        except FileNotFoundError:
+            print(f"❌ ファイルが見つかりません: {csv_path}")
+            return False
+
+        try:
+            text = raw_bytes.decode("cp932")
+        except UnicodeDecodeError as e:
+            print(f"❌ CSV を cp932 で読み込めません: {e}")
+            return False
+
+        try:
+            rows = parse_rakuten_csv(text)
+        except ValueError as e:
+            print(f"❌ CSV の解析に失敗しました: {e}")
+            return False
+
+        # holdings から code → (name, currency) のマップを作る
+        # （銘柄名は CSV の表記ゆれではなく holdings.name を使い、
+        #   既存の配当データと表記を揃える）
+        holdings = self.db_writer.get_portfolio_data()
+        holdings_map = {
+            h["code"]: {"name": h["name"], "currency": h["currency"]}
+            for h in holdings
+            if h.get("code")
+        }
+
+        aggregated, skipped = aggregate(rows, set(holdings_map.keys()))
+
+        print(f"\n=== 配当CSVインポート: {csv_path} ===")
+        print(f"  総データ行数: {len(rows)}行 / 投入対象: {len(aggregated)}件")
+
+        if skipped:
+            print(f"\n  スキップ: {len(skipped)}行")
+            for s in skipped:
+                print(
+                    f"    {s.row_no}行目 {s.code}: {s.reason}"
+                    f"（{_format_decimal(s.shares)}株 "
+                    f"{_format_decimal(s.total_pretax)}{s.currency}）"
+                )
+
+        multi = [a for a in aggregated if len(a.source_row_nos) > 1]
+        if multi:
+            print(f"\n  合算: {len(multi)}組")
+            for a in multi:
+                currency = holdings_map[a.code]["currency"]
+                unit = "円" if currency == "JPY" else currency
+                print(
+                    f"    {a.date} {a.code}: {len(a.source_row_nos)}行合算 → "
+                    f"{_format_decimal(a.shares)}株 "
+                    f"{_format_decimal(a.total_pretax)}{unit}"
+                )
+
+        # フェーズ1: 外国株の受取日為替レートを事前に全件取得する
+        # （同じ通貨・同じ日付の組は1回しか取得しないようキャッシュする。
+        #   キーを日付だけにすると、同日に複数の外貨通貨が混在した場合に
+        #   先に取得した通貨のレートがもう片方に誤って流用されてしまう）
+        rate_cache: dict[tuple[str, str], float | None] = {}
+        for a in aggregated:
+            currency = holdings_map[a.code]["currency"]
+            if currency == "JPY":
+                continue
+            cache_key = (currency, a.date)
+            if cache_key not in rate_cache:
+                dt = datetime.strptime(a.date, "%Y-%m-%d")
+                rate_cache[cache_key] = self._fetch_rate_with_retry(currency, dt)
+
+        missing_keys = sorted(
+            {
+                (holdings_map[a.code]["currency"], a.date)
+                for a in aggregated
+                if holdings_map[a.code]["currency"] != "JPY"
+                and rate_cache.get((holdings_map[a.code]["currency"], a.date)) is None
+            }
+        )
+        if missing_keys:
+            missing_desc = ", ".join(
+                f"{currency} {date}" for currency, date in missing_keys
+            )
+            print(f"\n❌ 為替レートが取得できませんでした: {missing_desc}")
+            print("  何も保存せず中断します")
+            return False
+
+        # 為替レートが全件揃ったので保存レコードを確定させる
+        save_records: list[dict] = []
+        for a in aggregated:
+            info = holdings_map[a.code]
+            currency = info["currency"]
+            rate = (
+                Decimal(str(rate_cache[(currency, a.date)]))
+                if currency != "JPY"
+                else None
+            )
+            save_records.append(
+                build_save_record(a, name=info["name"], currency=currency, rate=rate)
+            )
+
+        existing_keys = self.db_writer.get_dividend_keys()
+
+        print(f"\n  投入予定レコード（{'dry-run' if dry_run else '本実行'}）:")
+        domestic_total = 0
+        foreign_total_jpy = 0
+        for rec in save_records:
+            key = (rec["date"], rec["code"])
+            mark = " [上書き]" if key in existing_keys else ""
+            if rec["currency"] == "JPY":
+                domestic_total += rec["total_jpy"]
+                detail = ""
+            else:
+                foreign_total_jpy += rec["total_jpy"]
+                detail = (
+                    f" 外貨額={rec['total_foreign']:.2f}{rec['currency']} "
+                    f"為替={rec['exchange_rate']:.2f}"
+                )
+            print(
+                f"    {rec['date']} {rec['code']}（{rec['name']}）"
+                f" {rec['shares']:g}株{detail} "
+                f"→ {rec['total_jpy']:,}円{mark}"
+            )
+
+        grand_total = domestic_total + foreign_total_jpy
+        print(
+            f"\n  合計: {len(save_records)}件 / total_jpy合計 {grand_total:,}円"
+            f"（国内株 {domestic_total:,}円 + 外国株換算 {foreign_total_jpy:,}円）"
+        )
+        print("  ※ 為替レートは dry-run でも実際に取得しています")
+
+        if dry_run:
+            print("\n  [dry-run] DB へは書き込んでいません")
+            return True
+
+        # フェーズ2: 保存
+        for rec in save_records:
+            self.db_writer.save_dividend(rec)
+
+        print(f"\n✅ {len(save_records)}件の配当を保存しました")
+        return True
+
     def collect_benchmark_only(self, year: int, month: int) -> bool:
         """ベンチマーク収集のみ実行"""
         print(f"\n=== {year}年{month}月 ベンチマーク収集 ===")
@@ -1087,6 +1297,17 @@ def main() -> None:
             args[5] if len(args) == 6 else None,
         )
 
+    # python main.py --import-dividends dividend.csv [--dry-run]
+    elif len(args) in (2, 3) and args[0] == "--import-dividends":
+        if len(args) == 3 and args[2] != "--dry-run":
+            print("❌ 不明なオプションです")
+            print(
+                "使用例: python main.py --import-dividends "
+                "dividend.csv --dry-run"
+            )
+        else:
+            collector.import_dividends(args[1], dry_run=(len(args) == 3))
+
     # 引数なし  → 対話型
     elif not args:
         collector.run_interactive()
@@ -1115,6 +1336,10 @@ def main() -> None:
         print(
             "  python main.py --add-dividend NVDA 2026-06-27 2 0.01 155.30"
             "    # 配当記録（外国株）"
+        )
+        print(
+            "  python main.py --import-dividends dividend.csv [--dry-run]"
+            "     # 配当CSV一括インポート（楽天証券・cp932）"
         )
         print(
             "  python main.py --generate-chart 任天堂 7974.T 2023-06-28 2026-03-31"
