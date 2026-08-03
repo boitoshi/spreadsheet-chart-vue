@@ -1,9 +1,9 @@
-import type React from "react";
 import { useQuery } from "@tanstack/react-query";
+import type React from "react";
+import { DividendTable } from "@/components/dividend/DividendTable";
+import { DividendYearChart } from "@/components/dividend/DividendYearChart";
 import { fetchApi } from "@/lib/api";
 import type { DividendResponse } from "@/types";
-import { DividendYearChart } from "@/components/dividend/DividendYearChart";
-import { DividendTable } from "@/components/dividend/DividendTable";
 
 /** サマリーカード共通スタイル（dashboard/SummaryCard の流儀に合わせる）*/
 const cardStyle: React.CSSProperties = {
@@ -40,28 +40,77 @@ export default function Dividend() {
       </p>
 
       {/* サマリーカード3枚 */}
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          flexWrap: "wrap",
+          marginBottom: "16px",
+        }}
+      >
         <div style={cardStyle}>
-          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "10px",
+              color: "#8c90a0",
+              margin: "0 0 6px",
+              fontWeight: 500,
+            }}
+          >
             累計受取額
           </p>
-          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+          <p
+            style={{
+              fontSize: "24px",
+              fontWeight: 800,
+              color: "#1e2130",
+              margin: 0,
+            }}
+          >
             {fmtJpy(data.totalJpy)}
           </p>
         </div>
         <div style={cardStyle}>
-          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "10px",
+              color: "#8c90a0",
+              margin: "0 0 6px",
+              fontWeight: 500,
+            }}
+          >
             今年の受取額
           </p>
-          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+          <p
+            style={{
+              fontSize: "24px",
+              fontWeight: 800,
+              color: "#1e2130",
+              margin: 0,
+            }}
+          >
             {fmtJpy(thisYearTotal)}
           </p>
         </div>
         <div style={cardStyle}>
-          <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 6px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "10px",
+              color: "#8c90a0",
+              margin: "0 0 6px",
+              fontWeight: 500,
+            }}
+          >
             受取回数
           </p>
-          <p style={{ fontSize: "24px", fontWeight: 800, color: "#1e2130", margin: 0 }}>
+          <p
+            style={{
+              fontSize: "24px",
+              fontWeight: 800,
+              color: "#1e2130",
+              margin: 0,
+            }}
+          >
             {data.data.length.toLocaleString("ja-JP")} 回
           </p>
         </div>

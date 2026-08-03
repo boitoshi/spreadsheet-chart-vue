@@ -4,21 +4,21 @@
  * - 存在しない: 旧レイアウト（後方互換）
  */
 import { useQuery } from "@tanstack/react-query";
+import { AllocationChart } from "@/components/dashboard/AllocationChart";
+import { AllocationTrendChart } from "@/components/dashboard/AllocationTrendChart";
+import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
+import { CurrencyExposureTable } from "@/components/dashboard/CurrencyExposureTable";
+import { GradientHeader } from "@/components/dashboard/GradientHeader";
+import { KpiCards } from "@/components/dashboard/KpiCards";
+import { LatestBarChart } from "@/components/dashboard/LatestBarChart";
+import { StockCard } from "@/components/dashboard/StockCard";
+import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { fetchApi } from "@/lib/api";
 import type {
   DashboardResponse,
   ExposureResponse,
   HistoryResponse,
 } from "@/types";
-import { KpiCards } from "@/components/dashboard/KpiCards";
-import { AllocationChart } from "@/components/dashboard/AllocationChart";
-import { LatestBarChart } from "@/components/dashboard/LatestBarChart";
-import { AllocationTrendChart } from "@/components/dashboard/AllocationTrendChart";
-import { CurrencyExposureTable } from "@/components/dashboard/CurrencyExposureTable";
-import { GradientHeader } from "@/components/dashboard/GradientHeader";
-import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
-import { StockCard } from "@/components/dashboard/StockCard";
 
 /** kpi.baseDate ("2026-03-末") から { year, month } をパース */
 function parseBaseDate(baseDate: string): { year: number; month: number } {
@@ -40,7 +40,9 @@ function LegacyDashboard({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">ダッシュボード</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          ダッシュボード
+        </h1>
         <p className="text-sm text-gray-500">基準日: {data.kpi.baseDate}</p>
       </div>
       <KpiCards kpi={data.kpi} />
@@ -50,19 +52,25 @@ function LegacyDashboard({
           <AllocationChart data={data.allocation} />
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">最新月 損益</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-4">
+            最新月 損益
+          </h2>
           <LatestBarChart data={data.latestProfits} />
         </div>
       </div>
       {history && (
         <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-4">評価額推移（銘柄別）</h2>
+          <h2 className="text-sm font-medium text-gray-500 mb-4">
+            評価額推移（銘柄別）
+          </h2>
           <AllocationTrendChart data={history.data} />
         </div>
       )}
       {exposure && (
         <div className="mt-6 bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-4">通貨別エクスポージャー（最新月）</h2>
+          <h2 className="text-sm font-medium text-gray-500 mb-4">
+            通貨別エクスポージャー（最新月）
+          </h2>
           <CurrencyExposureTable items={exposure.items} />
         </div>
       )}
@@ -159,7 +167,5 @@ export default function Dashboard() {
   }
 
   // 旧レイアウト（後方互換）
-  return (
-    <LegacyDashboard data={data} history={history} exposure={exposure} />
-  );
+  return <LegacyDashboard data={data} history={history} exposure={exposure} />;
 }

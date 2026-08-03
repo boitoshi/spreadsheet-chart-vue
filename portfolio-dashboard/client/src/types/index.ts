@@ -103,29 +103,29 @@ export interface CurrencyResponse {
 
 // 配当・分配金データポイント
 export interface DividendItem {
-  date: string;        // 受取日
-  code: string;        // 銘柄コード
-  name: string;        // 銘柄名
-  dividendForeign: number | null;  // 1株配当（外貨）。日本株は null
-  shares: number;      // 保有株数
+  date: string; // 受取日
+  code: string; // 銘柄コード
+  name: string; // 銘柄名
+  dividendForeign: number | null; // 1株配当（外貨）。日本株は null
+  shares: number; // 保有株数
   totalForeign: number | null; // 配当合計（外貨）。日本株は null
-  currency: string;    // 通貨コード（JPY/USD/HKD）
+  currency: string; // 通貨コード（JPY/USD/HKD）
   exchangeRate: number | null; // 為替レート。日本株は null
-  totalJpy: number;    // 配当合計（円）
-  color: string;       // 銘柄カラー（stock_meta 由来）
+  totalJpy: number; // 配当合計（円）
+  color: string; // 銘柄カラー（stock_meta 由来）
 }
 
 // 配当・分配金 レスポンス
 export interface DividendResponse {
   data: DividendItem[];
-  totalJpy: number;    // 受取配当合計（円）
+  totalJpy: number; // 受取配当合計（円）
 }
 
 // 月次レポート一覧アイテム
 export interface ReportItem {
   year: number;
   month: number;
-  label: string;   // 例: "2026年1月"
+  label: string; // 例: "2026年1月"
   wpUrl: string | null; // WordPress 記事URL。未投稿は null
 }
 
@@ -229,7 +229,7 @@ export interface ReportDataResponse {
     year: number;
     month: number;
     exchangeRate: number; // USD/JPY レート
-    reportDate: string;   // "YYYY年M月末" 形式
+    reportDate: string; // "YYYY年M月末" 形式
   };
   stocks: DashboardStock[];
   totalHistory: TotalHistory;

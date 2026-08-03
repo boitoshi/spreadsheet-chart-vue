@@ -7,7 +7,11 @@ interface Props {
   usdJpy: number;
 }
 
-export function GradientHeader({ year, month, usdJpy }: Props): React.ReactElement {
+export function GradientHeader({
+  year,
+  month,
+  usdJpy,
+}: Props): React.ReactElement {
   return (
     <div
       style={{

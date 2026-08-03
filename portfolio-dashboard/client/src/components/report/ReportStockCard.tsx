@@ -1,16 +1,17 @@
 /** 月次レポート用個別銘柄カード（縦1カラム・ブログ向け） */
-import { useState } from "react";
+
 import type React from "react";
-import type { DashboardStock } from "@/types";
+import { useState } from "react";
+import type { Period } from "@/components/dashboard/PeriodToggle";
+import { PeriodToggle } from "@/components/dashboard/PeriodToggle";
+import { StockPriceChart } from "@/components/dashboard/StockPriceChart";
 import {
   formatNative,
-  formatSignedYen,
   formatSignedPercent,
+  formatSignedYen,
   plColor,
 } from "@/lib/formatters";
-import { StockPriceChart } from "@/components/dashboard/StockPriceChart";
-import { PeriodToggle } from "@/components/dashboard/PeriodToggle";
-import type { Period } from "@/components/dashboard/PeriodToggle";
+import type { DashboardStock } from "@/types";
 
 interface Props {
   stock: DashboardStock;
@@ -46,7 +47,9 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
   // 前月比の計算
   const prevMonthRate: number | null =
     stock.previousMonthPrice !== null && stock.previousMonthPrice > 0
-      ? ((stock.currentPrice - stock.previousMonthPrice) / stock.previousMonthPrice) * 100
+      ? ((stock.currentPrice - stock.previousMonthPrice) /
+          stock.previousMonthPrice) *
+        100
       : null;
 
   // 銘柄名の頭文字（イニシャルアイコン用）
@@ -149,7 +152,14 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             評価損益
           </p>
           <p
@@ -176,11 +186,22 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             月間変動
           </p>
           <p
-            className={stock.monthlyChangeRate !== null ? plColor(stock.monthlyChangeRate) : ""}
+            className={
+              stock.monthlyChangeRate !== null
+                ? plColor(stock.monthlyChangeRate)
+                : ""
+            }
             style={{
               fontSize: "12px",
               fontWeight: 700,
@@ -204,7 +225,14 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             前月比
           </p>
           <p
@@ -230,10 +258,24 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             保有
           </p>
-          <p style={{ fontSize: "12px", fontWeight: 700, margin: 0, color: "#1e2130" }}>
+          <p
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              margin: 0,
+              color: "#1e2130",
+            }}
+          >
             {stock.quantity}株
           </p>
         </div>
@@ -257,7 +299,9 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
             marginBottom: "8px",
           }}
         >
-          <span style={{ fontSize: "11px", color: "#8c90a0" }}>株価 vs 取得単価</span>
+          <span style={{ fontSize: "11px", color: "#8c90a0" }}>
+            株価 vs 取得単価
+          </span>
           <PeriodToggle
             period={period}
             onChange={setPeriod}
@@ -298,7 +342,9 @@ export function ReportStockCard({ stock }: Props): React.ReactElement {
                 flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: "14px", fontWeight: 700, color: "#1e2130" }}>
+            <span
+              style={{ fontSize: "14px", fontWeight: 700, color: "#1e2130" }}
+            >
               今月のコメント
             </span>
           </div>

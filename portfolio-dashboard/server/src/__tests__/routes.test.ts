@@ -1,14 +1,13 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { beforeAll, describe, expect, it } from "vitest";
 
 // DB_PATH を :memory: に設定してからモジュールをインポート
 process.env.DB_PATH = ":memory:";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
 
 beforeAll(async () => {
@@ -167,7 +166,9 @@ describe("API routes", () => {
       (item: { code: string }) => item.code === "7974.T",
     );
     expect(nintendo.purchases).toHaveLength(2);
-    expect(nintendo.purchases.map((p: { seq: number }) => p.seq)).toEqual([1, 2]);
+    expect(nintendo.purchases.map((p: { seq: number }) => p.seq)).toEqual([
+      1, 2,
+    ]);
     expect(nintendo.purchases[0].priceForeign).toBeNull();
     expect(nintendo.purchases[0].exchangeRate).toBeNull();
 

@@ -1,7 +1,7 @@
-import { Hono } from "hono";
 import { readdirSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { monthlyPnl, wpPosts } from "../db/schema.js";
 import { buildReportData } from "../services/reportData.js";
@@ -12,8 +12,7 @@ function getReportsDir(): string {
   // 現行 collector の blog_draft 出力先（portfolio-dashboard/collector/output）。
   // src/routes と dist/routes は server からの深さが同じなので、どちらの実行でも同じ場所を指す
   return (
-    process.env.REPORTS_DIR ??
-    resolve(__dirname, "../../../collector/output")
+    process.env.REPORTS_DIR ?? resolve(__dirname, "../../../collector/output")
   );
 }
 
@@ -23,7 +22,10 @@ const app = new Hono();
 app.get("/", (c) => {
   // ── 1. monthly_pnl の日付（"YYYY-MM-末"）から年月を抽出 ──────────
   const pnlDatePattern = /^(\d{4})-(\d{2})-末$/;
-  const pnlRows = db.selectDistinct({ date: monthlyPnl.date }).from(monthlyPnl).all();
+  const pnlRows = db
+    .selectDistinct({ date: monthlyPnl.date })
+    .from(monthlyPnl)
+    .all();
   const dbYearMonths = pnlRows
     .map((r) => pnlDatePattern.exec(r.date))
     .filter((m): m is RegExpExecArray => m !== null)
@@ -78,7 +80,7 @@ app.get("/:year/:month/data", (c) => {
   const year = parseInt(c.req.param("year"), 10);
   const month = parseInt(c.req.param("month"), 10);
 
-  if (isNaN(year) || isNaN(month)) {
+  if (Number.isNaN(year) || Number.isNaN(month)) {
     return c.json({ error: "Invalid year or month" }, 400);
   }
 
@@ -100,7 +102,7 @@ app.get("/:year/:month", (c) => {
   const year = parseInt(c.req.param("year"), 10);
   const month = parseInt(c.req.param("month"), 10);
 
-  if (isNaN(year) || isNaN(month)) {
+  if (Number.isNaN(year) || Number.isNaN(month)) {
     return c.json({ error: "Invalid year or month" }, 400);
   }
 

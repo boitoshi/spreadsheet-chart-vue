@@ -1,14 +1,14 @@
-import { MonthlyProfitPoint } from "@/types";
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
+import type { MonthlyProfitPoint } from "@/types";
 
 interface Props {
   data: MonthlyProfitPoint[];
@@ -26,14 +26,21 @@ function aggregate(data: MonthlyProfitPoint[]) {
   }
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { stockProfit, fxProfit }]) => ({ date, stockProfit, fxProfit }));
+    .map(([date, { stockProfit, fxProfit }]) => ({
+      date,
+      stockProfit,
+      fxProfit,
+    }));
 }
 
 export function ProfitAreaChart({ data }: Props) {
   const chartData = aggregate(data);
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+      <BarChart
+        data={chartData}
+        margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} />
         <YAxis
@@ -48,7 +55,9 @@ export function ProfitAreaChart({ data }: Props) {
           ]}
         />
         <Legend
-          formatter={(value) => (value === "stockProfit" ? "株価損益" : "為替損益")}
+          formatter={(value) =>
+            value === "stockProfit" ? "株価損益" : "為替損益"
+          }
         />
         <Bar dataKey="stockProfit" stackId="profit" fill="#3b82f6" />
         <Bar dataKey="fxProfit" stackId="profit" fill="#f97316" />

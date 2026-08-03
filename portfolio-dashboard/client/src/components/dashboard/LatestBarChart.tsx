@@ -1,14 +1,14 @@
-import { LatestProfitItem } from "@/types";
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
 } from "recharts";
+import type { LatestProfitItem } from "@/types";
 
 interface Props {
   data: LatestProfitItem[];
@@ -32,8 +32,11 @@ export function LatestBarChart({ data }: Props) {
           ]}
         />
         <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
-          {data.map((item, i) => (
-            <Cell key={i} fill={item.profit >= 0 ? "#10b981" : "#ef4444"} />
+          {data.map((item) => (
+            <Cell
+              key={item.name}
+              fill={item.profit >= 0 ? "#10b981" : "#ef4444"}
+            />
           ))}
         </Bar>
       </BarChart>

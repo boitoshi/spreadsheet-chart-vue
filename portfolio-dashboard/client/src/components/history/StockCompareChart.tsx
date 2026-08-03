@@ -1,15 +1,15 @@
-import { MonthlyProfitPoint } from "@/types";
-import { COLORS, buildPivotData } from "@/lib/chartUtils";
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
+import { buildPivotData, COLORS } from "@/lib/chartUtils";
+import type { MonthlyProfitPoint } from "@/types";
 
 interface Props {
   data: MonthlyProfitPoint[];

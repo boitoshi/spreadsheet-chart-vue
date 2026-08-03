@@ -1,7 +1,7 @@
+import { asc } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { benchmarkData } from "../db/schema.js";
-import { asc } from "drizzle-orm";
 
 const app = new Hono();
 

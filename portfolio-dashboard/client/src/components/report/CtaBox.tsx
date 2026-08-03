@@ -11,7 +11,14 @@ export function CtaBox(): React.ReactElement {
       }}
     >
       {/* タイトル */}
-      <p style={{ fontSize: "13px", fontWeight: 700, color: "#1e2130", margin: "0 0 8px" }}>
+      <p
+        style={{
+          fontSize: "13px",
+          fontWeight: 700,
+          color: "#1e2130",
+          margin: "0 0 8px",
+        }}
+      >
         📌 証券口座の開設はこちら
       </p>
 

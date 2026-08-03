@@ -1,16 +1,16 @@
-import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { logger } from "hono/logger";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { dashboardRoute } from "./routes/dashboard.js";
-import { portfolioRoute } from "./routes/portfolio.js";
-import { historyRoute } from "./routes/history.js";
-import { currencyRoute } from "./routes/currency.js";
-import { dividendRoute } from "./routes/dividend.js";
-import { reportsRoute } from "./routes/reports.js";
+import { logger } from "hono/logger";
 import { benchmarkRoute } from "./routes/benchmark.js";
+import { currencyRoute } from "./routes/currency.js";
+import { dashboardRoute } from "./routes/dashboard.js";
+import { dividendRoute } from "./routes/dividend.js";
 import { exposureRoute } from "./routes/exposure.js";
+import { historyRoute } from "./routes/history.js";
+import { portfolioRoute } from "./routes/portfolio.js";
+import { reportsRoute } from "./routes/reports.js";
 
 const app = new Hono();
 

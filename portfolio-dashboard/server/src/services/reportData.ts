@@ -7,6 +7,7 @@
 
 import { and, asc, desc, eq, like, lte } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type * as schema from "../db/schema.js";
 import {
   aiComments,
   exchangeRates,
@@ -15,7 +16,6 @@ import {
   purchaseHistory,
   stockMeta,
 } from "../db/schema.js";
-import type * as schema from "../db/schema.js";
 
 // DB 型エイリアス
 type DB = BetterSQLite3Database<typeof schema>;
@@ -56,18 +56,12 @@ function cmpYearMonth(
 }
 
 /** 前月を返す */
-function prevMonth(ym: {
+function prevMonth(ym: { year: number; month: number }): {
   year: number;
   month: number;
-}): { year: number; month: number } {
+} {
   if (ym.month === 1) return { year: ym.year - 1, month: 12 };
   return { year: ym.year, month: ym.month - 1 };
-}
-
-/** "YYYY-MM-末" から YYYY-MM プレフィクスを取得（like 検索用） */
-function toYearMonthPrefix(pnlDate: string): string {
-  // "2026-03-末" → "2026-03"
-  return pnlDate.substring(0, 7);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -314,12 +308,7 @@ export function buildReportData(
     const pnlHistory = db
       .select()
       .from(monthlyPnl)
-      .where(
-        and(
-          eq(monthlyPnl.code, code),
-          lte(monthlyPnl.date, resolvedDate),
-        ),
-      )
+      .where(and(eq(monthlyPnl.code, code), lte(monthlyPnl.date, resolvedDate)))
       .orderBy(asc(monthlyPnl.date))
       .all()
       .filter((r) => {

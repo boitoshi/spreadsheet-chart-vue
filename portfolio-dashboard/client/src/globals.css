@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Noto Sans JP', system-ui, sans-serif;
+  --font-sans: "Noto Sans JP", system-ui, sans-serif;
   --color-surface: #f0f2f5;
   --color-ink: #1e2130;
   --color-ink-muted: #8c90a0;
   --color-ink-faint: #b0b4c3;
   --color-subbg: #f6f7fa;
-  --color-gain: #E53935;
-  --color-loss: #1565C0;
+  --color-gain: #e53935;
+  --color-loss: #1565c0;
 }
 
 body {
   min-height: 100vh;
   background-color: #f0f2f5;
   color: #1e2130;
-  font-family: 'Noto Sans JP', system-ui, sans-serif;
+  font-family: "Noto Sans JP", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

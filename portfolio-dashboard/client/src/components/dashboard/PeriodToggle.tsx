@@ -19,7 +19,12 @@ interface Props {
 
 const PERIODS: Period[] = ["3M", "6M", "1Y", "ALL"];
 
-export function PeriodToggle({ period, onChange, color, labels }: Props): React.ReactElement {
+export function PeriodToggle({
+  period,
+  onChange,
+  color,
+  labels,
+}: Props): React.ReactElement {
   const displayLabels = labels ?? DEFAULT_LABELS;
   return (
     <div style={{ display: "flex", gap: "4px" }}>
@@ -28,6 +33,7 @@ export function PeriodToggle({ period, onChange, color, labels }: Props): React.
         return (
           <button
             key={p}
+            type="button"
             onClick={() => onChange(p)}
             style={{
               fontSize: "9px",

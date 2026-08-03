@@ -4,10 +4,11 @@
  * `:memory:` + migration 方式で routes.test.ts と同じパターンを使用。
  * 買付 2 回シナリオで移動平均・acquiredAvgHistory・totalHistory を検証する。
  */
-import { describe, it, expect, beforeAll } from "vitest";
+
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { beforeAll, describe, expect, it } from "vitest";
 
 // テスト前に DB_PATH を :memory: へ変更（db/index.ts より先に設定）
 // ※ routes.test.ts が同じ process.env.DB_PATH を使うため、
@@ -16,7 +17,6 @@ process.env.DB_PATH_REPORT_TEST = ":memory:";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let testDb: any;
 
 beforeAll(async () => {

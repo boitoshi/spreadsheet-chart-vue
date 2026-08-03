@@ -58,6 +58,7 @@ local_settings.py
 *.json
 !package*.json
 !tsconfig*.json
+!biome.json
 service-account*.json
 my-service-account.json
 

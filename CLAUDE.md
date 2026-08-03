@@ -55,9 +55,9 @@
 ## 4. CLI で直接やること（後輩ちゃん不要）
 
 ```bash
-npm run lint      # Lint
-npm run lint:fix  # Lint 自動修正
-npm run format    # Prettier
+npm run lint      # Lint（Biome）
+npm run lint:fix  # Lint 自動修正（Biome）
+npm run format    # フォーマット（Biome）
 npm run check     # 型チェック
 npm run test      # テスト
 ```

@@ -1,15 +1,15 @@
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
   Legend,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { BenchmarkPoint } from "@/types";
+import type { BenchmarkPoint } from "@/types";
 
 interface Props {
   data: BenchmarkPoint[];
@@ -22,7 +22,9 @@ function formatRate(value: number) {
 export function BenchmarkChart({ data }: Props) {
   if (data.length === 0) {
     return (
-      <p className="text-gray-400 text-sm text-center py-8">データがありません</p>
+      <p className="text-gray-400 text-sm text-center py-8">
+        データがありません
+      </p>
     );
   }
 

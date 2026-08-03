@@ -1,15 +1,15 @@
 /** 銘柄ミニチャート — 株価ラインと移動平均取得単価（ステップ表示）*/
 import type React from "react";
 import {
-  LineChart,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
-import { formatMonthTick, formatMonthFull } from "@/lib/formatters";
 import { shouldShowDots } from "@/lib/chartUtils";
+import { formatMonthFull, formatMonthTick } from "@/lib/formatters";
 
 interface Props {
   prices: number[];
@@ -121,7 +121,6 @@ export function StockPriceChart({
           tickFormatter={(v: number) => fmtPrice(v, currency)}
           width={currency === "USD" ? 58 : 52}
         />
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Tooltip content={TooltipContent as any} />
         {/* 移動平均取得単価（ステップ表示） */}
         <Line

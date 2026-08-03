@@ -1,11 +1,25 @@
-import { AllocationItem } from "@/types";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
+import type { AllocationItem } from "@/types";
 
 interface Props {
   data: AllocationItem[];
 }
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+const COLORS = [
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+];
 
 export function AllocationChart({ data }: Props) {
   return (
@@ -21,8 +35,8 @@ export function AllocationChart({ data }: Props) {
           outerRadius={90}
           paddingAngle={2}
         >
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+          {data.map((d, i) => (
+            <Cell key={d.name} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
         <Tooltip

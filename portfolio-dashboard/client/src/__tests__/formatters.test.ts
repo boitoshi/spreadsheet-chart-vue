@@ -4,18 +4,18 @@
  * 追加: formatMan / formatNative / plColor / formatSignedYen / formatSignedPercent
  *       / formatMonthTick / formatMonthFull
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  formatMan,
-  formatNative,
-  plColor,
-  formatSignedYen,
-  formatSignedPercent,
-  formatMonthTick,
-  formatMonthFull,
   // 既存関数（回帰確認）
   formatJpy,
+  formatMan,
+  formatMonthFull,
+  formatMonthTick,
+  formatNative,
   formatPercent,
+  formatSignedPercent,
+  formatSignedYen,
+  plColor,
   profitColor,
 } from "../lib/formatters";
 

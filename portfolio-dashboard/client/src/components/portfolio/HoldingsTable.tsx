@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
-import { PortfolioItem } from "@/types";
 import { formatJpy, formatNative } from "@/lib/formatters";
+import type { PortfolioItem } from "@/types";
 
 interface Props {
   items: PortfolioItem[];
@@ -55,7 +55,9 @@ export function HoldingsTable({ items }: Props) {
                   <td className="px-2 sm:px-4 py-3 font-mono text-gray-900 whitespace-nowrap">
                     <span
                       className="inline-block mr-1 text-gray-400 transition-transform"
-                      style={{ transform: isExpanded ? "rotate(90deg)" : "none" }}
+                      style={{
+                        transform: isExpanded ? "rotate(90deg)" : "none",
+                      }}
                     >
                       ▸
                     </span>
@@ -84,7 +86,10 @@ export function HoldingsTable({ items }: Props) {
                 {isExpanded && (
                   <tr className="bg-gray-50">
                     {/* colSpan は表示中の列数に合わせる（モバイル4列 / sm以上6列） */}
-                    <td colSpan={MOBILE_COLUMN_COUNT} className="sm:hidden px-2 py-3">
+                    <td
+                      colSpan={MOBILE_COLUMN_COUNT}
+                      className="sm:hidden px-2 py-3"
+                    >
                       {/* 収まらない環境向けの保険としてスクロール可能にしておく */}
                       <div className="overflow-x-auto">
                         <PurchaseHistoryTable purchases={item.purchases} />
@@ -110,7 +115,11 @@ export function HoldingsTable({ items }: Props) {
 }
 
 /** 買付履歴ミニテーブル */
-function PurchaseHistoryTable({ purchases }: { purchases: PortfolioItem["purchases"] }) {
+function PurchaseHistoryTable({
+  purchases,
+}: {
+  purchases: PortfolioItem["purchases"];
+}) {
   if (purchases.length === 0) {
     return <p className="text-xs text-gray-500">買付履歴がありません</p>;
   }

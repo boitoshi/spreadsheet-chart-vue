@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { fetchApi } from "@/lib/api";
-import type { BenchmarkResponse, HistoryResponse } from "@/types";
 import { BenchmarkChart } from "@/components/history/BenchmarkChart";
 import { ProfitAreaChart } from "@/components/history/ProfitAreaChart";
-import { StockFilter } from "@/components/history/StockFilter";
 import { StockCompareChart } from "@/components/history/StockCompareChart";
+import { StockFilter } from "@/components/history/StockFilter";
+import { fetchApi } from "@/lib/api";
+import type { BenchmarkResponse, HistoryResponse } from "@/types";
 
 export default function History() {
   const [searchParams] = useSearchParams();
@@ -30,16 +30,22 @@ export default function History() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">損益推移</h1>
       <StockFilter symbols={data.symbols} current={stock} />
       <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-4">損益内訳（株価損益・為替損益）</h2>
+        <h2 className="text-sm font-medium text-gray-500 mb-4">
+          損益内訳（株価損益・為替損益）
+        </h2>
         <ProfitAreaChart data={data.data} />
       </div>
       <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-4">銘柄別損益率比較</h2>
+        <h2 className="text-sm font-medium text-gray-500 mb-4">
+          銘柄別損益率比較
+        </h2>
         <StockCompareChart data={data.data} />
       </div>
       {benchmark && (
         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-4">ベンチマーク比較（累積リターン）</h2>
+          <h2 className="text-sm font-medium text-gray-500 mb-4">
+            ベンチマーク比較（累積リターン）
+          </h2>
           <BenchmarkChart data={benchmark.data} />
         </div>
       )}

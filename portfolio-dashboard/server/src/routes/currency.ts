@@ -1,25 +1,21 @@
+import { desc, gte } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { exchangeRates } from "../db/schema.js";
-import { gte, desc } from "drizzle-orm";
 
 const app = new Hono();
 
 app.get("/", (c) => {
   const startParam = c.req.query("start"); // YYYY-MM 形式
 
-  let rows;
-  if (startParam) {
-    // "YYYY-MM" → "YYYY-MM-01" で文字列比較フィルタ
-    const startDate = `${startParam}-01`;
-    rows = db
-      .select()
-      .from(exchangeRates)
-      .where(gte(exchangeRates.date, startDate))
-      .all();
-  } else {
-    rows = db.select().from(exchangeRates).all();
-  }
+  // "YYYY-MM" → "YYYY-MM-01" で文字列比較フィルタ
+  const rows = startParam
+    ? db
+        .select()
+        .from(exchangeRates)
+        .where(gte(exchangeRates.date, `${startParam}-01`))
+        .all()
+    : db.select().from(exchangeRates).all();
 
   const data = rows.map((r) => ({
     date: r.date,

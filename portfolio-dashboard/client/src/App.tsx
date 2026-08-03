@@ -1,12 +1,12 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import Portfolio from "./pages/Portfolio";
-import History from "./pages/History";
 import Currency from "./pages/Currency";
+import Dashboard from "./pages/Dashboard";
 import Dividend from "./pages/Dividend";
-import Reports from "./pages/Reports";
+import History from "./pages/History";
+import Portfolio from "./pages/Portfolio";
 import ReportDetail from "./pages/ReportDetail";
+import Reports from "./pages/Reports";
 
 export default function App() {
   return (

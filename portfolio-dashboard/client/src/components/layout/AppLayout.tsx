@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
 import { clsx } from "clsx";
+import { NavLink, Outlet } from "react-router-dom";
 import { SiteFooter } from "./SiteFooter";
 
 const navItems = [

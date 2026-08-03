@@ -1,8 +1,12 @@
 /** 月次レポート用サマリーカード — 総資産・損益・ドーナツ＋凡例・メタ情報 */
 import type React from "react";
-import { PieChart, Pie, Cell } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
+import {
+  formatSignedPercent,
+  formatSignedYen,
+  plColor,
+} from "@/lib/formatters";
 import type { DashboardStock } from "@/types";
-import { formatSignedYen, formatSignedPercent, plColor } from "@/lib/formatters";
 
 interface Props {
   stocks: DashboardStock[];
@@ -36,7 +40,14 @@ export function ReportSummaryCard({
       }}
     >
       {/* ラベル */}
-      <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 4px", fontWeight: 500 }}>
+      <p
+        style={{
+          fontSize: "10px",
+          color: "#8c90a0",
+          margin: "0 0 4px",
+          fontWeight: 500,
+        }}
+      >
         総資産評価額
       </p>
 
@@ -63,7 +74,14 @@ export function ReportSummaryCard({
             padding: "8px 10px",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             評価損益
           </p>
           <p
@@ -81,7 +99,14 @@ export function ReportSummaryCard({
             padding: "8px 10px",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             損益率
           </p>
           <p
@@ -94,7 +119,14 @@ export function ReportSummaryCard({
       </div>
 
       {/* ドーナツチャート＋凡例 */}
-      <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "14px",
+          alignItems: "flex-start",
+          marginBottom: "16px",
+        }}
+      >
         {/* ドーナツ（110px 固定） */}
         <PieChart width={110} height={110}>
           <Pie
@@ -108,19 +140,31 @@ export function ReportSummaryCard({
             paddingAngle={2}
             isAnimationActive={false}
           >
-            {stocks.map((s, i) => (
-              <Cell key={i} fill={s.color} />
+            {stocks.map((s) => (
+              <Cell key={s.code} fill={s.color} />
             ))}
           </Pie>
         </PieChart>
 
         {/* 凡例 */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
           {stocks.map((s) => {
             const pct =
-              totalValue > 0 ? ((s.value / totalValue) * 100).toFixed(1) : "0.0";
+              totalValue > 0
+                ? ((s.value / totalValue) * 100).toFixed(1)
+                : "0.0";
             return (
-              <div key={s.code} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div
+                key={s.code}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
                 {/* カラードット */}
                 <div
                   style={{
@@ -146,7 +190,9 @@ export function ReportSummaryCard({
                   {s.name}
                 </span>
                 {/* 構成比＋評価額 */}
-                <span style={{ fontSize: "12px", color: "#8c90a0", flexShrink: 0 }}>
+                <span
+                  style={{ fontSize: "12px", color: "#8c90a0", flexShrink: 0 }}
+                >
                   {pct}% ・ {fmtJpy(s.value)}
                 </span>
               </div>

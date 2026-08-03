@@ -1,4 +1,4 @@
-import { MonthlyProfitPoint } from "@/types";
+import type { MonthlyProfitPoint } from "@/types";
 
 export const COLORS = [
   "#3b82f6",

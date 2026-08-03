@@ -1,6 +1,6 @@
+import { desc, eq } from "drizzle-orm";
 import { db } from "./index.js";
 import { monthlyPnl } from "./schema.js";
-import { desc, eq } from "drizzle-orm";
 
 /** monthlyPnl の最新日付を取得 */
 export function getLatestDate(): string | null {
@@ -15,11 +15,7 @@ export function getLatestDate(): string | null {
 
 /** 指定日付の monthlyPnl レコードを全取得 */
 export function getLatestPnlRecords(date: string) {
-  return db
-    .select()
-    .from(monthlyPnl)
-    .where(eq(monthlyPnl.date, date))
-    .all();
+  return db.select().from(monthlyPnl).where(eq(monthlyPnl.date, date)).all();
 }
 
 /**

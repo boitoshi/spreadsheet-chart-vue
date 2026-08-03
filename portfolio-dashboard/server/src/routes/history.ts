@@ -1,8 +1,8 @@
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { db } from "../db/index.js";
-import { monthlyPnl } from "../db/schema.js";
-import { eq } from "drizzle-orm";
 import { calcProfitDecomposition } from "../db/queries.js";
+import { monthlyPnl } from "../db/schema.js";
 
 const app = new Hono();
 
@@ -20,9 +20,10 @@ app.get("/", (c) => {
   for (const r of symbolRows) {
     symbolMap.set(r.code, r.name);
   }
-  const symbols = Array.from(symbolMap, ([code, name]) => ({ code, name })).sort(
-    (a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0),
-  );
+  const symbols = Array.from(symbolMap, ([code, name]) => ({
+    code,
+    name,
+  })).sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 
   // データ取得（stock パラメータで絞り込み可）
   const rows = stockParam

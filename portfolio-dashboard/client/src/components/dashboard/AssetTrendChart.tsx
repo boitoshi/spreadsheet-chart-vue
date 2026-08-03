@@ -1,17 +1,17 @@
 /** 資産推移＆損益推移チャート（ComposedChart / dual Y軸）*/
 import type React from "react";
 import {
-  ComposedChart,
   Area,
-  XAxis,
-  YAxis,
-  Tooltip,
+  ComposedChart,
   Legend,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import type { TotalHistory } from "@/types";
-import { formatMan, formatMonthTick, formatMonthFull } from "@/lib/formatters";
 import { shouldShowDots } from "@/lib/chartUtils";
+import { formatMan, formatMonthFull, formatMonthTick } from "@/lib/formatters";
+import type { TotalHistory } from "@/types";
 
 interface Props {
   totalHistory: TotalHistory;
@@ -25,7 +25,11 @@ function fmtJpy(v: number): string {
   return `¥${Math.round(v).toLocaleString("ja-JP")}`;
 }
 
-export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): React.ReactElement {
+export function AssetTrendChart({
+  totalHistory,
+  totalProfit,
+  height,
+}: Props): React.ReactElement {
   // P/L の色（利益→赤、損失→青）
   const plStroke = totalProfit >= 0 ? "#E53935" : "#1565C0";
   const plGradId = totalProfit >= 0 ? "plGradRed" : "plGradBlue";
@@ -51,11 +55,21 @@ export function AssetTrendChart({ totalHistory, totalProfit, height }: Props): R
         height: "100%",
       }}
     >
-      <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 12px", fontWeight: 500 }}>
+      <p
+        style={{
+          fontSize: "10px",
+          color: "#8c90a0",
+          margin: "0 0 12px",
+          fontWeight: 500,
+        }}
+      >
         資産推移 ・ 損益推移
       </p>
       <ResponsiveContainer width="100%" height={height ?? 260}>
-        <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <ComposedChart
+          data={chartData}
+          margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+        >
           {/* SVG ネイティブ要素としてグラデーション定義 */}
           <defs>
             {/* 総資産グラデーション */}

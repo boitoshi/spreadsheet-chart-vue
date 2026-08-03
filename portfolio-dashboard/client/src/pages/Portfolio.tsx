@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { fetchApi } from "@/lib/api";
 import type { PortfolioResponse } from "@/types";
-import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 
 export default function Portfolio() {
   const { data, isLoading } = useQuery({

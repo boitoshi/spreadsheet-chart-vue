@@ -37,7 +37,8 @@ export function DividendTable({ data }: Props) {
   if (data.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-        配当データがありません。collector の --add-dividend で記録すると表示されます。
+        配当データがありません。collector の --add-dividend
+        で記録すると表示されます。
       </div>
     );
   }
@@ -61,7 +62,9 @@ export function DividendTable({ data }: Props) {
                 key={`${item.date}-${item.code}`}
                 className="border-b border-gray-100 hover:bg-gray-50"
               >
-                <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{item.date}</td>
+                <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                  {item.date}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span
@@ -69,7 +72,9 @@ export function DividendTable({ data }: Props) {
                       style={{ backgroundColor: item.color }}
                     />
                     <div>
-                      <div className="font-medium text-gray-900">{item.name}</div>
+                      <div className="font-medium text-gray-900">
+                        {item.name}
+                      </div>
                       <div className="text-gray-500 text-xs">{item.code}</div>
                     </div>
                   </div>

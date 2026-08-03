@@ -1,16 +1,17 @@
 /** 個別銘柄カード — 価格チャート・メトリクス・AI コメント */
-import { useState } from "react";
+
 import type React from "react";
-import type { DashboardStock } from "@/types";
+import { useState } from "react";
 import {
   formatNative,
-  formatSignedYen,
   formatSignedPercent,
+  formatSignedYen,
   plColor,
 } from "@/lib/formatters";
-import { StockPriceChart } from "./StockPriceChart";
-import { PeriodToggle } from "./PeriodToggle";
+import type { DashboardStock } from "@/types";
 import type { Period } from "./PeriodToggle";
+import { PeriodToggle } from "./PeriodToggle";
+import { StockPriceChart } from "./StockPriceChart";
 
 /** カード共通スタイル */
 const cardStyle: React.CSSProperties = {
@@ -142,7 +143,14 @@ export function StockCard({ stock }: Props): React.ReactElement {
             padding: "6px 8px",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             損益
           </p>
           <p
@@ -161,7 +169,14 @@ export function StockCard({ stock }: Props): React.ReactElement {
             padding: "6px 8px",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             月間変動
           </p>
           <p
@@ -191,7 +206,14 @@ export function StockCard({ stock }: Props): React.ReactElement {
             padding: "6px 8px",
           }}
         >
-          <p style={{ fontSize: "9px", color: "#8c90a0", margin: "0 0 2px", fontWeight: 500 }}>
+          <p
+            style={{
+              fontSize: "9px",
+              color: "#8c90a0",
+              margin: "0 0 2px",
+              fontWeight: 500,
+            }}
+          >
             前月比
           </p>
           <p
@@ -203,9 +225,7 @@ export function StockCard({ stock }: Props): React.ReactElement {
               color: prevMonthRate === null ? "#8c90a0" : undefined,
             }}
           >
-            {prevMonthRate !== null
-              ? formatSignedPercent(prevMonthRate)
-              : "—"}
+            {prevMonthRate !== null ? formatSignedPercent(prevMonthRate) : "—"}
           </p>
         </div>
       </div>
@@ -239,6 +259,7 @@ export function StockCard({ stock }: Props): React.ReactElement {
       {stock.comment !== null && (
         <div>
           <button
+            type="button"
             onClick={() => setShowComment((prev) => !prev)}
             style={{
               background: "none",

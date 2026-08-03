@@ -4,24 +4,29 @@
  * - 404 / エラー: 既存 Markdown 表示（ReportMarkdown）へフォールバック
  */
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
-import { fetchApi } from "@/lib/api";
-import type { ReportDataResponse } from "@/types";
-import { ReportMarkdown } from "@/components/report/ReportMarkdown";
-import { ReportHeader } from "@/components/report/ReportHeader";
-import { ReportSummaryCard } from "@/components/report/ReportSummaryCard";
-import { ReportStockCard } from "@/components/report/ReportStockCard";
+import { Link, useParams } from "react-router-dom";
+import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
 import { CtaBox } from "@/components/report/CtaBox";
 import { ReportFooter } from "@/components/report/ReportFooter";
-import { AssetTrendChart } from "@/components/dashboard/AssetTrendChart";
+import { ReportHeader } from "@/components/report/ReportHeader";
+import { ReportMarkdown } from "@/components/report/ReportMarkdown";
+import { ReportStockCard } from "@/components/report/ReportStockCard";
+import { ReportSummaryCard } from "@/components/report/ReportSummaryCard";
+import { fetchApi } from "@/lib/api";
+import type { ReportDataResponse } from "@/types";
 
 export default function ReportDetail() {
   const { year, month } = useParams<{ year: string; month: string }>();
 
   // 新デザイン用データクエリ（404 はリトライしない）
-  const { data: reportData, isLoading, isError } = useQuery({
+  const {
+    data: reportData,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["reportData", year, month],
-    queryFn: () => fetchApi<ReportDataResponse>(`/api/reports/${year}/${month}/data`),
+    queryFn: () =>
+      fetchApi<ReportDataResponse>(`/api/reports/${year}/${month}/data`),
     enabled: !!year && !!month,
     retry: false,
   });
@@ -86,10 +91,24 @@ export default function ReportDetail() {
               boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
             }}
           >
-            <p style={{ fontSize: "13px", color: "#8c90a0", margin: "0 0 8px", fontWeight: 500 }}>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#8c90a0",
+                margin: "0 0 8px",
+                fontWeight: 500,
+              }}
+            >
               今月のサマリー
             </p>
-            <p style={{ fontSize: "15px", color: "#1e2130", lineHeight: 1.8, margin: 0 }}>
+            <p
+              style={{
+                fontSize: "15px",
+                color: "#1e2130",
+                lineHeight: 1.8,
+                margin: 0,
+              }}
+            >
               {reportData.intro}
             </p>
           </div>
@@ -136,10 +155,24 @@ export default function ReportDetail() {
               boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
             }}
           >
-            <p style={{ fontSize: "13px", color: "#8c90a0", margin: "0 0 8px", fontWeight: 500 }}>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#8c90a0",
+                margin: "0 0 8px",
+                fontWeight: 500,
+              }}
+            >
               まとめ
             </p>
-            <p style={{ fontSize: "15px", color: "#1e2130", lineHeight: 1.8, margin: 0 }}>
+            <p
+              style={{
+                fontSize: "15px",
+                color: "#1e2130",
+                lineHeight: 1.8,
+                margin: 0,
+              }}
+            >
               {reportData.summary}
             </p>
           </div>

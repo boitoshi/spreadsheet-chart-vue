@@ -1,13 +1,13 @@
 /** 配当・分配金 年別受取額チャート（銘柄別積み上げ棒グラフ）*/
 import type React from "react";
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
+  BarChart,
   Legend,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import type { DividendItem } from "@/types";
 
@@ -65,16 +65,33 @@ export function DividendYearChart({ data }: Props): React.ReactElement {
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}
     >
-      <p style={{ fontSize: "10px", color: "#8c90a0", margin: "0 0 12px", fontWeight: 500 }}>
+      <p
+        style={{
+          fontSize: "10px",
+          color: "#8c90a0",
+          margin: "0 0 12px",
+          fontWeight: 500,
+        }}
+      >
         年別受取額
       </p>
       {chartData.length === 0 ? (
-        <p style={{ fontSize: "12px", color: "#8c90a0", textAlign: "center", padding: "40px 0" }}>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#8c90a0",
+            textAlign: "center",
+            padding: "40px 0",
+          }}
+        >
           データがありません
         </p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <BarChart
+            data={chartData}
+            margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+          >
             <XAxis
               dataKey="year"
               tick={{ fontSize: 9, fill: "#b0b4c3" }}
@@ -102,7 +119,13 @@ export function DividendYearChart({ data }: Props): React.ReactElement {
               wrapperStyle={{ fontSize: "10px" }}
             />
             {codes.map((c) => (
-              <Bar key={c.code} dataKey={c.code} stackId="year" fill={c.color} isAnimationActive={false} />
+              <Bar
+                key={c.code}
+                dataKey={c.code}
+                stackId="year"
+                fill={c.color}
+                isAnimationActive={false}
+              />
             ))}
           </BarChart>
         </ResponsiveContainer>
