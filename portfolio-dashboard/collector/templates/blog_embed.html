@@ -684,6 +684,9 @@
           cutout: '65%',
           plugins: { legend: { display: false }, tooltip: { enabled: true } },
           responsive: false,
+          // バックグラウンドタブで開かれると requestAnimationFrame が止まり
+          // アニメーションが進まず canvas が空のままになるため無効化する
+          animation: false,
         }
       });
     }
@@ -748,6 +751,8 @@
         },
         options: {
           responsive: true,
+          // バックグラウンドタブ対策（上と同じ理由）
+          animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: false },
@@ -853,6 +858,8 @@
         },
         options: {
           responsive: true,
+          // バックグラウンドタブ対策（上と同じ理由）
+          animation: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: {
