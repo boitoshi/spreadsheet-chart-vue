@@ -120,6 +120,17 @@ sudo systemctl restart portfolio
 cd collector && uv sync --extra ai --extra charts   # 素の uv sync は extras（anthropic/markdown/matplotlib）を削除してしまう
 ```
 
+### 月次 cron（ブログ自動下書き）
+
+毎月1日 9:00 に**前月分**の月次バッチ（`collect_and_publish`: 株価収集→ブログ生成→WP 下書き投稿）を実行する。crontab は deploy.sh では更新されないため、変更時は GCE 上で `crontab -e` を直接編集すること。
+
+```
+0 9 1 * * cd /app/portfolio-dashboard/collector && uv run python main.py $(date -d yesterday +\%Y) $(date -d yesterday +\%m) >> /app/logs/collector.log 2>&1
+```
+
+- 1日時点の「前日」は前月末日なので `date -d yesterday` で前月の年月になる（当月を渡すと月初データで当月レポートを作ってしまうので不可）
+- `wp_publisher.create_draft` は毎回新規 POST（既存下書きの更新はしない）。手動 `--blog` と cron が重なると同月の下書きが複数できるので、不要な方は WP 側で削除する
+
 ## 旧構成（参考）
 
 `web-app/`（Next.js + FastAPI）・`data-collector/`・`shared/` は 2026-04 の移行前の旧システム。ドキュメントは docs/project-structure.md・docs/sheets-schema.md・docs/api-reference.md（いずれも旧構成の記述）。変更禁止。
