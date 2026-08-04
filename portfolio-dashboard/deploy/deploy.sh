@@ -51,6 +51,14 @@ echo "[6/6] uv sync --extra ai --extra charts"
 cd "$DASHBOARD_DIR/collector"
 uv sync --extra ai --extra charts
 
+# 6.5. 月次 cron の対象月を前月分に補正（旧形式の行がこのユーザーの crontab にある場合のみ・冪等）
+# 旧: main.py $(date +\%Y) $(date +\%m) → 当月レポートを月初データで作ってしまう
+# 新: date -d yesterday で「1日時点の前日＝前月末」の年月を渡す
+if crontab -l 2>/dev/null | grep -qF 'main.py $(date +\%Y)'; then
+  echo "[6.5] crontab の月次バッチを前月分生成に補正"
+  crontab -l | sed 's|main\.py \$(date +\\%Y) \$(date +\\%m)|main.py $(date -d yesterday +\\%Y) $(date -d yesterday +\\%m)|' | crontab -
+fi
+
 # ヘルスチェック（起動が遅い場合に備えて最大30秒リトライ）
 echo "ヘルスチェック中..."
 for i in $(seq 1 15); do
