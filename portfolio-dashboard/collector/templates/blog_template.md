@@ -4,7 +4,10 @@
 - 保有状況をリアルタイムで見る: [ポケモン投資ダッシュボード](https://portfolio.pokebros.net/)
 - 前月のレポート: [【ポケモン投資】{{ prev_month.year }}年{{ prev_month.month }}月の状況](https://www.pokebros.net/{{ prev_month.slug }}/)
 - これまでのレポート: [【ポケモン投資】の記事一覧](https://www.pokebros.net/category/%e3%83%9d%e3%82%b1%e3%83%a2%e3%83%b3%e6%8a%95%e8%b3%87/)
-- 証券口座: [楽天証券](https://www.rakuten-sec.co.jp/) / [SBI証券](https://www.sbisec.co.jp/) / [マネックス証券](https://www.monex.co.jp/)
+- 証券口座（ハピタス紹介リンク）: [SBI証券](https://m.hapitas.jp/item/detail/itemid/53979?i=22359663&route=spText&apn=itemsharelink) / [楽天証券](https://m.hapitas.jp/item/detail/itemid/35520?i=22359663&route=spText&apn=itemsharelink) / [マネックス証券](https://m.hapitas.jp/item/detail/itemid/99234?i=22359663&route=spText&apn=itemsharelink)
+- ポイントサイト: [ハピタス（紹介リンク）](https://hapitas.jp/appinvite?i=22359663&route=text)
+
+証券口座の開設はポイントサイト「ハピタス」経由がおすすめです。口座開設だけでポイントがもらえるうえ、上のリンクは紹介リンクなので、紹介した側・された側どちらにもポイントが入ってお互いにメリットがあります。
 
 単元未満株が買える証券会社なら、1株からポケモン関連銘柄に投資できます。
 
