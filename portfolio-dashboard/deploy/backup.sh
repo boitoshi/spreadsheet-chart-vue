@@ -2,8 +2,8 @@
 # SQLite → GCS 日次バックアップ
 set -euo pipefail
 
-DB_PATH="${DB_PATH:-/app/data/portfolio.db}"
-BUCKET="${GCS_BACKUP_BUCKET:-gs://portfolio-backup}"
+DB_PATH="${DB_PATH:-/app/portfolio-dashboard/data/portfolio.db}"
+BUCKET="${GCS_BACKUP_BUCKET:-gs://portfolio-backup-pokebros}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_TMP="/tmp/portfolio_backup.db"
 
