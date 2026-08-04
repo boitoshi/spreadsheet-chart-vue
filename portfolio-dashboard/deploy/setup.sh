@@ -60,8 +60,10 @@ sudo systemctl start portfolio
 sudo cp /app/deploy/Caddyfile /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 
-# crontab: 毎月1日 9:00 に月次バッチ + 毎日 3:00 にバックアップ
-(crontab -l 2>/dev/null || true; echo "0 9 1 * * cd /app/collector && uv run python main.py \$(date +\\%Y) \$(date +\\%m) >> /app/logs/collector.log 2>&1") | crontab -
+# crontab: 毎月1日 9:00 に前月分の月次バッチ + 毎日 3:00 にバックアップ
+# 1日時点の「前日」は前月末日なので、date -d yesterday で前月の年月が得られる
+# （date +%Y %m をそのまま渡すと始まったばかりの当月レポートを月初データで作ってしまう）
+(crontab -l 2>/dev/null || true; echo "0 9 1 * * cd /app/collector && uv run python main.py \$(date -d yesterday +\\%Y) \$(date -d yesterday +\\%m) >> /app/logs/collector.log 2>&1") | crontab -
 (crontab -l 2>/dev/null || true; echo "0 3 * * * /app/deploy/backup.sh >> /app/logs/backup.log 2>&1") | crontab -
 
 echo ""
