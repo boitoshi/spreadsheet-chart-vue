@@ -11,6 +11,32 @@ if TYPE_CHECKING:
     from .db_writer import DbWriter
 
 
+def _month_change_from_cumulative(
+    cum_this: float | None, cum_prev: float | None
+) -> float | None:
+    """benchmark_data の累積リターン(%)から対象月の単月騰落率(%)を算出する。
+
+    benchmark_data は最初の記録月を基準にした累積リターンのみを保持するため、
+    「今月の騰落率」は今月・前月の累積値の比から逆算する。
+    price / price_first = 1 + cum/100 の関係を使う:
+        price_this / price_prev = (1 + cum_this/100) / (1 + cum_prev/100)
+
+    Args:
+        cum_this: 対象月の累積リターン(%)
+        cum_prev: 前月の累積リターン(%)
+
+    Returns:
+        対象月の単月騰落率(%)。値が欠損、または前月の分母がゼロになる場合は None。
+    """
+    if cum_this is None or cum_prev is None:
+        return None
+    prev_ratio = 1 + cum_prev / 100
+    if prev_ratio == 0:
+        return None
+    this_ratio = 1 + cum_this / 100
+    return round((this_ratio / prev_ratio - 1) * 100, 2)
+
+
 class BlogReportGenerator:
     """ブログ記事用レポート生成クラス（SQLite版）"""
 
@@ -21,6 +47,67 @@ class BlogReportGenerator:
             db_writer: DbWriterインスタンス
         """
         self.db = db_writer
+
+    def _get_market_context(self, year: int, month: int) -> dict:
+        """市況コンテキスト（ベンチマーク騰落率・為替）を取得する。
+
+        AI コメント生成プロンプトへ「事実」として渡すための実データ。
+        取得失敗やデータ欠損時は該当キーを None にし、例外は投げない
+        （市況データが無くても月次バッチを止めないため）。
+
+        Args:
+            year: 対象年
+            month: 対象月
+
+        Returns:
+            {
+                "nikkei_change": 日経225の対象月月間騰落率(%) または None,
+                "sp500_change": S&P500の対象月月間騰落率(%) または None,
+                "usdjpy_rate": 対象月のUSD/JPYレート または None,
+                "usdjpy_change": USD/JPYの前月比騰落率(%) または None,
+            }
+        """
+        context: dict = {
+            "nikkei_change": None,
+            "sp500_change": None,
+            "usdjpy_rate": None,
+            "usdjpy_change": None,
+        }
+        try:
+            if month == 1:
+                prev_year, prev_month = year - 1, 12
+            else:
+                prev_year, prev_month = year, month - 1
+
+            target_date = f"{year}-{month:02d}-末"
+            prev_date = f"{prev_year}-{prev_month:02d}-末"
+
+            target_row = self.db.get_benchmark_row(target_date)
+            prev_row = self.db.get_benchmark_row(prev_date)
+
+            if target_row and prev_row:
+                context["nikkei_change"] = _month_change_from_cumulative(
+                    target_row.get("nikkei225"), prev_row.get("nikkei225")
+                )
+                context["sp500_change"] = _month_change_from_cumulative(
+                    target_row.get("sp500"), prev_row.get("sp500")
+                )
+
+            usdjpy_rate = self.db.get_exchange_rate_for_exact_month(
+                "USD/JPY", year, month
+            )
+            usdjpy_prev = self.db.get_exchange_rate_for_exact_month(
+                "USD/JPY", prev_year, prev_month
+            )
+            context["usdjpy_rate"] = usdjpy_rate
+            if usdjpy_rate is not None and usdjpy_prev:
+                context["usdjpy_change"] = round(
+                    (usdjpy_rate - usdjpy_prev) / usdjpy_prev * 100, 2
+                )
+        except Exception as e:  # noqa: BLE001
+            print(f"  [警告] 市況コンテキスト取得エラー: {e}")
+
+        return context
 
     def get_monthly_report_data(self, year: int, month: int) -> dict | None:
         """月次レポートデータを取得
@@ -77,6 +164,12 @@ class BlogReportGenerator:
                     "year": 2024,
                     "month": 11,
                     "slug": "pokemon-investment-202411"
+                },
+                "market_context": {
+                    "nikkei_change": 日経225の対象月月間騰落率(%) または None,
+                    "sp500_change": S&P500の対象月月間騰落率(%) または None,
+                    "usdjpy_rate": 対象月のUSD/JPYレート または None,
+                    "usdjpy_change": USD/JPYの前月比騰落率(%) または None
                 }
             }
         """
@@ -278,6 +371,7 @@ class BlogReportGenerator:
                 },
                 "exchange_rates": exchange_rates,
                 "prev_month": prev_month,
+                "market_context": self._get_market_context(year, month),
             }
 
         except Exception as e:

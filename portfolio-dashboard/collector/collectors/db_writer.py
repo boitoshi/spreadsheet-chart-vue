@@ -195,6 +195,56 @@ class DbWriter:
                 rates[currency] = row["rate"]
         return rates
 
+    def get_benchmark_row(self, date: str) -> dict | None:
+        """指定月の benchmark_data 行を取得する（市況コンテキスト用）。
+
+        portfolio/nikkei225/sp500 は最初の記録月を基準にした累積リターン(%)。
+
+        Args:
+            date: 対象月（"YYYY-MM-末" 形式）
+
+        Returns:
+            該当行の dict。存在しない場合は None
+        """
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            "SELECT * FROM benchmark_data WHERE date = ?", (date,)
+        )
+        row = cursor.fetchone()
+        self.conn.row_factory = None
+        return dict(row) if row else None
+
+    def get_exchange_rate_for_exact_month(
+        self, pair: str, year: int, month: int
+    ) -> float | None:
+        """指定月の為替レートのみを取得する（フォールバックなし）。
+
+        get_exchange_rate_for_month と異なり、対象月にデータが無い場合でも
+        最新レートにフォールバックしない。市況コンテキストで誤った月のレートを
+        「事実」として渡さないようにするための厳密版。
+
+        Args:
+            pair: 通貨ペア（例: "USD/JPY"）
+            year: 年
+            month: 月
+
+        Returns:
+            為替レート。対象月のデータが無ければ None
+        """
+        prefix = f"{year}-{month:02d}"
+        self.conn.row_factory = sqlite3.Row
+        cursor = self.conn.execute(
+            """
+            SELECT rate FROM exchange_rates
+            WHERE pair = ? AND date LIKE ?
+            ORDER BY date DESC LIMIT 1
+            """,
+            (pair, f"{prefix}%"),
+        )
+        row = cursor.fetchone()
+        self.conn.row_factory = None
+        return float(row["rate"]) if row else None
+
     def get_purchase_history(self, code: str) -> list[dict]:
         """指定銘柄の購入履歴を取得する。
 
