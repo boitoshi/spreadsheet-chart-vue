@@ -1,95 +1,25 @@
-# Repository Guidelines
+# Codex entrypoint
 
-## Project Overview
+This file is the durable entrypoint for Codex. The repository-specific source of truth remains
+`CLAUDE.md`; do not duplicate those rules here.
 
-Next.js + FastAPI による個人投資ポートフォリオ管理アプリケーション。
-Google Sheets をデータストアとして使用し、資産管理・月次レポート生成・チャート表示を行う。
+## Before working
 
-## Project Structure
+1. Read `CLAUDE.md` completely.
+2. Treat every standalone `@path` line in `CLAUDE.md` as a required file reference and read that
+   file completely before the related work. The `@` syntax is a Claude Code import and is not a
+   Codex import.
+3. If `../pokebros-content-hub/AGENTS.md` exists, read it before cross-repository work. Follow its
+   shared rules for repository ownership, concurrent sessions, handoff, publication, and deploys.
+4. Use the validation commands documented in this repository's `CLAUDE.md` for the files changed.
 
-```
-spreadsheet-chart-vue/
-├── data-collector/         # 月次データ収集（yfinance → Google Sheets）
-│   ├── collectors/         # 株価収集・Sheets書き込み・チャート生成
-│   ├── config/             # 銘柄リスト等の設定
-│   ├── schedulers/         # 月次スケジューラー
-│   ├── output/             # ブログ下書き・チャート画像
-│   └── main.py             # エントリーポイント
-├── shared/
-│   └── sheets_config.py    # シートヘッダー定義（一元管理）
-├── web-app/
-│   ├── backend/            # FastAPI + gspread
-│   │   ├── main.py         # エントリー・CORS・ルーター
-│   │   ├── .env            # SPREADSHEET_ID, GOOGLE_APPLICATION_CREDENTIALS
-│   │   └── app/
-│   │       ├── config.py       # pydantic-settings
-│   │       ├── sheets/         # Google Sheets 読み取りモジュール
-│   │       ├── routers/        # FastAPI ルーター
-│   │       └── schemas/        # Pydantic スキーマ
-│   └── frontend/           # Next.js 16 + Tailwind v4 + Recharts
-│       └── src/
-│           ├── app/            # App Router ページ
-│           ├── components/     # UI コンポーネント（Server/Client分離）
-│           ├── lib/            # api.ts, formatters.ts
-│           └── types/          # TypeScript 型定義
-└── docs/                   # ドキュメント
-```
+## Concurrent sessions and handoff
 
-## Build & Dev Commands
-
-### Backend (FastAPI on port 8000)
-```bash
-cd web-app/backend
-uv sync
-uv run uvicorn main:app --reload
-```
-
-### Frontend (Next.js on port 3000)
-```bash
-cd web-app/frontend
-npm install
-npm run dev       # 開発サーバー
-npm run build     # 本番ビルド（型チェック含む）
-```
-
-### Data Collector (monthly batch)
-```bash
-cd data-collector
-uv sync --dev
-uv run python main.py               # 対話型
-uv run python main.py 2024 12       # バッチ実行
-```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | ヘルスチェック |
-| GET | `/api/dashboard` | KPI・構成比・最新月損益 |
-| GET | `/api/portfolio` | 保有銘柄一覧 |
-| GET | `/api/history` | 月次損益推移（`?stock=コード`）|
-| GET | `/api/currency` | 為替レート推移（`?start=YYYY-MM`）|
-
-## Coding Style
-
-- **Python**: ruff (select = E, F, I), Python 3.12, type hints 必須, コメント日本語
-- **TypeScript/Next.js**: strict mode, Server Components でデータフェッチ, Recharts コンポーネントは `"use client"`
-- **Env**: secrets は `.env` で管理、VCS にコミットしない
-- **コミット**: 日本語・簡潔に（例: `API: dashboard エンドポイント実装`）
-
-## Quality Checks
-
-```bash
-# Python
-cd web-app/backend && uv run ruff check . --fix
-cd data-collector && uv run ruff check . --fix
-
-# TypeScript/Next.js
-cd web-app/frontend && npm run build   # 型エラーを検出
-```
-
-## Environment Variables
-
-- `web-app/backend/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
-- `data-collector/.env`: `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`
-- `web-app/frontend/.env.local`: `NEXT_PUBLIC_API_BASE_URL`
+- One checkout has one writing session. Concurrent writers use separate checkouts or worktrees and
+  separate branches.
+- Split concurrent work by phase or repository. Read-only review may run in parallel.
+- At a handoff, commit the exact paths, push, and have the receiving environment pull before it
+  edits. Do not use chat history or ignored files as the handoff record.
+- Stage explicit paths only. Never include changes from another active session in a commit.
+- Keep edits and Git operations inside this repository unless the hub workflow explicitly assigns
+  cross-repository work.
