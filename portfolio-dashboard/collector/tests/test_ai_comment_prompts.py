@@ -207,16 +207,6 @@ def test_parse_reports_invalid_json_and_stock_validation_reason(capsys) -> None:
     assert "禁止された内容" in validation_output
 
 
-def test_generate_all_input_format_error_uses_safe_fallback() -> None:
-    report_data = {**REPORT_DATA, "holdings": [{**JPY_STOCK, "current_price": None}]}
-    generator = AiCommentGenerator.__new__(AiCommentGenerator)
-    generator.client = SimpleNamespace(messages=_FakeMessages("unused"))
-
-    result = generator.generate_all(report_data)
-
-    assert result == {"intro": None, "stock_comments": {}, "summary": None}
-
-
 class _FakeMessages:
     def __init__(self, response_text: str) -> None:
         self.response_text = response_text
@@ -227,6 +217,23 @@ class _FakeMessages:
         return SimpleNamespace(
             content=[SimpleNamespace(type="text", text=self.response_text)]
         )
+
+
+class _FailingMessages:
+    def create(self, **kwargs: object) -> SimpleNamespace:
+        raise RuntimeError("API unavailable")
+
+
+def test_generate_all_api_error_uses_safe_fallback(capsys) -> None:
+    generator = AiCommentGenerator.__new__(AiCommentGenerator)
+    generator.client = SimpleNamespace(messages=_FailingMessages())
+
+    result = generator.generate_all(REPORT_DATA)
+
+    assert result == {"intro": None, "stock_comments": {}, "summary": None}
+    output = capsys.readouterr().out
+    assert "AI コメント生成に失敗" in output
+    assert "RuntimeError" in output
 
 
 def test_generate_all_calls_api_once_and_returns_no_summary() -> None:
