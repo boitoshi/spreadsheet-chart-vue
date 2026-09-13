@@ -131,19 +131,21 @@ def test_parse_accepts_json_code_fence() -> None:
     assert result["summary"] is None
 
 
-def test_parse_failure_and_missing_comment_use_safe_fallback() -> None:
+def test_parse_failure_uses_safe_fallback_and_missing_comment_is_excluded() -> None:
     invalid_json = _parse_generation_response("not json", REPORT_DATA)
     missing_stock = _parse_generation_response(
         '{"intro":"導入", "stock_comments":{"7974.T":"任天堂"}}',
         REPORT_DATA,
     )
-    for result in (invalid_json, missing_stock):
-        assert result["intro"] is None
-        assert result["summary"] is None
-        assert result["stock_comments"] == {}
+    assert invalid_json == {"intro": None, "stock_comments": {}, "summary": None}
+    assert missing_stock == {
+        "intro": "導入",
+        "stock_comments": {"7974.T": "任天堂"},
+        "summary": None,
+    }
 
 
-def test_parse_rejects_extra_sentences_and_line_breaks() -> None:
+def test_parse_excludes_only_fields_with_extra_sentences_or_line_breaks() -> None:
     too_many_stock_sentences = _parse_generation_response(
         '{"intro":"導入です。", "stock_comments":{'
         '"7974.T":"一文目。二文目。三文目。", "NVDA":"一文です。"}}',
@@ -154,11 +156,19 @@ def test_parse_rejects_extra_sentences_and_line_breaks() -> None:
         '"7974.T":"一文です。", "NVDA":"一文です。"}}',
         REPORT_DATA,
     )
-    for result in (too_many_stock_sentences, multiline_intro):
-        assert result == {"intro": None, "stock_comments": {}, "summary": None}
+    assert too_many_stock_sentences == {
+        "intro": "導入です。",
+        "stock_comments": {"NVDA": "一文です。"},
+        "summary": None,
+    }
+    assert multiline_intro == {
+        "intro": None,
+        "stock_comments": {"7974.T": "一文です。", "NVDA": "一文です。"},
+        "summary": None,
+    }
 
 
-def test_parse_rejects_forbidden_topics_and_foreign_currency_pl() -> None:
+def test_parse_excludes_only_fields_with_forbidden_content() -> None:
     forbidden_event = _parse_generation_response(
         '{"intro":"決算期待が上昇理由です。", "stock_comments":{'
         '"7974.T":"一文です。", "NVDA":"一文です。"}}',
@@ -169,8 +179,32 @@ def test_parse_rejects_forbidden_topics_and_foreign_currency_pl() -> None:
         '"7974.T":"一文です。", "NVDA":"評価損益は65,018 USDです。"}}',
         REPORT_DATA,
     )
-    for result in (forbidden_event, wrong_pl_currency):
-        assert result == {"intro": None, "stock_comments": {}, "summary": None}
+    assert forbidden_event == {
+        "intro": None,
+        "stock_comments": {"7974.T": "一文です。", "NVDA": "一文です。"},
+        "summary": None,
+    }
+    assert wrong_pl_currency == {
+        "intro": "導入です。",
+        "stock_comments": {"7974.T": "一文です。"},
+        "summary": None,
+    }
+
+
+def test_parse_reports_invalid_json_and_stock_validation_reason(capsys) -> None:
+    _parse_generation_response("not json", REPORT_DATA)
+    invalid_json_output = capsys.readouterr().out
+    assert "JSON 解析に失敗" in invalid_json_output
+    assert "JSONDecodeError" in invalid_json_output
+
+    _parse_generation_response(
+        '{"intro":"導入です。", "stock_comments":{'
+        '"7974.T":"一文です。", "NVDA":"USD/JPYの影響です。"}}',
+        REPORT_DATA,
+    )
+    validation_output = capsys.readouterr().out
+    assert "NVDA を除外" in validation_output
+    assert "禁止された内容" in validation_output
 
 
 def test_generate_all_input_format_error_uses_safe_fallback() -> None:

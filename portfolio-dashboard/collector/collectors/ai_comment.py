@@ -200,8 +200,19 @@ def _contains_forbidden_content(text: str) -> bool:
     )
 
 
+def _validation_error(value: object, max_sentences: int) -> str | None:
+    """コメントの検証エラーを返す。問題がなければ None。"""
+    if not isinstance(value, str):
+        return "文字列ではありません"
+    if not _is_plain_paragraph(value, max_sentences):
+        return f"1段落・{max_sentences}文以内の条件を満たしません"
+    if _contains_forbidden_content(value):
+        return "禁止された内容を含んでいます"
+    return None
+
+
 def _parse_generation_response(text: str, report_data: dict) -> dict:
-    """ClaudeのJSON応答を検証し、既存のgenerate_all形式へ変換する。"""
+    """ClaudeのJSON応答を項目ごとに検証し、generate_all形式へ変換する。"""
     raw = text.strip()
     if raw.startswith("```") and raw.endswith("```"):
         first_newline = raw.find("\n")
@@ -209,21 +220,25 @@ def _parse_generation_response(text: str, report_data: dict) -> dict:
 
     try:
         parsed: Any = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
+    except (json.JSONDecodeError, TypeError) as exc:
+        print(f"⚠️ AI コメント生成の JSON 解析に失敗しました: {type(exc).__name__}")
         return _fallback_comments(report_data)
 
     if not isinstance(parsed, dict):
+        print("⚠️ AI コメント生成の JSON がオブジェクトではありません")
         return _fallback_comments(report_data)
     intro = parsed.get("intro")
     stock_comments = parsed.get("stock_comments")
-    if (
-        not isinstance(intro, str)
-        or not _is_plain_paragraph(intro, 3)
-        or _contains_forbidden_content(intro)
-    ):
-        return _fallback_comments(report_data)
+    intro_error = _validation_error(intro, 3)
+    validated_intro: str | None = None
+    if intro_error:
+        print(f"⚠️ AI コメント intro を除外しました: {intro_error}")
+    else:
+        validated_intro = intro.strip()
+
     if not isinstance(stock_comments, dict):
-        return _fallback_comments(report_data)
+        print("⚠️ AI コメント stock_comments を除外しました: オブジェクトではありません")
+        stock_comments = {}
 
     expected_symbols = [
         str(holding.get("symbol") or holding.get("code", ""))
@@ -233,18 +248,19 @@ def _parse_generation_response(text: str, report_data: dict) -> dict:
     validated_comments: dict[str, str] = {}
     for symbol in expected_symbols:
         comment = stock_comments.get(symbol)
-        if (
-            not isinstance(comment, str)
-            or not _is_plain_paragraph(comment, 2)
-            or _contains_forbidden_content(comment)
-        ):
-            return _fallback_comments(report_data)
+        comment_error = _validation_error(comment, 2)
+        if comment_error:
+            print(
+                f"⚠️ AI コメント {symbol} を除外しました: {comment_error}"
+            )
+            continue
+        assert isinstance(comment, str)
         validated_comments[symbol] = comment.strip()
 
     return {
         "stock_comments": validated_comments,
         "summary": None,
-        "intro": intro.strip(),
+        "intro": validated_intro,
     }
 
 
@@ -277,7 +293,12 @@ class AiCommentGenerator:
             )
             response_text = getattr(text_block, "text", None)
             if not isinstance(response_text, str):
+                print("⚠️ AI コメント生成の応答にテキストがありません")
                 return _fallback_comments(report_data)
             return _parse_generation_response(response_text, report_data)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            print(
+                "⚠️ AI コメント生成に失敗しました: "
+                f"{type(exc).__name__}: {exc}"
+            )
             return _fallback_comments(report_data)

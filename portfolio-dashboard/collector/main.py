@@ -61,6 +61,23 @@ def _format_decimal(value: Decimal) -> str:
     return f"{value.normalize():,}"
 
 
+def _has_complete_ai_comments(existing: dict, report_data: dict) -> bool:
+    """DB のコメントが intro と全保有銘柄分そろっているか判定する。"""
+    if not existing.get(("", "intro")):
+        return False
+    expected_symbols = {
+        str(holding.get("symbol") or holding.get("code"))
+        for holding in report_data.get("holdings", [])
+        if holding.get("symbol") or holding.get("code")
+    }
+    saved_symbols = {
+        code
+        for (code, kind), content in existing.items()
+        if kind == "stock" and code and content
+    }
+    return expected_symbols <= saved_symbols
+
+
 class PortfolioDataCollector:
     """ポートフォリオデータ収集メインクラス（SQLite版）"""
 
@@ -170,7 +187,7 @@ class PortfolioDataCollector:
         if self.ai_comment and report_data:
             if not AI_COMMENTS_FORCE:
                 existing = self.db_writer.get_ai_comments(batch_target_date)
-                if existing:
+                if _has_complete_ai_comments(existing, report_data):
                     print("  AI コメント: DB から既存コメントを再利用します")
                     stock_coms: dict[str, str] = {}
                     for (code, kind), content in existing.items():
@@ -182,6 +199,8 @@ class PortfolioDataCollector:
                         "intro": existing.get(("", "intro")),
                     }
                 else:
+                    if existing:
+                        print("  AI コメント: DB の不足分を再生成します")
                     batch_ai_comments = self.ai_comment.generate_all(report_data)
                     self._save_ai_comments(batch_target_date, batch_ai_comments)
             else:
@@ -192,7 +211,16 @@ class PortfolioDataCollector:
             markdown = self.template_engine.render("blog_template.md", report_data)
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(markdown)
-            print("  AI コメント付きブログを再生成しました")
+            if any(
+                (
+                    batch_ai_comments.get("intro"),
+                    batch_ai_comments.get("summary"),
+                    batch_ai_comments.get("stock_comments"),
+                )
+            ):
+                print("  AI コメント付きブログを再生成しました")
+            else:
+                print("  ⚠️ AI コメントなしでブログを再生成しました")
         else:
             print("  スキップ（AI コメント無効 or データなし）")
 
@@ -401,7 +429,7 @@ class PortfolioDataCollector:
 
         return price_count > 0
 
-    def _save_ai_comments(self, target_date: str, ai_comments: dict) -> None:
+    def _save_ai_comments(self, target_date: str, ai_comments: dict) -> bool:
         """生成した AI コメントを SQLite に保存する。
 
         Args:
@@ -409,16 +437,24 @@ class PortfolioDataCollector:
             ai_comments: generate_all の戻り値辞書（stock_comments / summary / intro）
         """
         stock_comments = ai_comments.get("stock_comments") or {}
+        summary = ai_comments.get("summary")
+        intro = ai_comments.get("intro")
+        if not stock_comments and not summary and not intro:
+            print(
+                "  ⚠️ AI コメントを生成できませんでした"
+                "（DB 保存をスキップ）"
+            )
+            return False
+
         for code, content in stock_comments.items():
             if content:
                 self.db_writer.save_ai_comment(target_date, code, "stock", content)
-        summary = ai_comments.get("summary")
         if summary:
             self.db_writer.save_ai_comment(target_date, "", "summary", summary)
-        intro = ai_comments.get("intro")
         if intro:
             self.db_writer.save_ai_comment(target_date, "", "intro", intro)
         print(f"  AI コメントを DB に保存しました（{target_date}）")
+        return True
 
     def _save_exchange_rate(
         self, currency: str, rate: float, date_str: str, now_str: str
@@ -952,7 +988,7 @@ class PortfolioDataCollector:
             # DB に既存コメントがあれば再利用（AI_COMMENTS_FORCE=true で強制再生成）
             if not AI_COMMENTS_FORCE:
                 existing = self.db_writer.get_ai_comments(target_date)
-                if existing:
+                if _has_complete_ai_comments(existing, report_data):
                     print("  AI コメント: DB から既存コメントを再利用します")
                     # generate_all 形式に変換
                     stock_comments: dict[str, str] = {}
@@ -965,15 +1001,17 @@ class PortfolioDataCollector:
                         "intro": existing.get(("", "intro")),
                     }
                 else:
+                    if existing:
+                        print("  AI コメント: DB の不足分を再生成します")
                     print("  AI コメント生成中...")
                     ai_comments = self.ai_comment.generate_all(report_data)
-                    print("  AI コメント生成完了")
-                    self._save_ai_comments(target_date, ai_comments)
+                    if self._save_ai_comments(target_date, ai_comments):
+                        print("  AI コメント生成完了")
             else:
                 print("  AI コメント強制再生成中（AI_COMMENTS_FORCE=true）...")
                 ai_comments = self.ai_comment.generate_all(report_data)
-                print("  AI コメント生成完了")
-                self._save_ai_comments(target_date, ai_comments)
+                if self._save_ai_comments(target_date, ai_comments):
+                    print("  AI コメント生成完了")
             report_data["ai_comments"] = ai_comments
         else:
             # AI コメント無効でも DB に保存済みのコメントがあれば読み込む
