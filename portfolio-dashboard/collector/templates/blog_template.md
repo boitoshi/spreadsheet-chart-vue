@@ -20,6 +20,7 @@
 <!-- pokebros-monthly-section:start:native-tail -->
 ## 関連リンク
 
+- ポートフォリオの全体像: [【株】ポケモンポートフォリオ](https://www.pokebros.net/pokemon-investment-portfolio/)
 - 保有状況をリアルタイムで見る: [ポケモン投資ダッシュボード](https://portfolio.pokebros.net/)
 - 前月のレポート: [【ポケモン投資】{{ prev_month.year }}年{{ prev_month.month }}月の状況](https://www.pokebros.net/{{ prev_month.slug }}/)
 - これまでのレポート: [【ポケモン投資】の記事一覧](https://www.pokebros.net/category/%e3%83%9d%e3%82%b1%e3%83%a2%e3%83%b3%e6%8a%95%e8%b3%87/)

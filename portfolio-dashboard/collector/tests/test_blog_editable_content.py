@@ -243,7 +243,7 @@ def test_blog_template_makes_comments_editable_and_keeps_fixed_promo() -> None:
     ) in blocks
 
     assert "https://portfolio.pokebros.net/reports/2026/8" not in rendered
-    assert "https://www.pokebros.net/pokemon-investment-portfolio/" not in rendered
+    assert "https://www.pokebros.net/pokemon-investment-portfolio/" in rendered
     assert "https://portfolio.pokebros.net/" in rendered
     assert "https://www.pokebros.net/pokemon-investment-202607/" in rendered
     assert (
