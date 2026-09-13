@@ -7,6 +7,8 @@
 </head>
 <body style="margin:0;padding:20px;background:#fff4e2;">
 {% endif %}
+{% if not standalone %}<!-- pokebros-monthly-section:start:html-overview -->
+{% endif %}
 <div class="pf-report-embed">
 
 <style>
@@ -456,9 +458,18 @@
   <canvas id="pf-combo-chart" height="220"></canvas>
 </div>
 
+{% if not standalone %}
+</div><!-- /.pf-report-embed -->
+<!-- pokebros-monthly-section:end:html-overview -->
+{% endif %}
+{% if standalone %}
 <h2 class="pf-block-title">今月の状況</h2>
 <!-- ④ 銘柄カード -->
+{% endif %}
 {% for stock in data.stocks %}
+{% if not standalone %}<!-- pokebros-monthly-section:start:html-stock:{{ stock.code }} -->
+<div class="pf-report-embed">
+{% endif %}
 <div class="pf-stock-card" id="pf-stock-{{ loop.index }}">
   <div class="pf-stock-header">
     <div class="pf-stock-icon" style="background:{{ stock.color }};">
@@ -563,9 +574,13 @@
     <a href="https://finance.yahoo.co.jp/quote/{{ stock.ticker }}" target="_blank" rel="noopener noreferrer">Yahoo!ファイナンスで見る</a>
   </div>
 </div>
+{% if not standalone %}</div><!-- /.pf-report-embed -->
+<!-- pokebros-monthly-section:end:html-stock:{{ stock.code }} -->
+{% endif %}
 {% endfor %}
 
-{% if standalone and data.summary %}
+{% if standalone %}
+{% if data.summary %}
 <!-- ⑥ まとめ -->
 <div class="pf-card">
   <div class="pf-summary-title">まとめ</div>
@@ -574,7 +589,10 @@
 {% endif %}
 
 </div><!-- /.pf-report-embed -->
+{% endif %}
 
+{% if not standalone %}<!-- pokebros-monthly-section:start:html-script -->
+{% endif %}
 <!-- Chart.js 読み込み（二重読み込みガード） -->
 <script>
 (function() {
@@ -918,6 +936,8 @@
   }
 })();
 </script>
+{% if not standalone %}<!-- pokebros-monthly-section:end:html-script -->
+{% endif %}
 {% if standalone %}
 </body>
 </html>

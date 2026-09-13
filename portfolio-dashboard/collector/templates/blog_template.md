@@ -1,27 +1,26 @@
 {% set intro = ai_comments.intro if ai_comments is defined and ai_comments.intro else none %}
 {% set stock_comments = ai_comments.stock_comments if ai_comments is defined and ai_comments.stock_comments else {} %}
-{% if intro or stock_comments %}
+<!-- pokebros-monthly-section:start:native-intro -->
+{% if intro %}
 ## 今月の振り返り
 
-{% if intro %}
 {{ intro | escape_markdown }}
-
 {% endif %}
+<!-- pokebros-monthly-section:end:native-intro -->
 {% for holding in holdings %}
 {% set comment = stock_comments.get(holding.symbol) %}
 {% if comment %}
-### {{ holding.name }}
+<!-- pokebros-monthly-section:start:native-stock:{{ holding.symbol }} -->
+### {{ holding.name }}の振り返り
 
 {{ comment | escape_markdown }}
-
+<!-- pokebros-monthly-section:end:native-stock:{{ holding.symbol }} -->
 {% endif %}
 {% endfor %}
-{% endif %}
+<!-- pokebros-monthly-section:start:native-tail -->
 ## 関連リンク
 
-- ポートフォリオの全体像: [【株】ポケモンポートフォリオ](https://www.pokebros.net/pokemon-investment-portfolio/)
 - 保有状況をリアルタイムで見る: [ポケモン投資ダッシュボード](https://portfolio.pokebros.net/)
-- この月のデータを見る: [{{ year }}年{{ month_num }}月の月次レポート](https://portfolio.pokebros.net/reports/{{ year }}/{{ month_num }})
 - 前月のレポート: [【ポケモン投資】{{ prev_month.year }}年{{ prev_month.month }}月の状況](https://www.pokebros.net/{{ prev_month.slug }}/)
 - これまでのレポート: [【ポケモン投資】の記事一覧](https://www.pokebros.net/category/%e3%83%9d%e3%82%b1%e3%83%a2%e3%83%b3%e6%8a%95%e8%b3%87/)
 
@@ -41,3 +40,4 @@
 上のリンクは紹介リンクです。紹介した側と紹介された側の両方が特典の対象になる場合があります。
 
 ※本記事は筆者個人の保有記録であり、特定の銘柄の売買を推奨するものではありません。投資判断はご自身の責任でお願いします。
+<!-- pokebros-monthly-section:end:native-tail -->
