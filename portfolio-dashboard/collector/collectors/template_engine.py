@@ -1,6 +1,8 @@
 """Markdownテンプレートエンジンモジュール"""
 
+import html
 import json
+import re
 from decimal import ROUND_HALF_UP, Decimal
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -28,6 +30,7 @@ class MarkdownTemplateEngine:
         self.env.filters["format_percent"] = self._format_percent
         self.env.filters["format_price"] = self._format_price
         self.env.filters["format_json"] = self._format_json
+        self.env.filters["escape_markdown"] = self._escape_markdown
 
     def render(self, template_name: str, data: dict) -> str:
         """テンプレートをレンダリング
@@ -59,6 +62,13 @@ class MarkdownTemplateEngine:
         rounded = d.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
         # 3桁カンマ区切り
         return f"{int(rounded):,}"
+
+    @staticmethod
+    def _escape_markdown(value: object) -> str:
+        """生成文を単一のプレーンテキスト段落として安全に埋め込む。"""
+        normalized = " ".join(str(value).split())
+        escaped_html = html.escape(normalized, quote=False)
+        return re.sub(r"([\\`*_{}\[\]()#+\-.!|>])", r"\\\1", escaped_html)
 
     def _format_number(self, value: float | int | None, decimals: int = 2) -> str:
         """数値フォーマット（四捨五入）

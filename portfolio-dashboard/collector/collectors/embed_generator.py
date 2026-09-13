@@ -82,7 +82,7 @@ class EmbedGenerator:
             json.dump(report_data, f, ensure_ascii=False, indent=2)
         print(f"  [埋め込み] JSON 保存: {json_path}")
 
-        # standalone HTML 保存
+        # standalone HTML 保存（AI コメントも表示）
         standalone_html = self.engine.render(
             "blog_embed.html",
             {"data": report_data, "standalone": True},
@@ -94,10 +94,20 @@ class EmbedGenerator:
             f.write(standalone_html)
         print(f"  [埋め込み] standalone HTML 保存: {standalone_path}")
 
-        # fragment HTML 保存
+        # fragment HTML 保存（編集用コメントは Markdown 側で別ブロック化）
+        # Chart.js 用 JSON にも文章を残さず、ブログ本文内で同じコメントを
+        # 二重に持たないよう fragment 専用の浅いコピーを作る。
+        fragment_data = {
+            **report_data,
+            "intro": None,
+            "summary": None,
+            "stocks": [
+                {**stock, "comment": None} for stock in report_data["stocks"]
+            ],
+        }
         fragment_html = self.engine.render(
             "blog_embed.html",
-            {"data": report_data, "standalone": False},
+            {"data": fragment_data, "standalone": False},
         )
         fragment_path = os.path.join(
             self.embeds_dir, f"blog_embed_{year}_{month:02d}_fragment.html"

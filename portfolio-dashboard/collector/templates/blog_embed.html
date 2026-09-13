@@ -378,7 +378,8 @@
   <div class="pf-header-sub">ポケモン関連銘柄の月次投資レポート ・ {{ data.meta.year }}年{{ data.meta.month }}月</div>
 </div>
 
-<!-- ② intro カード（常に表示。data.intro が無ければ既定のリード文） -->
+{% if standalone %}
+<!-- ② intro カード（standalone のみ。ブログ側はネイティブブロックで表示） -->
 <div class="pf-card">
   <!-- 中身が固定のリード文のときに「今月のサマリー」と名乗ると
        ラベルと内容が食い違うので、月固有の intro があるときだけそう呼ぶ -->
@@ -388,6 +389,7 @@
   <div class="pf-intro-purchase">今月の買い増し: {% for p in data.meta.purchasesThisMonth %}{{ p.name }} {{ p.shares | int }}株（{% if p.currency == 'USD' %}${{ p.price | format_number(2) }}{% else %}¥{{ p.price | format_currency }}{% endif %} ・ {{ p.purchasedAt.split('-')[1] | int }}/{{ p.purchasedAt.split('-')[2] | int }}）{% if not loop.last %}、{% endif %}{% endfor %}</div>
   {% endif %}
 </div>
+{% endif %}
 
 <!-- ⓪ データについて（既定で閉じる） -->
 <details class="pf-card">
@@ -547,7 +549,7 @@
   </details>
   {% endif %}
   <!-- 今月のコメント -->
-  {% if stock.comment %}
+  {% if standalone and stock.comment %}
   <div class="pf-comment-section">
     <div class="pf-comment-label-row">
       <div class="pf-comment-bar" style="background:{{ stock.color }};"></div>
@@ -563,7 +565,7 @@
 </div>
 {% endfor %}
 
-{% if data.summary %}
+{% if standalone and data.summary %}
 <!-- ⑥ まとめ -->
 <div class="pf-card">
   <div class="pf-summary-title">まとめ</div>
