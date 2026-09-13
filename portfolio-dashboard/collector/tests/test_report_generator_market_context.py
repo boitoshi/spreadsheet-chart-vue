@@ -10,6 +10,7 @@ from __future__ import annotations
 from collectors.report_generator import (
     BlogReportGenerator,
     _month_change_from_cumulative,
+    _price_change_rate,
 )
 
 # ────────────────────────────────────────────────────────────
@@ -46,6 +47,17 @@ def test_month_change_from_cumulative_both_none() -> None:
 def test_month_change_from_cumulative_zero_denominator() -> None:
     # 前月の累積が -100%（分母ゼロ）は理論上あり得ないが、防御的に None を返す
     assert _month_change_from_cumulative(10.0, -100.0) is None
+
+
+def test_price_change_rate_uses_same_currency_month_end_prices() -> None:
+    assert _price_change_rate(220.78, 200.75) == 9.98
+    assert _price_change_rate(9044, 7679) == 17.78
+
+
+def test_price_change_rate_handles_missing_or_zero_previous_price() -> None:
+    assert _price_change_rate(None, 100) is None
+    assert _price_change_rate(100, None) is None
+    assert _price_change_rate(100, 0) is None
 
 
 # ────────────────────────────────────────────────────────────

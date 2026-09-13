@@ -37,6 +37,15 @@ def _month_change_from_cumulative(
     return round((this_ratio / prev_ratio - 1) * 100, 2)
 
 
+def _price_change_rate(
+    current_price: float | int | None, previous_price: float | int | None
+) -> float | None:
+    """同じ通貨の月末価格2点から前月末比を算出する。"""
+    if current_price is None or previous_price in (None, 0):
+        return None
+    return round((float(current_price) / float(previous_price) - 1) * 100, 2)
+
+
 class BlogReportGenerator:
     """ブログ記事用レポート生成クラス（SQLite版）"""
 
@@ -186,6 +195,18 @@ class BlogReportGenerator:
                 print(f"❌ {year}年{month}月の損益レポートデータが見つかりません")
                 return None
 
+            # カードと同じ前月末比のため、前月分は銘柄ごとでなく1回だけ取得
+            if month == 1:
+                prev_year, prev_month_num = year - 1, 12
+            else:
+                prev_year, prev_month_num = year, month - 1
+            prev_perf_data = (
+                self.db.get_performance_data(prev_year, prev_month_num) or []
+            )
+            prev_perf_by_symbol = {
+                row.get("code", ""): row for row in prev_perf_data
+            }
+
             # 3. 市場データ取得（月末日付で）
             if month == 12:
                 last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
@@ -237,9 +258,10 @@ class BlogReportGenerator:
 
                 # 外貨建て情報を損益レポートから取得
                 purchase_price_foreign = perf.get("acquired_price_foreign") or 0
-                month_end_price_foreign = perf.get("current_price_foreign") or 0
+                month_end_price_foreign = perf.get("current_price_foreign")
                 purchase_exchange_rate = perf.get("acquired_exchange_rate") or 0
                 current_exchange_rate_val = perf.get("current_exchange_rate") or 0
+                prev_perf = prev_perf_by_symbol.get(symbol, {})
 
                 # ポートフォリオシートからのフォールバック
                 if not purchase_price_foreign:
@@ -249,18 +271,37 @@ class BlogReportGenerator:
                     raw_rate = portfolio_entry.get("acquired_exchange_rate", 0)
                     purchase_exchange_rate = float(raw_rate) if raw_rate else 0
 
+                current_price_jpy = perf.get("current_price")
+                current_price_native = (
+                    month_end_price_foreign if is_foreign else current_price_jpy
+                )
+                previous_price_jpy = prev_perf.get("current_price")
+                previous_price_native = (
+                    prev_perf.get("current_price_foreign")
+                    if is_foreign
+                    else previous_price_jpy
+                )
+
                 holding_info = {
                     "name": perf.get("name", ""),
                     "symbol": symbol,
                     "shares": perf.get("shares", 0),
                     "cost_price": perf.get("acquired_price", 0),
-                    "current_price": perf.get("current_price", 0),
+                    # 既存の current_price は円建てのまま維持する
+                    "current_price": current_price_jpy,
+                    "current_price_native": current_price_native,
                     "cost": perf.get("cost", 0),
                     "value": perf.get("value", 0),
                     "pl": perf.get("profit", 0),
                     "pl_rate": perf.get("profit_rate", 0),
                     "currency": currency,
                     "is_foreign": is_foreign,
+                    "prev_month_change_rate": _price_change_rate(
+                        current_price_jpy, previous_price_jpy
+                    ),
+                    "native_prev_month_change_rate": _price_change_rate(
+                        current_price_native, previous_price_native
+                    ),
                     "market_data": market_data,
                 }
 
@@ -288,12 +329,11 @@ class BlogReportGenerator:
 
                     # 為替損益分離計算（外貨情報が揃っている場合）
                     shares_val = perf.get("shares", 0) or 0
-                    has_fx_data = (
+                    if (
                         purchase_price_foreign
                         and purchase_exchange_rate
                         and month_end_price_foreign
-                    )
-                    if has_fx_data:
+                    ):
                         stock_pl = (
                             (
                                 float(month_end_price_foreign)
@@ -345,10 +385,6 @@ class BlogReportGenerator:
             )
 
             # 前月リンク用（関連リンクブロックで使用）
-            if month == 1:
-                prev_year, prev_month_num = year - 1, 12
-            else:
-                prev_year, prev_month_num = year, month - 1
             prev_month = {
                 "year": prev_year,
                 "month": prev_month_num,

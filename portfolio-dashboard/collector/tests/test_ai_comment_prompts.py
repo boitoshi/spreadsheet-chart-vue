@@ -1,24 +1,18 @@
-"""collectors.ai_comment のプロンプト整形関数のユニットテスト。
-
-Anthropic API 自体は呼び出さず、プロンプト・システムプロンプトの整形ロジック
-（market_context の整形、None 時の省略、ハルシネーション禁止指示の存在）のみを
-検証する。
-"""
+"""月次記事AIコメントの一括生成・応答検証テスト。"""
 
 from __future__ import annotations
 
-from collectors.ai_comment import (
-    _BEGINNER_GUARD,
-    _HALLUCINATION_GUARD,
-    _build_intro_prompt,
-    _build_stock_prompt,
-    _build_summary_prompt,
-    _format_market_context,
-)
+import json
+from types import SimpleNamespace
 
-# ────────────────────────────────────────────────────────────
-# フィクスチャ
-# ────────────────────────────────────────────────────────────
+from collectors.ai_comment import (
+    _HALLUCINATION_GUARD,
+    _STYLE_GUARD,
+    AiCommentGenerator,
+    _build_generation_prompt,
+    _format_market_context,
+    _parse_generation_response,
+)
 
 FULL_MARKET_CONTEXT = {
     "nikkei_change": 3.25,
@@ -27,154 +21,197 @@ FULL_MARKET_CONTEXT = {
     "usdjpy_change": 0.85,
 }
 
-STOCK_DATA = {
+JPY_STOCK = {
     "name": "任天堂",
     "symbol": "7974.T",
     "current_price": 8500,
     "pl": 12000,
     "pl_rate": 5.5,
     "currency": "JPY",
-    "market_data": {"change_rate": 2.1},
+    "prev_month_change_rate": 17.78,
+    "native_prev_month_change_rate": 17.78,
 }
 
-PORTFOLIO_DATA = {
+USD_STOCK = {
+    "name": "NVIDIA",
+    "symbol": "NVDA",
+    "current_price": 33265.5,
+    "current_price_native": 208.27,
+    "pl": 65018,
+    "pl_rate": 27.99,
+    "currency": "USD",
+    "prev_month_change_rate": 9.63,
+    "native_prev_month_change_rate": 6.84,
+}
+
+REPORT_DATA = {
+    "year": 2026,
+    "month_num": 8,
     "total_value": 500000,
-    "total_pl": 25000,
-    "total_pl_rate": 5.26,
-    "holdings": [STOCK_DATA],
+    "total_pl": 77018,
+    "total_pl_rate": 18.26,
+    "holdings": [JPY_STOCK, USD_STOCK],
+    "market_context": FULL_MARKET_CONTEXT,
 }
 
 
-# ────────────────────────────────────────────────────────────
-# _format_market_context
-# ────────────────────────────────────────────────────────────
-
-
-def test_format_market_context_with_full_data() -> None:
+def test_format_market_context_labels_monthly_periods() -> None:
     text = _format_market_context(FULL_MARKET_CONTEXT)
-    assert "日経平均株価" in text
-    assert "+3.25%" in text
-    assert "S&P500" in text
-    assert "-1.10%" in text
-    assert "USD/JPY" in text
-    assert "152.34円" in text
-    assert "+0.85%" in text
+    assert "日経平均株価の月間騰落率: +3.25%" in text
+    assert "S&P500の月間騰落率: -1.10%" in text
+    assert "USD/JPY月末レート: 152.34円（月間騰落率 +0.85%）" in text
 
 
-def test_format_market_context_omits_none_fields() -> None:
-    partial = {
-        "nikkei_change": 3.25,
-        "sp500_change": None,
-        "usdjpy_rate": None,
-        "usdjpy_change": None,
-    }
-    text = _format_market_context(partial)
+def test_format_market_context_omits_missing_values() -> None:
+    text = _format_market_context({"nikkei_change": 3.25})
     assert "日経平均株価" in text
     assert "S&P500" not in text
     assert "USD/JPY" not in text
 
 
-def test_format_market_context_usdjpy_rate_without_change() -> None:
-    """usdjpy_rate はあるが usdjpy_change が無い（前月データなし）場合、
-    レートだけ記載し前月比は書かない。"""
-    partial = {
-        "nikkei_change": None,
-        "sp500_change": None,
-        "usdjpy_rate": 152.34,
-        "usdjpy_change": None,
-    }
-    text = _format_market_context(partial)
-    assert "152.34円" in text
-    assert "前月比" not in text
+def test_format_market_context_handles_no_data() -> None:
+    assert "市況データなし" in _format_market_context(None)
+    assert "市況データなし" in _format_market_context({})
 
 
-def test_format_market_context_all_none_returns_no_data_notice() -> None:
-    empty = {
-        "nikkei_change": None,
-        "sp500_change": None,
-        "usdjpy_rate": None,
-        "usdjpy_change": None,
-    }
-    text = _format_market_context(empty)
-    assert "市況データなし" in text
-    assert "言及はしないこと" in text
+def test_prompt_contains_all_holdings_and_clear_units_and_periods() -> None:
+    prompt = _build_generation_prompt(REPORT_DATA)
+    assert "任天堂（7974.T）" in prompt
+    assert "NVIDIA（NVDA）" in prompt
+    assert "月末株価: 208.27 USD（現地通貨）" in prompt
+    assert "円建て前月末比: +9.63%" in prompt
+    assert "現地通貨建て前月末比: +6.84%" in prompt
+    assert "累積評価損益: +65,018 円（必ず円表記）" in prompt
+    assert "累積評価損益率: +27.99%（取得時から対象月末まで）" in prompt
+    assert "累積評価損益率を市場の月間騰落率と比較しない" in prompt
 
 
-def test_format_market_context_handles_none_input() -> None:
-    """market_context 自体が None（report_data に無い場合）でも例外を出さない。"""
-    text = _format_market_context(None)
-    assert "市況データなし" in text
-
-
-def test_format_market_context_handles_empty_dict() -> None:
-    text = _format_market_context({})
-    assert "市況データなし" in text
-
-
-# ────────────────────────────────────────────────────────────
-# 禁止指示（ハルシネーション対策）の存在確認
-# ────────────────────────────────────────────────────────────
-
-
-def test_hallucination_guard_forbids_unlisted_events() -> None:
-    """ニュース・イベント等、与えられていない出来事への言及を禁止する文言があること。"""
-    assert "ニュース" in _HALLUCINATION_GUARD
-    assert "禁止" in _HALLUCINATION_GUARD
+def test_prompt_defines_article_wide_structure_and_forbidden_topics() -> None:
+    prompt = _build_generation_prompt(REPORT_DATA)
+    assert "introは1段落、最大3文" in prompt
+    assert "各銘柄コメントは1〜2文" in prompt
+    assert "導入と各銘柄コメントで内容を重複させない" in prompt
+    for topic in ("ニュース", "イベント", "決算", "製品発表", "値動きの理由"):
+        assert topic in prompt
+    assert "市況・ベンチマーク・為替にも触れない" in prompt
+    assert "同じ対象月の市況" not in prompt
+    assert "読者に投資やお布施投資を勧める文は書かない" in _STYLE_GUARD
     assert "推測" in _HALLUCINATION_GUARD
 
 
-def test_beginner_guard_requires_term_explanation() -> None:
-    assert "専門用語" in _BEGINNER_GUARD
-
-
-def test_stock_prompt_instructs_no_speculation_on_cause() -> None:
-    prompt = _build_stock_prompt(STOCK_DATA, 2026, 3, FULL_MARKET_CONTEXT)
-    assert "断定したり推測したりしないこと" in prompt
-    # 記載のない指標には言及しないよう明示していること
-    assert "記載のない指標には言及しないこと" in prompt
-
-
-def test_summary_prompt_instructs_no_unlisted_reference() -> None:
-    prompt = _build_summary_prompt(PORTFOLIO_DATA, 2026, 3, FULL_MARKET_CONTEXT)
-    assert "記載のない指標には言及しないこと" in prompt
-
-
-def test_intro_prompt_instructs_no_unlisted_reference() -> None:
-    prompt = _build_intro_prompt(PORTFOLIO_DATA, 2026, 3, FULL_MARKET_CONTEXT)
-    assert "記載のない指標には言及しないこと" in prompt
-
-
-# ────────────────────────────────────────────────────────────
-# プロンプトへの実データ埋め込み確認
-# ────────────────────────────────────────────────────────────
-
-
-def test_stock_prompt_embeds_facts_and_market_context() -> None:
-    prompt = _build_stock_prompt(STOCK_DATA, 2026, 3, FULL_MARKET_CONTEXT)
-    assert "任天堂" in prompt
-    assert "7974.T" in prompt
-    assert "2026年3月" in prompt
-    assert "日経平均株価" in prompt
-
-
-def test_stock_prompt_works_without_market_context() -> None:
-    """market_context が None でも例外にならず、市況データなしの旨が入る。"""
-    prompt = _build_stock_prompt(STOCK_DATA, 2026, 3, None)
-    assert "市況データなし" in prompt
-
-
-def test_summary_prompt_lists_holdings() -> None:
-    prompt = _build_summary_prompt(PORTFOLIO_DATA, 2026, 3, FULL_MARKET_CONTEXT)
-    assert "任天堂（7974.T）" in prompt
-    assert "+5.50%" in prompt
-
-
-def test_summary_prompt_handles_no_holdings() -> None:
-    empty_portfolio = {
-        "total_value": 0,
-        "total_pl": 0,
-        "total_pl_rate": 0,
-        "holdings": [],
+def test_parse_valid_json_returns_no_summary() -> None:
+    response = json.dumps(
+        {
+            "intro": "全体コメントです。",
+            "stock_comments": {
+                "7974.T": "任天堂コメントです。",
+                "NVDA": "NVIDIAコメントです。",
+            },
+        },
+        ensure_ascii=False,
+    )
+    result = _parse_generation_response(response, REPORT_DATA)
+    assert result == {
+        "intro": "全体コメントです。",
+        "stock_comments": {
+            "7974.T": "任天堂コメントです。",
+            "NVDA": "NVIDIAコメントです。",
+        },
+        "summary": None,
     }
-    prompt = _build_summary_prompt(empty_portfolio, 2026, 3, None)
-    assert "保有銘柄なし" in prompt
+
+
+def test_parse_accepts_json_code_fence() -> None:
+    result = _parse_generation_response(
+        '```json\n{"intro":"導入",'
+        '"stock_comments":{"7974.T":"任天堂", "NVDA":"NVIDIA"}}\n```',
+        REPORT_DATA,
+    )
+    assert result["intro"] == "導入"
+    assert result["summary"] is None
+
+
+def test_parse_failure_and_missing_comment_use_safe_fallback() -> None:
+    invalid_json = _parse_generation_response("not json", REPORT_DATA)
+    missing_stock = _parse_generation_response(
+        '{"intro":"導入", "stock_comments":{"7974.T":"任天堂"}}',
+        REPORT_DATA,
+    )
+    for result in (invalid_json, missing_stock):
+        assert result["intro"] is None
+        assert result["summary"] is None
+        assert result["stock_comments"] == {}
+
+
+def test_parse_rejects_extra_sentences_and_line_breaks() -> None:
+    too_many_stock_sentences = _parse_generation_response(
+        '{"intro":"導入です。", "stock_comments":{'
+        '"7974.T":"一文目。二文目。三文目。", "NVDA":"一文です。"}}',
+        REPORT_DATA,
+    )
+    multiline_intro = _parse_generation_response(
+        '{"intro":"一段落目。\\n二段落目。", "stock_comments":{'
+        '"7974.T":"一文です。", "NVDA":"一文です。"}}',
+        REPORT_DATA,
+    )
+    for result in (too_many_stock_sentences, multiline_intro):
+        assert result == {"intro": None, "stock_comments": {}, "summary": None}
+
+
+def test_parse_rejects_forbidden_topics_and_foreign_currency_pl() -> None:
+    forbidden_event = _parse_generation_response(
+        '{"intro":"決算期待が上昇理由です。", "stock_comments":{'
+        '"7974.T":"一文です。", "NVDA":"一文です。"}}',
+        REPORT_DATA,
+    )
+    wrong_pl_currency = _parse_generation_response(
+        '{"intro":"導入です。", "stock_comments":{'
+        '"7974.T":"一文です。", "NVDA":"評価損益は65,018 USDです。"}}',
+        REPORT_DATA,
+    )
+    for result in (forbidden_event, wrong_pl_currency):
+        assert result == {"intro": None, "stock_comments": {}, "summary": None}
+
+
+def test_generate_all_input_format_error_uses_safe_fallback() -> None:
+    report_data = {**REPORT_DATA, "holdings": [{**JPY_STOCK, "current_price": None}]}
+    generator = AiCommentGenerator.__new__(AiCommentGenerator)
+    generator.client = SimpleNamespace(messages=_FakeMessages("unused"))
+
+    result = generator.generate_all(report_data)
+
+    assert result == {"intro": None, "stock_comments": {}, "summary": None}
+
+
+class _FakeMessages:
+    def __init__(self, response_text: str) -> None:
+        self.response_text = response_text
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs: object) -> SimpleNamespace:
+        self.calls.append(kwargs)
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text=self.response_text)]
+        )
+
+
+def test_generate_all_calls_api_once_and_returns_no_summary() -> None:
+    response = json.dumps(
+        {
+            "intro": "全体コメントです。",
+            "stock_comments": {
+                "7974.T": "任天堂コメントです。",
+                "NVDA": "NVIDIAコメントです。",
+            },
+        },
+        ensure_ascii=False,
+    )
+    messages = _FakeMessages(response)
+    generator = AiCommentGenerator.__new__(AiCommentGenerator)
+    generator.client = SimpleNamespace(messages=messages)
+
+    result = generator.generate_all(REPORT_DATA)
+
+    assert len(messages.calls) == 1
+    assert result["summary"] is None
+    assert set(result["stock_comments"]) == {"7974.T", "NVDA"}
