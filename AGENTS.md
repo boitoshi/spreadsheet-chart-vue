@@ -136,7 +136,7 @@ uv run ruff check . && uv run ty check
 ## 開発ガイドライン
 
 - コードコメント・コミットメッセージ・会話はすべて日本語
-- AGENTS.md・README.md は開発状況に合わせて随時更新する（CLAUDE.md は入口なので本文を書かない）
+- AGENTS.md・README.md は開発状況に合わせて随時更新する（CLAUDE.md は作らない）
 - 開発の問題点・実装計画は `PROJECT_PROCEED.md` で管理する
 - DB スキーマ変更は additive のみ（本番 SQLite が GCE にあるため）。`sheets_sync` が holdings を全入替するので銘柄メタは `stock_meta` テーブルに置く
 
@@ -150,8 +150,8 @@ uv run ruff check . && uv run ty check
 
 ## Codex
 
-This file is the shared source of truth for Claude Code and Codex. `CLAUDE.md` only imports it
-(`@AGENTS.md`) for Claude Code; do not write rules there.
+This file is the shared source of truth for Claude Code and Codex. Claude Code reads it directly;
+do not add a `CLAUDE.md` (it would make Claude Code read that instead of this file).
 
 ### Before working
 
