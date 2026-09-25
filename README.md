@@ -1,118 +1,82 @@
-# Portfolio Tracker
+# pokebros-portfolio
 
-個人投資ポートフォリオ管理アプリケーション。Google Sheets をデータストアとして、資産管理・月次レポート生成・チャート表示を行う。
+個人投資ポートフォリオの記録・可視化と、pokebros.net の月次株記事（【ポケモン投資】シリーズ）の生成基盤。
 
-## 技術スタック
+- 保有銘柄・月次損益・為替・配当を SQLite に記録し、ダッシュボードで可視化する
+- 毎月1日に前月分の株価を収集し、ブログ記事（グラフ埋め込み付き）を WordPress の下書きとして投稿する
 
-| 役割 | 技術 |
-|------|------|
-| フロントエンド | Next.js 16, Tailwind CSS v4, Recharts, TypeScript |
-| バックエンド | FastAPI, gspread, uvicorn（uv 管理）|
-| データ収集 | Python（yfinance → Google Sheets）|
-| データストア | Google Sheets |
+> 2026-09-26 に `spreadsheet-chart-vue` から改名。旧名は Google Sheets ＋ Vue の初期構成に由来する。
 
-## ディレクトリ構成
+## 構成
+
+**現行システムは `portfolio-dashboard/`**。GCE e2-micro で本番稼働している。
 
 ```
-spreadsheet-chart-vue/
-├── data-collector/         # 月次データ収集バッチ
-├── shared/
-│   └── sheets_config.py   # シートヘッダー定義（一元管理）
-├── web-app/
-│   ├── backend/            # FastAPI REST API（ポート8000）
-│   └── frontend/           # Next.js アプリ（ポート3000）
-└── docs/                   # ドキュメント
+pokebros-portfolio/
+├── portfolio-dashboard/    # 現行システム
+│   ├── client/             # Vite + React 19 SPA（Recharts / TanStack Query / Tailwind CSS v4）
+│   ├── server/             # Hono 4 + Drizzle ORM + better-sqlite3（ポート3000、SPA 静的配信兼用）
+│   ├── collector/          # Python バッチ（uv）: 株価収集・ブログ生成・AI コメント・WordPress 投稿
+│   ├── data/portfolio.db   # SQLite（gitignore。ローカルは GCS バックアップから復元）
+│   ├── deploy/             # GCE 用: deploy.sh / backup.sh / setup.sh / Caddyfile / systemd unit
+│   └── scripts/            # 旧 Google Sheets からの移行スクリプト
+├── docs/                   # ドキュメント（現行は portfolio-dashboard.md）
+├── web-app/                # 旧構成（Next.js + FastAPI）。メンテ停止・変更禁止
+├── data-collector/         # 旧構成の収集バッチ。メンテ停止・変更禁止
+└── shared/                 # 旧構成の共通定義。メンテ停止・変更禁止
 ```
+
+データは SQLite が正。Google Sheets は保有銘柄・買付履歴の入力元として残っていて、collector の `--sync` で SQLite へ同期する。
 
 ## セットアップ
 
-### 前提条件
-
-- Python 3.12 以上
-- uv（Astral）
-- Node.js 22 以上
-- Google Sheets API サービスアカウント認証情報
-
-### 1. バックエンド
+前提: Node.js、Python 3.12 以上、uv
 
 ```bash
-cd web-app/backend
-uv sync
+cd portfolio-dashboard
+npm ci
 
-# .env を作成
-cat > .env << 'EOF'
-SPREADSHEET_ID=your_spreadsheet_id
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-EOF
+cd collector
+uv sync --extra ai --extra charts   # 素の uv sync は extras を削除するので付ける
 ```
 
-### 2. フロントエンド
+collector の設定は `portfolio-dashboard/collector/.env` に置く（`DB_PATH`, `SPREADSHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, `ANTHROPIC_API_KEY`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`, `WP_PUBLISH_ENABLED`, `BLOG_EMBED_ENABLED` など）。`.env` の `DB_PATH` は GCE のパスなので、ローカルでは環境変数で上書きする。
 
 ```bash
-cd web-app/frontend
-npm install
+DB_PATH=<リポジトリ>/portfolio-dashboard/data/portfolio.db uv run python main.py --blog 2026 8
 ```
 
-### 3. データ収集
+## よく使うコマンド
 
 ```bash
-cd data-collector
-uv sync --dev
+cd portfolio-dashboard
 
-# .env を作成
-cat > .env << 'EOF'
-SPREADSHEET_ID=your_spreadsheet_id
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-EOF
+npm run dev                                   # server:3000 + client:5173 を並行起動
+npm run lint && npm run check && npm run test # 品質チェック（Biome / 型 / テスト）
+npm run build
+npm run db:migrate -w server                  # DB マイグレーション（冪等）
+
+cd collector
+uv run python main.py 2026 8                  # 月次フル収集（収集 → ブログ生成 → WP 下書き）
+uv run python main.py --blog 2026 8           # ブログ下書き＋埋め込みの生成のみ
+uv run python main.py --sync                  # Google Sheets → SQLite 同期のみ
+uv run python main.py --add-purchase 7974.T 2026-08-01 1 8500   # 買付の記録
+uv run python main.py --add-dividend 7974.T 2026-06-27 2 118    # 配当の記録
+uv run ruff check . && uv run ty check
 ```
 
-## 起動方法
+## デプロイ
 
-```bash
-# バックエンド（ポート8000）
-cd web-app/backend && uv run uvicorn main:app --reload
-
-# フロントエンド（ポート3000）
-cd web-app/frontend && npm run dev
-
-# データ収集（月次バッチ）
-cd data-collector && uv run python main.py
-```
-
-## API エンドポイント
-
-| パス | 説明 |
-|------|------|
-| GET `/health` | ヘルスチェック |
-| GET `/api/dashboard` | KPI・構成比・最新月損益 |
-| GET `/api/portfolio` | 保有銘柄一覧 |
-| GET `/api/history` | 月次損益推移（`?stock=コード`）|
-| GET `/api/currency` | 為替レート推移（`?start=YYYY-MM`）|
-
-詳細は [`docs/api-reference.md`](docs/api-reference.md) を参照。
-
-## 品質チェック
-
-```bash
-# Python lint
-cd web-app/backend && uv run ruff check . --fix
-cd data-collector && uv run ruff check . --fix
-
-# TypeScript / ビルド確認
-cd web-app/frontend && npm run build
-```
+`main` への push（`portfolio-dashboard/` 配下の変更）で `.github/workflows/deploy.yml` が起動し、SSH で GCE 上の `deploy/deploy.sh` を実行する（DB バックアップ → git pull → build → migrate → 再起動）。月次バッチは GCE の cron が毎月1日 9:00 に前月分を実行する。
 
 ## ドキュメント
 
-- [`docs/project-structure.md`](docs/project-structure.md) — ディレクトリ構成・データフロー
-- [`docs/sheets-schema.md`](docs/sheets-schema.md) — スプレッドシートのカラム定義
-- [`docs/api-reference.md`](docs/api-reference.md) — API エンドポイント詳細
-- [`docs/deployment-plan.md`](docs/deployment-plan.md) — デプロイ方針（Cloud Run + CONOHA）
-- [`docs/data-collection-guide.md`](docs/data-collection-guide.md) — データ収集の操作ガイド
-- [`data-collector/README.md`](data-collector/README.md) — データ収集システム詳細
+- [`AGENTS.md`](AGENTS.md) — 開発ルール・コマンド・環境設定（Claude Code / Codex 共通の正本）
+- [`docs/portfolio-dashboard.md`](docs/portfolio-dashboard.md) — 現行システムの詳細（DB テーブル・API・ブログ埋め込み・GCE デプロイ）
+- [`PROJECT_PROCEED.md`](PROJECT_PROCEED.md) — 課題と実装計画
+- `docs/` のその他のファイル — 旧構成（Google Sheets + Next.js + FastAPI）の記録
 
 ## 注意事項
 
-- このツールは個人的な投資記録を目的としており、投資アドバイスを提供するものではありません
-- サービスアカウント JSON は `.gitignore` で除外し、VCS にコミットしないこと
-- 個人の投資情報が含まれるため、公開リポジトリでの管理は非推奨
+- 個人的な投資記録であり、投資アドバイスを提供するものではない
+- 認証情報（サービスアカウント JSON・`.env`）と `portfolio.db` はコミットしない
