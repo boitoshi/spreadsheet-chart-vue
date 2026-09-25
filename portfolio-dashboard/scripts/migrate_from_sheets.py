@@ -16,7 +16,7 @@ from pathlib import Path
 # スクリプトのディレクトリから相対パスを解決
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent  # portfolio-dashboard/
-REPO_ROOT = PROJECT_DIR.parent   # spreadsheet-chart-vue/
+REPO_ROOT = PROJECT_DIR.parent   # pokebros-portfolio/
 
 # デフォルトパス
 DEFAULT_CREDENTIALS = REPO_ROOT / "data-collector" / "config" / "my-service-account.json"
