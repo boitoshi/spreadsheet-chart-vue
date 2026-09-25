@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+import pandas as pd
 import yfinance as yf
 
 from .currency_converter import CurrencyConverter
@@ -12,9 +13,7 @@ class StockDataCollector:
         """初期化"""
         self.currency_converter = CurrencyConverter()
 
-    def get_stock_data(
-        self, symbol: str, year: int, month: int
-    ) -> dict[str, object] | None:
+    def get_stock_data(self, symbol: str, year: int, month: int) -> pd.DataFrame | None:
         """株価データを取得
 
         Args:
@@ -55,7 +54,7 @@ class StockDataCollector:
 
     def calculate_stock_metrics(
         self,
-        stock_data: dict[str, object],
+        stock_data: pd.DataFrame,
         symbol: str,
         purchase_price_foreign: float,
         purchase_exchange_rate: float,

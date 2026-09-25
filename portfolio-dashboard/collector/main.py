@@ -184,7 +184,7 @@ class PortfolioDataCollector:
         print("\n[6/7] AI コメント生成中...")
         batch_target_date = f"{year}-{month:02d}-末"
         batch_ai_comments: dict = {}
-        if self.ai_comment and report_data:
+        if self.ai_comment and report_data and output_path:
             if not AI_COMMENTS_FORCE:
                 existing = self.db_writer.get_ai_comments(batch_target_date)
                 if _has_complete_ai_comments(existing, report_data):
@@ -364,10 +364,14 @@ class PortfolioDataCollector:
 
             # 為替レートも保存（外貨銘柄の場合）
             if CURRENCY_SETTINGS.get("update_rates_with_stocks", True):
-                # metrics は dict[str, object] なので str へ明示的に落とす
+                # metrics は dict[str, object] なので str / float へ明示的に絞る
                 currency = str(metrics.get("currency", "JPY"))
-                if currency != "JPY" and metrics.get("current_exchange_rate"):
-                    current_rate = float(metrics["current_exchange_rate"])
+                current_rate = metrics.get("current_exchange_rate")
+                if (
+                    currency != "JPY"
+                    and isinstance(current_rate, float)
+                    and current_rate
+                ):
                     self._save_exchange_rate(
                         currency, current_rate, last_day_str, now_str
                     )
